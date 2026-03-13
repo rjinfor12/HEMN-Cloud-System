@@ -1093,15 +1093,18 @@ class CloudEngine:
                         if ';' in line: sep = ';'
                 except: sep = ','
 
-                chunk_size = 1000000
+                total_rows = sum(1 for _ in open(input_file, 'rb')) - 1
+                processed_rows = 0
                 reader = pd.read_csv(input_file, sep=sep, chunksize=chunk_size, dtype=str, encoding='utf-8', on_bad_lines='skip')
                 
                 for i, chunk in enumerate(reader):
                     sheet_name = f"Lote_{i+1}"
                     chunk.to_excel(writer, sheet_name=sheet_name, index=False)
-                    total_rows += len(chunk)
-                    self._update_task(tid, message=f"Processando: {total_rows:,} linhas...")
-                    print(f"[SPLIT] {tid} -> Processadas {total_rows:,} linhas")
+                    processed_rows += len(chunk)
+                    prog = min(99, int((processed_rows / (total_rows or 1)) * 100))
+                    self._update_task(tid, progress=prog, message=f"Fatiando: {processed_rows:,}/{total_rows:,} linhas...")
+                    print(f"[SPLIT] {tid} -> Processadas {processed_rows:,} linhas")
+                total_rows = processed_rows
             else:
                 self._update_task(tid, message="Lendo Excel gigante...")
                 df = pd.read_excel(input_file, dtype=str)
@@ -1115,7 +1118,7 @@ class CloudEngine:
             
             writer.close()
             print(f"[SPLIT] Sucesso: {output_file} ({total_rows} linhas)")
-            self._update_task(tid, status="COMPLETED", progress=100, message=f"Dividido com sucesso! {total_rows:,} linhas.", result_file=output_file)
+            self._update_task(tid, status="COMPLETED", progress=100, message=f"Dividido com sucesso! {total_rows:,} linhas.", result_file=output_file, record_count=total_rows)
         except Exception as e:
             print(f"[SPLIT ERROR] {tid}: {str(e)}")
             self._update_task(tid, status="FAILED", message=f"Erro: {str(e)}")

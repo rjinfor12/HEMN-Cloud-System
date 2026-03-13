@@ -2013,6 +2013,11 @@
                 }
             },
 
+            async downloadTask(taskId, count) {
+                // Wrapper para compatibilidade e lógica de confirmação se necessário
+                return this.downloadFile(taskId);
+            },
+
             async populateAdminUserSelect() {
                 if (!this.user || this.user.role !== 'ADMIN') return;
                 const selectorDiv = document.getElementById('admin-user-selector');
@@ -2432,25 +2437,26 @@
                     </div>
                 `;
                 card.style.position = "relative";
-                container.prepend(card);
-
-                // Mostra o título "Pesquisas:"
-                const title = document.getElementById(`title-${mid}`);
-                if (title) title.style.display = 'block';
-
                 if (savedData && (savedData.status === 'COMPLETED' || savedData.status === 'SUCCESS' || savedData.result_file)) {
                     const count = savedData.record_count || 0;
+                    const isSplit = mid === 'split';
+                    const btnText = isSplit ? "Baixar Arquivos Divididos" : `Baixar e Consumir Créditos (${count.toLocaleString()} Cr)`;
+                    const btnIcon = isSplit ? "fa-file-archive" : "fa-download";
+                    
                     const downloadHtml = `
                         <div style="margin-top:15px; padding-top:12px; border-top:1px solid var(--border-color); color:var(--text-3); font-size:11px">
-                            <i class="fas fa-database"></i> Encontrados: <b>${count.toLocaleString()}</b> registros.
+                            <i class="fas fa-database"></i> ${isSplit ? 'Fatiamento concluído' : `Encontrados: <b>${count.toLocaleString()}</b> registros.`}
                         </div>
                         <button onclick="app.downloadTask('${tid}', ${count})" class="btn-primary" style="margin-top:10px; width:100%; border:none; height:40px; border-radius:8px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px">
-                            <i class="fas fa-download"></i> Baixar e Consumir Créditos (${count.toLocaleString()} Cr)
+                            <i class="fas ${btnIcon}"></i> ${btnText}
                         </button>
                     `;
                     card.insertAdjacentHTML('beforeend', downloadHtml);
                     const cancelZone = document.getElementById(`cancel-zone-${tid}`);
                     if (cancelZone) cancelZone.style.display = 'none';
+                    
+                    const timeLabel = document.getElementById(`time-label-${tid}`);
+                    if (timeLabel) timeLabel.innerHTML = `<i class="fas fa-check-circle" style="color:var(--g-success); margin-right:5px"></i> PROCESSO CONCLUÍDO`;
                 }
             },
 
@@ -2645,28 +2651,35 @@
 
                                 if (data.status === 'COMPLETED' || data.status === 'SUCCESS' || data.result_file) {
                                     statusBadge.className = "badge badge-green";
-                                    progressBar.style.width = "100%";
-                                    if (pctLabel) pctLabel.innerText = "100%";
-                                    t.remaining = 0;
                                     if (!t.done) {
                                         const count = (data.record_count !== undefined) ? data.record_count : 0;
                                         this.showToast(`Concluído: ${count.toLocaleString()} registros!`, "success");
                                         const card = document.getElementById(`task-${t.id}`);
+                                        const isSplit = t.mid === 'split';
+                                        const btnText = isSplit ? "Baixar Arquivos Divididos" : `Baixar e Consumir Créditos (${count.toLocaleString()} Cr)`;
+                                        const btnIcon = isSplit ? "fa-file-archive" : "fa-download";
+
                                         const downloadHtml = `
                                             <div style="margin-top:15px; padding-top:12px; border-top:1px solid var(--border-color); color:var(--text-3); font-size:11px">
-                                                <i class="fas fa-database"></i> Encontrados: <b>${count.toLocaleString()}</b> registros.
+                                                <i class="fas fa-database"></i> ${isSplit ? 'Fatiamento concluído' : `Encontrados: <b>${count.toLocaleString()}</b> registros.`}
                                             </div>
                                             <button onclick="app.downloadTask('${t.id}', ${count})" class="btn-primary" style="margin-top:10px; width:100%; border:none; height:40px; border-radius:8px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px">
-                                                <i class="fas fa-download"></i> Baixar e Consumir Créditos (${count.toLocaleString()} Cr)
+                                                <i class="fas ${btnIcon}"></i> ${btnText}
                                             </button>
                                         `;
                                         card.insertAdjacentHTML('beforeend', downloadHtml);
+                                        
+                                        if (timeLabel) {
+                                            timeLabel.innerHTML = `<i class="fas fa-check-circle" style="color:var(--g-success); margin-right:5px"></i> PROCESSO CONCLUÍDO`;
+                                            timeLabel.style.color = "var(--g-success)";
+                                        }
                                         t.done = true;
                                         const modName = t.mid ? t.mid.toUpperCase() : 'Processo';
                                         this.addNotification(`${modName} Concluído`, `Processamento do lote (TI-${t.id.substring(0, 6)}) finalizado. Foram encontrados ${count} registros prontos para download.`, "success");
                                         this.refreshUser();
                                     }
-                                } else if (data.status === 'FAILED' || data.status === 'CANCELLED') {
+                                }
+                                else if (data.status === 'FAILED' || data.status === 'CANCELLED') {
                                     statusBadge.className = "badge badge-red";
                                     const cancelZone = document.getElementById(`cancel-zone-${t.id}`);
                                     if (cancelZone) cancelZone.style.display = 'none';

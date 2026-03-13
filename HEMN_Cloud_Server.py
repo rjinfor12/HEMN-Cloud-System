@@ -350,7 +350,8 @@ async def download_result(task_id: str, user: dict = Depends(get_current_user)):
     ).fetchone()
     conn.close()
 
-    if not already_paid:
+    module = task.get("module", "DOWNLOAD")
+    if not already_paid and module not in ["SPLIT", "UNIFY"]:
         # Descontar créditos se não for limit >= 9 Mi
         if user["total_limit"] < 9000000:
             available = user["total_limit"] - user["current_usage"]
