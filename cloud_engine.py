@@ -1086,17 +1086,34 @@ class CloudEngine:
 
             if is_csv:
                 self._update_task(tid, message="Lendo CSV em blocos (otimizado)...")
-                # Tenta detectar separador comum
+                # Detectar separador e encoding de forma robusta
                 sep = ','
+                enc = 'utf-8'
                 try:
-                    with open(input_file, 'r', encoding='utf-8', errors='replace') as f:
-                        line = f.readline()
-                        if ';' in line: sep = ';'
-                except: sep = ','
+                    with open(input_file, 'rb') as f:
+                        raw = f.read(10240) # Aumentado para 10KB para amostragem melhor
+                        # Tenta utf-8
+                        try:
+                            sample = raw.decode('utf-8')
+                            enc = 'utf-8'
+                        except:
+                            sample = raw.decode('latin-1')
+                            enc = 'latin-1'
+                        
+                        delims = [';', ',', '\t', '|']
+                        max_count = 0
+                        for d in delims:
+                            count = sample.count(d)
+                            if count > max_count:
+                                max_count = count
+                                sep = d
+                    print(f"[SPLIT] Detecção: sep='{sep}', enc='{enc}'")
+                except Exception as e:
+                    print(f"[SPLIT] Erro na detecção: {e}")
 
-                total_rows = sum(1 for _ in open(input_file, 'rb')) - 1
+                total_rows = sum(1 for _ in open(input_file, 'rb'))
                 processed_rows = 0
-                reader = pd.read_csv(input_file, sep=sep, chunksize=chunk_size, dtype=str, encoding='utf-8', on_bad_lines='skip')
+                reader = pd.read_csv(input_file, sep=sep, chunksize=chunk_size, dtype=str, encoding=enc, on_bad_lines='skip', header=None, engine='c')
                 
                 for i, chunk in enumerate(reader):
                     sheet_name = f"Lote_{i+1}"
