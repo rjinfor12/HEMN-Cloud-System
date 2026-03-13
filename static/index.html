@@ -2800,7 +2800,13 @@
                     btn.innerHTML = '<i class="fas fa-search"></i> Consultar';
                 }
             },
-            startSplit() { this.startTask('/tasks/split', { file_id: this.uploadedFiles.split[0] }, 'split'); },
+            startSplit() { 
+                if (!this.uploadedFiles.split || this.uploadedFiles.split.length === 0) {
+                    this.showToast("Nenhum arquivo submetido para fatiamento", "warning");
+                    return;
+                }
+                this.startTask('/tasks/split', { file_id: this.uploadedFiles.split[0] }, 'split'); 
+            },
             startExtract() {
                 const uf = document.getElementById('extract-uf').value.toUpperCase();
                 const cidade = document.getElementById('extract-cidade').value.toUpperCase();
