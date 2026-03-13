@@ -2136,7 +2136,6 @@
             async handleFiles(input, mid) {
                 const files = input.files;
                 if (files.length > 0) {
-                    // Limpa lista anterior para este módulo (conforme pedido: "nao precisa ficar")
                     this.uploadedFiles[mid] = [];
                     const list = document.getElementById(`file-list-${mid}`);
                     if (list) list.innerHTML = '';
@@ -2145,21 +2144,55 @@
 
                 for (let f of files) {
                     const fd = new FormData(); fd.append("file", f);
+                    
+                    // Create a placeholder for progress
+                    const list = document.getElementById(`file-list-${mid}`);
+                    const progressItem = document.createElement('div');
+                    progressItem.className = 'nav-link fade-in';
+                    progressItem.style.marginTop = "8px";
+                    progressItem.style.background = "rgba(59, 130, 246, 0.1)";
+                    progressItem.style.border = "1px solid rgba(59, 130, 246, 0.2)";
+                    progressItem.innerHTML = `
+                        <i class="fas fa-sync fa-spin" style="color:#3b82f6; margin-right: 10px;"></i>
+                        <span style="flex-grow: 1;">Enviando ${f.name}...</span>
+                        <span id="upload-pct-${mid}" style="font-weight:bold; color:#3b82f6; margin-left:10px">0%</span>
+                    `;
+                    list.appendChild(progressItem);
+
                     try {
-                        const res = await fetch(`${API}/upload`, {
-                            method: 'POST',
-                            headers: { 'Authorization': `Bearer ${this.token}` },
-                            body: fd
+                        const final = await new Promise((resolve, reject) => {
+                            const xhr = new XMLHttpRequest();
+                            xhr.open('POST', `${API}/upload`);
+                            xhr.setRequestHeader('Authorization', `Bearer ${this.token}`);
+                            
+                            xhr.upload.onprogress = (e) => {
+                                if (e.lengthComputable) {
+                                    const pct = Math.round((e.loaded / e.total) * 100);
+                                    const pctLabel = document.getElementById(`upload-pct-${mid}`);
+                                    if (pctLabel) pctLabel.innerText = pct + "%";
+                                }
+                            };
+
+                            xhr.onload = () => {
+                                if (xhr.status >= 200 && xhr.status < 300) {
+                                    resolve(JSON.parse(xhr.responseText));
+                                } else {
+                                    reject(new Error(xhr.responseText));
+                                }
+                            };
+                            xhr.onerror = () => reject(new Error("Network Error"));
+                            xhr.send(fd);
                         });
-                        const final = await res.json();
-                        if (res.ok) {
-                            this.uploadedFiles[mid].push(final.file_id);
-                            localStorage.setItem('hemn_uploaded_files', JSON.stringify(this.uploadedFiles));
-                            this.renderFile(mid, f.name, final.file_id);
-                            this.showToast(`Arquivo Pronto: ${f.name}`, "info");
-                        }
+
+                        progressItem.remove();
+                        this.uploadedFiles[mid].push(final.file_id);
+                        localStorage.setItem('hemn_uploaded_files', JSON.stringify(this.uploadedFiles));
+                        this.renderFile(mid, f.name, final.file_id);
+                        this.showToast(`Arquivo Pronto: ${f.name}`, "info");
                     } catch (e) {
+                        progressItem.innerHTML = `<i class="fas fa-exclamation-triangle" style="color:#ef4444; margin-right: 10px;"></i> <span style="color:#ef4444">Falha no upload de ${f.name}</span>`;
                         this.showToast("Falha no upload", "error");
+                        console.error(e);
                     }
                 }
             },

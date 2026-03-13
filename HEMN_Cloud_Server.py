@@ -325,6 +325,7 @@ def log_transaction(username: str, type: str, amount: float, module: str, descri
 
 # --- ENDPOINTS DE ARQUIVOS ---
 
+@app.post("/upload")
 @router.post("/upload")
 async def upload_file(file: UploadFile = File(...), user: dict = Depends(get_current_user)):
     file_id = f"{uuid.uuid4()}_{file.filename}"
@@ -456,8 +457,10 @@ def get_single_carrier(phone: str, user: dict = Depends(get_current_user)):
 @app.post("/tasks/split")
 @router.post("/tasks/split")
 def start_split(req: SplitRequest, user: dict = Depends(get_current_user)):
+    print(f"[API] Recebido pedido de fatiamento: {req.file_id} por {user['username']}")
     path = os.path.join(UPLOAD_DIR, req.file_id)
     tid = engine.start_split(path, RESULT_DIR, username=user["username"])
+    print(f"[API] Tarefa de fatiamento criada: {tid}")
     return JSONResponse(content={"task_id": tid})
 
 @app.get("/tasks/active")

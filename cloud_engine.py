@@ -1070,19 +1070,54 @@ class CloudEngine:
         return tid
 
     def _run_split(self, tid, input_file, output_dir):
-        self._update_task(tid, status="PROCESSING", message="Dividindo arquivo...")
+        print(f"[SPLIT] Iniciando tarefa {tid} para arquivo: {input_file}")
+        self._update_task(tid, status="PROCESSING", message="Iniciando fatiamento...")
         try:
             output_file = os.path.join(output_dir, f"Dividido_{tid[:8]}.xlsx")
-            df = pd.read_csv(input_file, sep=None, engine='python', dtype=str) if input_file.endswith('.csv') else pd.read_excel(input_file, dtype=str)
             import xlsxwriter
+            
+            # Se for Excel, usamos o modo padrão (Excel gigante é raro, o limite é 1M de linhas)
+            # Se for CSV, usamos chunks para evitar estourar a RAM
+            is_csv = not input_file.lower().endswith(('.xlsx', '.xls', '.xlsm'))
+            
             writer = pd.ExcelWriter(output_file, engine='xlsxwriter', engine_kwargs={'options': {'constant_memory': True}})
-            chunk_size = 1000000
-            for i in range(0, len(df), chunk_size):
-                chunk = df.iloc[i : i + chunk_size]
-                chunk.to_excel(writer, sheet_name=f"Lote_{(i//chunk_size)+1}", index=False)
+            total_rows = 0
+
+            if is_csv:
+                self._update_task(tid, message="Lendo CSV em blocos (otimizado)...")
+                # Tenta detectar separador comum
+                sep = ','
+                try:
+                    with open(input_file, 'r', encoding='utf-8', errors='replace') as f:
+                        line = f.readline()
+                        if ';' in line: sep = ';'
+                except: sep = ','
+
+                chunk_size = 1000000
+                reader = pd.read_csv(input_file, sep=sep, chunksize=chunk_size, dtype=str, encoding='utf-8', on_bad_lines='skip')
+                
+                for i, chunk in enumerate(reader):
+                    sheet_name = f"Lote_{i+1}"
+                    chunk.to_excel(writer, sheet_name=sheet_name, index=False)
+                    total_rows += len(chunk)
+                    self._update_task(tid, message=f"Processando: {total_rows:,} linhas...")
+                    print(f"[SPLIT] {tid} -> Processadas {total_rows:,} linhas")
+            else:
+                self._update_task(tid, message="Lendo Excel gigante...")
+                df = pd.read_excel(input_file, dtype=str)
+                chunk_size = 1000000
+                total_rows = len(df)
+                for i in range(0, total_rows, chunk_size):
+                    chunk = df.iloc[i : i + chunk_size]
+                    sheet_name = f"Lote_{(i//chunk_size)+1}"
+                    chunk.to_excel(writer, sheet_name=sheet_name, index=False)
+                    self._update_task(tid, progress=int((i/total_rows)*100), message=f"Escrevendo {sheet_name}...")
+            
             writer.close()
-            self._update_task(tid, status="COMPLETED", progress=100, message="Arquivo dividido!", result_file=output_file)
+            print(f"[SPLIT] Sucesso: {output_file} ({total_rows} linhas)")
+            self._update_task(tid, status="COMPLETED", progress=100, message=f"Dividido com sucesso! {total_rows:,} linhas.", result_file=output_file)
         except Exception as e:
+            print(f"[SPLIT ERROR] {tid}: {str(e)}")
             self._update_task(tid, status="FAILED", message=f"Erro: {str(e)}")
 
     def _get_carrier_map(self):
