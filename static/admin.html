@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HEMN SYSTEM | Web Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #08090c;
+            --card: #0d0e12;
+            --card-hover: #13141c;
+            --accent: #3b82f6;
+            --accent-glow: rgba(59, 130, 246, 0.4);
+            --text-main: #f1f5f9;
+            --text-muted: #64748b;
+            --border: #1e2030;
+            --danger: #ef4444;
+            --success: #22c55e;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', sans-serif;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text-main);
+            overflow-x: hidden;
+        }
+
+        .app-container {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* --- LOGIN OVERLAY --- */
+        #login-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: var(--bg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            transition: 0.5s;
+        }
+
+        .login-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            padding: 40px;
+            border-radius: 20px;
+            width: 100%;
+            max-width: 400px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+        }
+
+        .login-card h2 {
+            font-size: 24px;
+            margin-bottom: 8px;
+            text-align: center;
+        }
+
+        .login-card p {
+            color: var(--text-muted);
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+
+        .field {
+            margin-bottom: 20px;
+        }
+
+        .field label {
+            display: block;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+        }
+
+        .field input {
+            width: 100%;
+            height: 44px;
+            background: transparent;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: #fff;
+            padding: 0 15px;
+            outline: none;
+            transition: 0.3s;
+        }
+
+        .field input:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 10px var(--accent-glow);
+        }
+
+        .btn {
+            width: 100%;
+            height: 46px;
+            background: var(--accent);
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        .btn:hover {
+            background: #2563eb;
+            transform: translateY(-2px);
+        }
+
+        /* --- MAIN DASHBOARD --- */
+        header {
+            height: 70px;
+            background: var(--card);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 40px;
+        }
+
+        .logo {
+            font-size: 18px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            color: var(--text-main);
+        }
+
+        .logo span {
+            color: var(--accent);
+        }
+
+        .main-content {
+            padding: 40px;
+            max-width: 1200px;
+            margin: 0 auto;
+            width: 100%;
+            flex: 1;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 40px;
+        }
+
+        .stat-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            padding: 25px;
+            border-radius: 16px;
+        }
+
+        .stat-card .label {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-muted);
+            margin-bottom: 10px;
+        }
+
+        .stat-card .value {
+            font-size: 28px;
+            font-weight: 700;
+        }
+
+        .table-container {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            overflow: hidden;
+        }
+
+        .table-header {
+            padding: 25px 30px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th {
+            text-align: left;
+            padding: 15px 30px;
+            font-size: 12px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        td {
+            padding: 20px 30px;
+            border-top: 1px solid var(--border);
+            font-size: 14px;
+        }
+
+        tr:hover {
+            background: var(--card-hover);
+        }
+
+        .status-badge {
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .status-active {
+            background: rgba(34, 197, 94, 0.1);
+            color: var(--success);
+        }
+
+        .status-revoked {
+            background: rgba(239, 68, 68, 0.1);
+            color: var(--danger);
+        }
+
+        .actions-cell {
+            display: flex;
+            gap: 10px;
+        }
+
+        .action-btn {
+            background: var(--border);
+            border: none;
+            padding: 6px 12px;
+            border-radius: 6px;
+            color: #fff;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .action-btn.rev {
+            background: rgba(239, 68, 68, 0.2);
+            color: var(--danger);
+        }
+
+        .action-btn.rev:hover {
+            background: var(--danger);
+            color: #fff;
+        }
+
+        #dashboard-screen {
+            display: none;
+        }
+
+        /* --- MODAL EXTRATO --- */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(8px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+        }
+
+        .modal-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            width: 90%;
+            max-width: 1000px;
+            max-height: 85vh;
+            border-radius: 20px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 30px 60px rgba(0, 0, 0, 0.8);
+            animation: modalSlide 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        @keyframes modalSlide {
+            from {
+                opacity: 0;
+                transform: translateY(30px) scale(0.98);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        .modal-header {
+            padding: 25px 30px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-body {
+            padding: 30px;
+            overflow-y: auto;
+            flex: 1;
+        }
+
+        .extrato-stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .extrato-stat {
+            background: var(--bg);
+            padding: 15px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+        }
+
+        .extrato-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .extrato-table th {
+            background: var(--bg);
+            padding: 12px 15px;
+            text-align: left;
+            font-size: 11px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+        }
+
+        .extrato-table td {
+            padding: 12px 15px;
+            border-bottom: 1px solid var(--border);
+            font-size: 13px;
+        }
+
+        .type-debit {
+            color: var(--danger);
+            font-weight: 600;
+        }
+
+        .type-credit {
+            color: var(--success);
+            font-weight: 600;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="login-screen">
+        <div class="login-card">
+            <h2>Gestão HEMN</h2>
+            <p>Faça login para gerenciar sua frota de licenças</p>
+            <div class="field">
+                <label>USUÁRIO</label>
+                <input type="text" id="user" placeholder="admin">
+            </div>
+            <div class="field">
+                <label>SENHA</label>
+                <input type="password" id="pass" placeholder="••••••••">
+            </div>
+            <button class="btn" onclick="app.login()">Entrar no Painel</button>
+        </div>
+    </div>
+
+    <div id="dashboard-screen" class="app-container">
+        <header>
+            <div class="logo">HEMN<span>CLOUD</span></div>
+            <div style="display: flex; align-items: center; gap: 20px;">
+                <span id="header-user" style="font-size: 14px; color: var(--text-muted);">Administrador</span>
+                <button class="action-btn" onclick="app.logout()">Sair</button>
+            </div>
+        </header>
+
+        <main class="main-content">
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="label">USUÁRIOS ATIVOS</div>
+                    <div class="value" id="stat-active">--</div>
+                </div>
+                <div class="stat-card">
+                    <div class="label">BLOQUEADOS</div>
+                    <div class="value" id="stat-blocked" style="color: var(--danger);">--</div>
+                </div>
+                <div class="stat-card">
+                    <div class="label">CONSUMO TOTAL</div>
+                    <div class="value" id="stat-usage">--</div>
+                </div>
+            </div>
+
+            <div class="table-container">
+                <div class="table-header">
+                    <h3>Lista de Licenças</h3>
+                    <div style="display: flex; gap: 10px;">
+                        <a href="../admin/monitor" class="btn"
+                            style="width: auto; padding: 0 20px; height: 38px; font-size: 13px; background: var(--card); border: 1px solid var(--border); display: flex; align-items: center; text-decoration: none;">📊
+                            Monitoramento</a>
+                        <button class="btn" style="width: auto; padding: 0 20px; height: 38px; font-size: 13px;">+ Novo
+                            Usuário</button>
+                    </div>
+                </div>
+                <table id="users-table">
+                    <thead>
+                        <tr>
+                            <th>Usuário</th>
+                            <th>Status</th>
+                            <th>Expiração</th>
+                            <th>Consumo</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Gerado via JS -->
+                    </tbody>
+                </table>
+            </div>
+        </main>
+    </div>
+
+    <!-- MODAL EXTRATO -->
+    <div id="modal-extrato" class="modal-overlay">
+        <div class="modal-card">
+            <div class="modal-header">
+                <div>
+                    <h3 id="extrato-user-title">Extrato do Usuário</h3>
+                    <p id="extrato-user-subtitle" style="font-size: 12px; color: var(--text-muted);"></p>
+                </div>
+                <button class="action-btn" onclick="app.closeModal()">Fechar (X)</button>
+            </div>
+            <div class="modal-body">
+                <div class="extrato-stats">
+                    <div class="extrato-stat">
+                        <div style="font-size: 10px; color: var(--text-muted);">SALDO ATUAL</div>
+                        <div id="extrato-balance" style="font-size: 18px; font-weight: 700;">--</div>
+                    </div>
+                    <div class="extrato-stat">
+                        <div style="font-size: 10px; color: var(--text-muted);">GASTO HOJE</div>
+                        <div id="extrato-today" style="font-size: 18px; font-weight: 700; color: var(--danger);">--
+                        </div>
+                    </div>
+                    <div class="extrato-stat">
+                        <div style="font-size: 10px; color: var(--text-muted);">TOTAL NO MÊS</div>
+                        <div id="extrato-month" style="font-size: 18px; font-weight: 700;">--</div>
+                    </div>
+                </div>
+
+                <table class="extrato-table">
+                    <thead>
+                        <tr>
+                            <th>Data</th>
+                            <th>Módulo</th>
+                            <th>Descrição</th>
+                            <th>Valor</th>
+                            <th>Tipo</th>
+                        </tr>
+                    </thead>
+                    <tbody id="extrato-tbody">
+                        <!-- Gerado via JS -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API = ".."; // Usando caminhos relativos para funcionar atrás de proxy
+        // (o arquivo está em /static/ e a API em /)
+
+        const app = {
+            token: localStorage.getItem("hemn_token"),
+
+            init() {
+                if (this.token) this.showDashboard();
+            },
+
+            async login() {
+                const u = document.getElementById("user").value;
+                const p = document.getElementById("pass").value;
+
+                try {
+                    const res = await fetch(`${API}/login`, {
+                        method: 'POST',
+                        body: new URLSearchParams({ username: u, password: p })
+                    });
+                    const data = await res.json();
+                    if (res.ok) {
+                        this.token = data.access_token;
+                        localStorage.setItem("hemn_token", this.token);
+                        this.showDashboard();
+                    } else {
+                        alert(data.detail);
+                    }
+                } catch (e) {
+                    alert("Erro ao conectar ao servidor.");
+                }
+            },
+
+            logout() {
+                localStorage.removeItem("hemn_token");
+                location.reload();
+            },
+
+            async showDashboard() {
+                document.getElementById("login-screen").style.display = "none";
+                document.getElementById("dashboard-screen").style.display = "flex";
+                this.refreshData();
+            },
+
+            async refreshData() {
+                const headers = { 'Authorization': `Bearer ${this.token}` };
+                try {
+                    const res = await fetch(`${API}/admin/users`, { headers });
+                    const users = await res.json();
+                    if (!res.ok) { this.logout(); return; }
+
+                    this.renderTable(users);
+                    this.updateStats(users);
+                } catch (e) {
+                    console.error(e);
+                }
+            },
+
+            renderTable(users) {
+                const tbody = document.querySelector("#users-table tbody");
+                tbody.innerHTML = "";
+
+                users.forEach(u => {
+                    const row = document.createElement("tr");
+                    const statusClass = u.status === "ACTIVE" ? "status-active" : "status-revoked";
+                    const usagePct = (u.current_usage / u.total_limit * 100).toFixed(1);
+
+                    row.innerHTML = `
+                        <td>
+                            <div style="font-weight: 600;">${u.full_name}</div>
+                            <div style="font-size: 12px; color: var(--text-muted);">@${u.username}</div>
+                        </td>
+                        <td><span class="status-badge ${statusClass}">${u.status}</span></td>
+                        <td>${u.expiration}</td>
+                        <td>
+                            <div>${u.current_usage.toLocaleString()} / ${u.total_limit >= 9000000 ? '∞' : u.total_limit.toLocaleString()}</div>
+                            <div style="font-size: 11px; color: var(--text-muted);">${usagePct}% consumido</div>
+                        </td>
+                        <td class="actions-cell">
+                            <button class="action-btn" style="background: var(--accent); color: white;" onclick="app.viewStatement('${u.username}', '${u.full_name}')">Ver Extrato</button>
+                            <button class="action-btn" onclick="app.editUser('${u.username}')">Editar</button>
+                            <button class="action-btn rev" onclick="app.toggleStatus('${u.username}', '${u.status}')">
+                                ${u.status === 'ACTIVE' ? 'Bloquear' : 'Desbloquear'}
+                            </button>
+                        </td>
+                    `;
+                    tbody.appendChild(row);
+                });
+            },
+
+            updateStats(users) {
+                const active = users.filter(u => u.status === 'ACTIVE').length;
+                const blocked = users.length - active;
+                const usage = users.reduce((acc, current) => acc + current.current_usage, 0);
+
+                document.getElementById("stat-active").innerText = active;
+                document.getElementById("stat-blocked").innerText = blocked;
+                document.getElementById("stat-usage").innerText = usage.toLocaleString() + " Cr";
+            },
+
+            async toggleStatus(username, current) {
+                const newStatus = current === "ACTIVE" ? "REVOKED" : "ACTIVE";
+                const headers = {
+                    'Authorization': `Bearer ${this.token}`,
+                    'Content-Type': 'application/json'
+                };
+
+                await fetch(`${API}/admin/users/${username}`, {
+                    method: 'PUT',
+                    headers: headers,
+                    body: JSON.stringify({ status: newStatus })
+                });
+                this.refreshData();
+            },
+
+            async viewStatement(username, name) {
+                const modal = document.getElementById('modal-extrato');
+                const tbody = document.getElementById('extrato-tbody');
+                const headers = { 'Authorization': `Bearer ${this.token}` };
+
+                document.getElementById('extrato-user-title').innerText = `Gestão de Extrato: ${name}`;
+                document.getElementById('extrato-user-subtitle').innerText = `@${username}`;
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding: 40px; color: var(--text-muted);">Carregando histórico...</td></tr>';
+                modal.style.display = 'flex';
+
+                try {
+                    // Buscar Stats e Statement em paralelo
+                    const [resStats, resLogs] = await Promise.all([
+                        fetch(`${API}/admin/stats/${username}`, { headers }),
+                        fetch(`${API}/admin/statement/${username}`, { headers })
+                    ]);
+
+                    const stats = await resStats.json();
+                    const logs = await resLogs.json();
+
+                    // Update UI
+                    document.getElementById('extrato-balance').innerText = stats.balance.toLocaleString() + " Cr";
+                    document.getElementById('extrato-today').innerText = stats.spent_today.toLocaleString() + " Cr";
+                    document.getElementById('extrato-month').innerText = stats.spent_month.toLocaleString() + " Cr";
+
+                    if (logs.length === 0) {
+                        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding: 40px; color: var(--text-muted);">Nenhuma transação encontrada.</td></tr>';
+                    } else {
+                        tbody.innerHTML = logs.map(l => `
+                            <tr>
+                                <td style="color: var(--text-muted);">${new Date(l.timestamp).toLocaleString()}</td>
+                                <td><span class="status-badge" style="background: var(--border);">${l.module}</span></td>
+                                <td style="max-width: 300px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${l.description}</td>
+                                <td>${l.amount.toLocaleString()}</td>
+                                <td><span class="${l.type === 'DEBIT' ? 'type-debit' : 'type-credit'}">${l.type}</span></td>
+                            </tr>
+                        `).join('');
+                    }
+                } catch (e) {
+                    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding: 40px; color: var(--danger);">Erro ao carregar dados.</td></tr>';
+                }
+            },
+
+            closeModal() {
+                document.getElementById('modal-extrato').style.display = 'none';
+            }
+        };
+
+        app.init();
+    </script>
+</body>
+
+</html>

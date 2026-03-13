@@ -1,0 +1,10 @@
+import paramiko
+client = paramiko.SSHClient()
+client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+client.connect('129.121.45.136', port=22022, username='root', key_filename='C:\\Users\\Junior T.I\\.ssh\\id_rsa')
+stdin, stdout, stderr = client.exec_command('sqlite3 /var/www/hemn_cloud/hemn_cloud.db "UPDATE users SET password=\'123\' WHERE username=\'admin\';"')
+print(stdout.read().decode())
+err = stderr.read().decode()
+if err: print("Error:", err)
+else: print("Password updated successfully.")
+client.close()

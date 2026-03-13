@@ -1,0 +1,41 @@
+# Databases
+*.db
+
+# Logs
+*.log
+*.txt
+server_stderr.log
+server_stdout.log
+upload_progress.log
+
+# Data and Results
+*.xlsx
+*.csv
+*.json
+*.zip
+*.tar.gz
+results/
+storage/
+temp/
+
+# Binary and Build artifacts
+*.exe
+*.spec
+build/
+dist/
+dist_v*/
+__pycache__/
+*.pyc
+
+# Environment and IDE
+venv/
+.venv/
+.vscode/
+.idea/
+
+# Large binaries from list_dir
+static/demo.mp4
+
+# OS files
+.DS_Store
+Thumbs.db
