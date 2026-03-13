@@ -334,6 +334,7 @@ async def upload_file(file: UploadFile = File(...), user: dict = Depends(get_cur
         shutil.copyfileobj(file.file, buffer)
     return {"file_id": file_id, "filename": file.filename}
 
+@app.get("/download/{task_id}")
 @router.get("/download/{task_id}")
 async def download_result(task_id: str, user: dict = Depends(get_current_user)):
     task = engine.get_task_status(task_id)
@@ -441,6 +442,7 @@ def start_carrier(req: CarrierRequest, user: dict = Depends(get_current_user)):
     log_transaction(user["username"], "CREDIT", 0, "CARRIER", f"Iniciada consulta de operadoras em lote")
     return JSONResponse(content={"task_id": tid})
 
+@app.get("/tasks/carrier/single")
 @router.get("/tasks/carrier/single")
 def get_single_carrier(phone: str, user: dict = Depends(get_current_user)):
     # Débito de Consulta de Operadora se não for ilimitado
@@ -552,6 +554,7 @@ async def get_me(user: dict = Depends(get_current_user)):
         
     return user
 
+@app.get("/admin/users")
 @router.get("/admin/users")
 def list_users(user: dict = Depends(get_current_user)):
     if user["role"] != "ADMIN": 
@@ -562,6 +565,7 @@ def list_users(user: dict = Depends(get_current_user)):
     conn.close()
     return [dict(u) for u in users]
 
+@app.get("/admin/monitor/stats")
 @router.get("/admin/monitor/stats")
 def get_monitor_stats(user: dict = Depends(get_current_user)):
     if user["role"] != "ADMIN": 
@@ -610,6 +614,7 @@ def get_monitor_stats(user: dict = Depends(get_current_user)):
         "timestamp": datetime.now().isoformat()
     }
 
+@app.put("/admin/users/{username}")
 @router.put("/admin/users/{username}")
 def update_user(username: str, data: dict, user: dict = Depends(get_current_user)):
     if user["role"] != "ADMIN": raise HTTPException(status_code=403)
@@ -650,6 +655,7 @@ def get_statement(days: Optional[int] = None, user: dict = Depends(get_current_u
     conn.close()
     return [dict(l) for l in logs]
 
+@app.get("/admin/statement/{target_username}")
 @router.get("/admin/statement/{target_username}")
 def get_user_statement(target_username: str, days: Optional[int] = None, user: dict = Depends(get_current_user), limit: int = 200):
     if user["role"] != "ADMIN":
@@ -670,6 +676,7 @@ def get_user_statement(target_username: str, days: Optional[int] = None, user: d
     conn.close()
     return [dict(l) for l in logs]
 
+@app.get("/admin/stats/{target_username}")
 @router.get("/admin/stats/{target_username}")
 def get_user_stats(target_username: str, user: dict = Depends(get_current_user)):
     if user["role"] != "ADMIN":
@@ -752,6 +759,7 @@ def get_stats(user: dict = Depends(get_current_user)):
         "balance": user["total_limit"] - user["current_usage"]
     }
 
+@app.post("/admin/users")
 @router.post("/admin/users")
 def create_user(data: dict, user: dict = Depends(get_current_user)):
     if user["role"] != "ADMIN": raise HTTPException(status_code=403)
