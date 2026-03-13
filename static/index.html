@@ -2437,6 +2437,11 @@
                     </div>
                 `;
                 card.style.position = "relative";
+                container.appendChild(card);
+                
+                const title = document.getElementById(`title-${mid}`);
+                if (title) title.style.display = 'block';
+
                 if (savedData && (savedData.status === 'COMPLETED' || savedData.status === 'SUCCESS' || savedData.result_file)) {
                     const count = savedData.record_count || 0;
                     const isSplit = mid === 'split';
