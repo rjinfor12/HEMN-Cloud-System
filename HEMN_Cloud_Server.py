@@ -186,12 +186,18 @@ def create_token(username: str):
     expire = datetime.utcnow() + timedelta(hours=24)
     return jwt.encode({"sub": username, "exp": expire}, SECRET_KEY, algorithm=ALGORITHM)
 
-def get_current_user(authorization: str = Header(None)):
-    if not authorization or not authorization.startswith("Bearer "):
+def get_current_user(authorization: str = Header(None), token: Optional[str] = None):
+    auth_token = None
+    if authorization and authorization.startswith("Bearer "):
+        auth_token = authorization.split(" ")[1]
+    elif token:
+        auth_token = token
+        
+    if not auth_token:
         raise HTTPException(status_code=401, detail="Não autorizado")
-    token = authorization.split(" ")[1]
+        
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        payload = jwt.decode(auth_token, SECRET_KEY, algorithms=[ALGORITHM])
         username = payload.get("sub")
         conn = sqlite3.connect(DB_PATH)
         conn.row_factory = sqlite3.Row
@@ -377,6 +383,50 @@ async def download_result(task_id: str, user: dict = Depends(get_current_user)):
     
     return FileResponse(task["result_file"], filename=os.path.basename(task["result_file"]))
 
+@app.get("/download-direct/{task_id}")
+@router.get("/download-direct/{task_id}")
+def download_direct(task_id: str, user: dict = Depends(get_current_user)):
+    """Versão do download projetada para window.location.href (browser direto)"""
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    task = conn.execute("SELECT * FROM background_tasks WHERE id = ?", (task_id,)).fetchone()
+    
+    if not task:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Tarefa não encontrada")
+
+    if task["status"] != "COMPLETED" or not task["result_file"]:
+        conn.close()
+        raise HTTPException(status_code=400, detail="Arquivo não disponível para download")
+
+    # Verificar se já foi cobrado
+    tx = conn.execute("SELECT * FROM credit_transactions WHERE task_id = ? AND type = 'DEBIT'", (task_id,)).fetchone()
+    count = int(task["record_count"] or 0)
+    conn.close()
+
+    if not tx:
+        # Cobrar créditos se necessário
+        if user["total_limit"] < 9000000:
+            available = user["total_limit"] - user["current_usage"]
+            if available < count:
+                raise HTTPException(status_code=403, detail=f"Saldo insuficiente ({available:,.0f} Cr)")
+            
+            conn = sqlite3.connect(DB_PATH)
+            conn.execute("UPDATE users SET current_usage = current_usage + ? WHERE username = ?", (count, user["username"]))
+            conn.commit()
+            conn.close()
+
+        log_transaction(
+            user["username"], 
+            "DEBIT", 
+            count, 
+            task["module"] or "DOWNLOAD", 
+            f"Download Direct: {count:,} registros",
+            task_id=task_id
+        )
+    
+    return FileResponse(task["result_file"], filename=os.path.basename(task["result_file"]))
+
 # --- ENDPOINTS DE TAREFAS (HEMN SUITE) ---
 
 @app.get("/tasks/{task_id}")
@@ -430,7 +480,21 @@ def start_extract(filters: ExtractionFilter, user: dict = Depends(get_current_us
     # Logar início de extração
     log_transaction(user["username"], "CREDIT", 0, "EXTRACT", f"Iniciada extração de dados: {filters.uf} - {filters.cidade}")
     
-    tid = engine.start_extraction(filters.dict(), RESULT_DIR, username=user["username"])
+    # Garantir mapeamento explícito
+    f_dict = {
+        "uf": filters.uf,
+        "cidade": filters.cidade,
+        "cnae": filters.cnae,
+        "tipo_tel": filters.tipo_tel,
+        "situacao": filters.situacao,
+        "somente_com_telefone": filters.somente_com_telefone,
+        "cep_file": filters.cep_file,
+        "operadora_inc": filters.operadora_inc,
+        "operadora_exc": filters.operadora_exc,
+        "perfil": filters.perfil
+    }
+    
+    tid = engine.start_extraction(f_dict, RESULT_DIR, username=user["username"])
     return JSONResponse(content={"task_id": tid})
 
 @app.post("/tasks/carrier")

@@ -2875,15 +2875,14 @@
                         return;
                     }
                     if (resp.ok) {
-                        const blob = await resp.blob();
-                        const url = window.URL.createObjectURL(blob);
-                        const a = document.createElement('a'); a.href = url;
-                        a.download = `Resultado_${tid.substring(0, 8)}.xlsx`;
-                        document.body.appendChild(a); a.click(); a.remove();
+                        const token = localStorage.getItem('hemn_token');
+                        // Usar window.open ou location.href para arquivos grandes, evitando limites de memória do Blob
+                        window.location.href = `${API}/download-direct/${tid}?token=${token}`;
+                        
                         await this.refreshUser();
                         let saldoAtual = this.user ? Math.max(0, this.user.total_limit - this.user.current_usage).toFixed(1) : '--';
-                        this.showToast("Pronto!", "success");
-                        this.addNotification("Download Lote Concluído", `Registros baixados da nuvem. Gastou: ${cost.toLocaleString()} Cr | Saldo Atual: ${saldoAtual} Cr`, "success");
+                        this.showToast("Iniciando Download...", "success");
+                        this.addNotification("Download Iniciado", `O arquivo está sendo baixado diretamente pelo navegador. Gastou: ${cost.toLocaleString()} Cr | Saldo Atual: ${saldoAtual} Cr`, "success");
                     } else this.alert("Erro no Download", "Ocorreu um problema ao baixar o arquivo.", { type: 'error' });
                 } catch (e) { console.error(e); }
             },

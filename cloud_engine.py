@@ -86,7 +86,15 @@ class CloudEngine:
     def get_op_name(self, code):
         """Helper to get operator name from RN1/Anatel code"""
         code = str(code).strip()
-        return self.anatel_dict.get(code, f"OUTRA ({code})" if code else "OUTRA")
+        name = self.anatel_dict.get(code, f"OUTRA ({code})" if code else "OUTRA")
+        # NORMALIZAÇÃO HEMN (Híbrida para clareza e filtros)
+        nu = name.upper()
+        if "TELEFONICA" in nu or "VIVO" in nu: return "VIVO / TELEFONICA"
+        if "CLARO" in nu: return "CLARO"
+        if "TIM" in nu: return "TIM"
+        if "OI" in nu: return "OI"
+        if "ALGAR" in nu: return "ALGAR"
+        return name
 
     def _init_db(self):
         conn = sqlite3.connect(self.db_path)
@@ -478,6 +486,7 @@ class CloudEngine:
                 LEFT JOIN hemn.municipio AS mun ON estab.municipio = mun.codigo
                 ORDER BY (estab.situacao_cadastral = '02') DESC, estab.situacao_cadastral ASC
                 LIMIT 1 BY lookup_key
+                SETTINGS join_algorithm = 'grace_hash'
             """
 
             if search_terms:
@@ -762,30 +771,39 @@ class CloudEngine:
                 SETTINGS join_algorithm = 'auto'
             """
             
-            # FASE 9: MOTOR DE LOTES HEMN (CHUNKED PROCESSING) - Estabilidade Total de RAM
-            batch_size = 100000
-            offset = 0
+            # FASE 9: MOTOR DE LOTES HEMN (SINGLE QUERY STREAMING) - Velocidade Máxima
             total_records_final = 0
             header_written = False
             
             import xlsxwriter
-            # Workbook em modo streaming para RAM zero no Excel
             workbook = xlsxwriter.Workbook(output_file, {'constant_memory': True, 'tmpdir': '/tmp'})
             sheet = workbook.add_worksheet("Extração Hemn")
             header_fmt = workbook.add_format({'bold': True, 'bg_color': '#3a7bd5', 'font_color': 'white'})
 
-            self._update_task(tid, progress=20, message="Iniciando extração em lotes de 100k...")
+            self._update_task(tid, progress=15, message="Executando consulta no ClickHouse...")
             ch_local = self._get_ch_client()
+            
+            # Executa a query uma única vez
+            result = ch_local.query(q, params)
+            rows = result.result_rows
+            cols = result.column_names
+            total_rows_found = len(rows)
+            
+            self._update_task(tid, progress=20, message=f"Iniciando processamento de {total_rows_found:,} registros...")
 
-            while True:
-                # 1. Busca Lote do ClickHouse
-                q_batch = q.replace("SETTINGS", f"LIMIT {batch_size} OFFSET {offset} SETTINGS")
-                df = ch_local.query_df(q_batch, params)
+            batch_size = 100000
+            for i in range(0, total_rows_found, batch_size):
+                # Check for cancellation
+                status = self.get_task_status(tid)
+                if status.get("status") == "CANCELLED":
+                    workbook.close()
+                    return
+
+                chunk = rows[i:i + batch_size]
+                df = pd.DataFrame(chunk, columns=cols)
                 
-                if df.empty:
-                    break
-                
-                self._update_task(tid, progress=round(20 + (offset/1000000 * 5), 1), message=f"Processando lote {offset//batch_size + 1}...")
+                self._update_task(tid, progress=min(95, round(20 + (i/max(1, total_rows_found) * 75), 1)), 
+                                  message=f"Processando: {i:,} / {total_rows_found:,} registros...")
 
                 # 2. Cruzamento com Planilha (se existir)
                 if cep_df is not None and '_match_cep' in cep_df.columns:
@@ -800,7 +818,6 @@ class CloudEngine:
                     df = df.drop(columns=[c for c in ['_match_cep', '_match_num'] if c in df.columns])
 
                 if df.empty:
-                    offset += batch_size
                     continue
 
                 # 3. Filtragem de Telefones e Operadora
@@ -829,7 +846,6 @@ class CloudEngine:
                     df = df[(df['t1_tipo'] == tipo_req) | (df['t2_tipo'] == tipo_req)].copy()
 
                 if df.empty:
-                    offset += batch_size
                     continue
 
                 def select_phone(row):
@@ -853,16 +869,26 @@ class CloudEngine:
                 # Enriquecimento de Operadora (em lotes)
                 df = self._append_operator_column(tid, df)
 
-                # Filtro de Operadora
-                op_inc = filters.get("operadora_inc", "TODAS")
-                op_exc = filters.get("operadora_exc", "NENHUMA")
-                if op_exc != "NENHUMA" and 'OPERADORA DO TELEFONE' in df.columns:
-                    df = df[~df['OPERADORA DO TELEFONE'].astype(str).str.upper().str.contains(op_exc.upper(), na=False)]
-                if op_inc != "TODAS" and 'OPERADORA DO TELEFONE' in df.columns:
-                    df = df[df['OPERADORA DO TELEFONE'].astype(str).str.upper().str.contains(op_inc.upper(), na=False)]
+                # FASE 8: FILTROS PÓS-PROCESSAMENTO (OPERADORA E PERFIL)
+                op_inc = str(filters.get("operadora_inc", "TODAS")).upper()
+                op_exc = str(filters.get("operadora_exc", "NENHUMA")).upper()
+                
+                # Inteligência de Grupo para VIVO/TELEFONICA
+                def check_op(row_val, target_op):
+                    if not row_val: return False
+                    rv = str(row_val).upper()
+                    to = str(target_op).upper()
+                    if to == "VIVO":
+                        return "VIVO" in rv or "TELEFONICA" in rv
+                    return to in rv
+
+                if 'OPERADORA DO TELEFONE' in df.columns:
+                    if op_exc != "NENHUMA":
+                        df = df[~df['OPERADORA DO TELEFONE'].apply(lambda x: check_op(x, op_exc))]
+                    if op_inc != "TODAS":
+                        df = df[df['OPERADORA DO TELEFONE'].apply(lambda x: check_op(x, op_inc))]
 
                 if df.empty:
-                    offset += batch_size
                     continue
 
                 # 4. Mapeamento Final e Escrita no Excel
@@ -881,24 +907,31 @@ class CloudEngine:
                 
                 df_final = df[final_columns].fillna("")
 
-                # Escreve o Cabeçalho apenas uma vez
+                # FASE 10: ESCRITA MULTI-ABA (LIMITE EXCEL 1.048.576)
+                EXCEL_LIMIT = 1000000 
                 if not header_written:
                     for col_idx, col_name in enumerate(df_final.columns):
                         sheet.write(0, col_idx, col_name, header_fmt)
                     header_written = True
-                
-                # Escreve os Dados do Lote
-                data_matrix = df_final.values
-                for r_idx, row in enumerate(data_matrix):
-                    current_row = total_records_final + r_idx + 1
-                    for c_idx, val in enumerate(row):
-                        sheet.write(current_row, c_idx, val)
+                    current_sheet_row = 1
+                    sheet_num = 1
 
-                total_records_final += len(df_final)
-                offset += batch_size
+                data_matrix = df_final.values
+                for r_idx, row_data in enumerate(data_matrix):
+                    if current_sheet_row > EXCEL_LIMIT:
+                        sheet_num += 1
+                        sheet = workbook.add_worksheet(f"Extração Hemn {sheet_num}")
+                        for col_idx, col_name in enumerate(df_final.columns):
+                            sheet.write(0, col_idx, col_name, header_fmt)
+                        current_sheet_row = 1
+                    
+                    for c_idx, val in enumerate(row_data):
+                        sheet.write(current_sheet_row, c_idx, val)
+                    
+                    current_sheet_row += 1
+                    total_records_final += 1
                 
-                if offset >= 20000000: # Limite de segurança de 20M registros
-                    break
+                if total_records_final >= 20000000: break
 
             workbook.close()
             # Fim da FASE 9
@@ -1211,7 +1244,18 @@ class CloudEngine:
             "55975":"Vulcanet", "55984":"FTTH Telecom"
         }
         op_map.update(full_map)
-        return op_map
+        
+        # NORMALIZAÇÃO HEMN PARA FILTROS ROBUSTOS
+        normalized = {}
+        for k, v in op_map.items():
+            vu = str(v).upper()
+            if "TELEFONICA" in vu or "VIVO" in vu: normalized[k] = "VIVO / TELEFONICA"
+            elif "CLARO" in vu: normalized[k] = "CLARO"
+            elif "TIM" in vu: normalized[k] = "TIM"
+            elif "OI" in vu: normalized[k] = "OI"
+            elif "ALGAR" in vu: normalized[k] = "ALGAR"
+            else: normalized[k] = str(v).upper()
+        return normalized
 
     def _append_operator_column(self, tid, df):
         self._update_task(tid, progress=90, message="Identificando operadoras...")
