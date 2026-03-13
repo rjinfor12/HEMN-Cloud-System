@@ -2611,7 +2611,7 @@
                 }, 3000);
             },
 
-            startUnify() { this.startTask('/tasks/unify', this.uploadedFiles.unify, 'unify'); },
+            startUnify() { this.startTask('/tasks/unify', { file_ids: this.uploadedFiles.unify }, 'unify'); },
             startEnrich() {
                 this.startTask('/tasks/enrich', {
                     file_id: this.uploadedFiles.enrich[0],

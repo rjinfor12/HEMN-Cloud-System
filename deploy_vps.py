@@ -33,6 +33,8 @@ with tarfile.open(tar_name, "w:gz") as tar:
     tar.add("HEMN_Cloud_Server.py")
     tar.add("cloud_engine.py")
     if os.path.exists("main_gui.py"): tar.add("main_gui.py")
+    if os.path.exists("index.html"): tar.add("index.html")
+    if os.path.exists("index_vps.html"): tar.add("index_vps.html")
     if os.path.exists("static"): tar.add("static")
     
 print("Uploading bundle to VPS...")
