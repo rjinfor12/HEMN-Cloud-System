@@ -1082,6 +1082,7 @@ class CloudEngine:
             
             writer = pd.ExcelWriter(output_file, engine='xlsxwriter', engine_kwargs={'options': {'constant_memory': True}})
             total_rows = 0
+            chunk_size = 1000000
 
             if is_csv:
                 self._update_task(tid, message="Lendo CSV em blocos (otimizado)...")
@@ -1108,7 +1109,6 @@ class CloudEngine:
             else:
                 self._update_task(tid, message="Lendo Excel gigante...")
                 df = pd.read_excel(input_file, dtype=str)
-                chunk_size = 1000000
                 total_rows = len(df)
                 for i in range(0, total_rows, chunk_size):
                     chunk = df.iloc[i : i + chunk_size]
