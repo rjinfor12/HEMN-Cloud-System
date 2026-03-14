@@ -94,6 +94,9 @@ class CloudEngine:
         if "TIM" in nu: return "TIM"
         if "OI" in nu: return "OI"
         if "ALGAR" in nu: return "ALGAR"
+        if "BRISANET" in nu: return "BRISANET"
+        if "TELECALL" in nu: return "TELECALL"
+        if "SERCOMTEL" in nu: return "SERCOMTEL"
         return name
 
     def _init_db(self):
