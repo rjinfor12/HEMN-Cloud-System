@@ -2259,3 +2259,155 @@ input::placeholder {
     color: var(--text-2);
     margin-bottom: var(--s-5);
 }
+
+/* ─────────────────────────────────────────────
+   14. RESPONSIVE DESIGN (MOBILE & TABLET)
+───────────────────────────────────────────── */
+
+@media (max-width: 992px) {
+    :root {
+        --sidebar-w: 240px;
+    }
+}
+
+@media (max-width: 768px) {
+    #app {
+        grid-template-columns: 1fr;
+    }
+
+    .sidebar {
+        position: fixed;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 280px;
+        transform: translateX(-100%);
+        z-index: 5000;
+        box-shadow: 20px 0 50px rgba(0,0,0,0.5);
+    }
+
+    .sidebar.active {
+        transform: translateX(0);
+    }
+
+    .sidebar-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,0.6);
+        backdrop-filter: blur(4px);
+        -webkit-backdrop-filter: blur(4px);
+        z-index: 4999;
+        display: none;
+        animation: fadeIn 0.3s ease;
+    }
+
+    .sidebar.active + .sidebar-overlay,
+    .sidebar.active ~ .sidebar-overlay {
+        display: block;
+    }
+
+    .content-area {
+        grid-column: 1;
+    }
+
+    .top-bar {
+        padding: 0 var(--s-4);
+        height: 60px;
+    }
+
+    .menu-toggle {
+        display: flex !important;
+        width: 40px;
+        height: 40px;
+        align-items: center;
+        justify-content: center;
+        background: var(--bg-hover);
+        border: 1px solid var(--border);
+        border-radius: var(--r-md);
+        color: var(--text-1);
+        cursor: pointer;
+    }
+
+    .greeting-container {
+        display: none;
+    }
+
+    .header-tools .btn-primary {
+        padding: 8px 12px;
+        font-size: 11px;
+    }
+
+    .header-tools .btn-primary i {
+        margin: 0;
+    }
+
+    .header-tools .btn-primary span,
+    .header-tools .btn-primary .text {
+        display: none;
+    }
+
+    .page-container {
+        padding: var(--s-4);
+    }
+
+    .welcome-hero {
+        padding: var(--s-4);
+    }
+
+    .welcome-hero h1 {
+        font-size: 22px;
+    }
+
+    .system-status-row {
+        grid-template-columns: 1fr;
+    }
+
+    .form-grid {
+        grid-template-columns: 1fr;
+    }
+
+    /* Modal adjustments */
+    .modal-overlay > div,
+    #login-overlay > div,
+    #password-modal > div {
+        width: 92% !important;
+        margin: 15px auto;
+        padding: var(--s-5) !important;
+    }
+
+    .glass-card {
+        padding: var(--s-4);
+    }
+
+    .page-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 15px;
+    }
+
+    .header-actions {
+        width: 100%;
+        justify-content: flex-start;
+        overflow-x: auto;
+        padding-bottom: 5px;
+    }
+}
+
+@media (max-width: 480px) {
+    .brand-name {
+        font-size: 18px;
+    }
+
+    .top-bar {
+        gap: var(--s-2);
+    }
+
+    .icon-btn {
+        width: 36px;
+        height: 36px;
+    }
+
+    .btn-primary {
+        padding: 8px 14px;
+    }
+}
