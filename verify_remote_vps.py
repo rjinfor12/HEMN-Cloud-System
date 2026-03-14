@@ -6,21 +6,23 @@ port = 22022
 username = "root"
 ssh_key_path = os.path.expanduser("~/.ssh/id_rsa")
 
-def check_logs():
+def verify_remote_html():
     key = paramiko.RSAKey.from_private_key_file(ssh_key_path)
     client = paramiko.SSHClient()
     client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     client.connect(hostname, port=port, username=username, pkey=key)
     
-    print("--- Server Logs (Last 20 lines) ---")
-    stdin, stdout, stderr = client.exec_command("journalctl -u hemn_cloud -n 20 --no-pager")
+    # Check for the lock icon in index_vps.html
+    stdin, stdout, stderr = client.exec_command("grep -C 5 'fa-lock' /var/www/hemn_cloud/static/index_vps.html")
+    print("--- Remote index_vps.html (Lock Icon context) ---")
     print(stdout.read().decode('utf-8'))
     
-    print("\n--- Nginx Access Logs (Last 10 lines) ---")
-    stdin, stdout, stderr = client.exec_command("tail -n 10 /var/log/nginx/access.log")
+    # Check user-profile section
+    stdin, stdout, stderr = client.exec_command("grep -A 15 'user-profile' /var/www/hemn_cloud/static/index_vps.html")
+    print("\n--- Remote index_vps.html (user-profile section) ---")
     print(stdout.read().decode('utf-8'))
     
     client.close()
 
 if __name__ == "__main__":
-    check_logs()
+    verify_remote_html()

@@ -6,21 +6,25 @@ port = 22022
 username = "root"
 ssh_key_path = os.path.expanduser("~/.ssh/id_rsa")
 
-def check_logs():
+def investigate_processes():
     key = paramiko.RSAKey.from_private_key_file(ssh_key_path)
     client = paramiko.SSHClient()
     client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     client.connect(hostname, port=port, username=username, pkey=key)
     
-    print("--- Server Logs (Last 20 lines) ---")
-    stdin, stdout, stderr = client.exec_command("journalctl -u hemn_cloud -n 20 --no-pager")
+    print("--- Detailed Process List (uvicorn) ---")
+    stdin, stdout, stderr = client.exec_command("ps faux | grep uvicorn | grep -v grep")
     print(stdout.read().decode('utf-8'))
     
-    print("\n--- Nginx Access Logs (Last 10 lines) ---")
-    stdin, stdout, stderr = client.exec_command("tail -n 10 /var/log/nginx/access.log")
+    print("\n--- Listening Ports ---")
+    stdin, stdout, stderr = client.exec_command("netstat -tulpn | grep 8000")
+    print(stdout.read().decode('utf-8'))
+    
+    print("\n--- All Service Files ---")
+    stdin, stdout, stderr = client.exec_command("grep -r 'uvicorn' /etc/systemd/system/")
     print(stdout.read().decode('utf-8'))
     
     client.close()
 
 if __name__ == "__main__":
-    check_logs()
+ investigate_processes()

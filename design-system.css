@@ -11,19 +11,19 @@
     --g-danger: linear-gradient(135deg, #f85032 0%, #e73827 100%);
     --g-warm: linear-gradient(135deg, #f7971e 0%, #ffd200 100%);
 
-    /* Light Theme Colors (Default) */
-    --bg: #f0f4f8;
-    --bg-card: rgba(255, 255, 255, 0.90);
-    --bg-sidebar: rgba(255, 255, 255, 0.96);
-    --bg-input: rgba(0, 0, 0, 0.04);
-    --bg-hover: rgba(0, 0, 0, 0.05);
+    /* Dark Theme Colors (Default) */
+    --bg: #0d1117;
+    --bg-card: rgba(22, 30, 46, 0.82);
+    --bg-sidebar: rgba(13, 17, 23, 0.92);
+    --bg-input: rgba(255, 255, 255, 0.04);
+    --bg-hover: rgba(255, 255, 255, 0.06);
 
-    --text-1: #1c2333;
-    --text-2: #4a5568;
-    --text-3: #a0aec0;
+    --text-1: #e6edf3;
+    --text-2: #8b949e;
+    --text-3: #484f58;
 
-    --border: rgba(0, 0, 0, 0.09);
-    --border-focus: rgba(58, 123, 213, 0.5);
+    --border: rgba(255, 255, 255, 0.08);
+    --border-focus: rgba(58, 123, 213, 0.6);
 
     --glass-blur: blur(28px);
     --glass-shadow: 0 12px 50px rgba(0, 0, 0, 0.55);
@@ -56,23 +56,23 @@
 }
 
 /* ─────────────────────────────────────────────
-   2. DARK THEME OVERRIDE
+   2. LIGHT THEME OVERRIDE
 ───────────────────────────────────────────── */
-[data-theme="dark"] {
-    --bg: #0d1117;
-    --bg-card: rgba(22, 30, 46, 0.82);
-    --bg-sidebar: rgba(13, 17, 23, 0.92);
-    --bg-input: rgba(255, 255, 255, 0.04);
-    --bg-hover: rgba(255, 255, 255, 0.06);
+[data-theme="light"] {
+    --bg: #f0f4f8;
+    --bg-card: rgba(255, 255, 255, 0.90);
+    --bg-sidebar: rgba(255, 255, 255, 0.96);
+    --bg-input: rgba(0, 0, 0, 0.04);
+    --bg-hover: rgba(0, 0, 0, 0.05);
 
-    --text-1: #e6edf3;
-    --text-2: #8b949e;
-    --text-3: #484f58;
+    --text-1: #1c2333;
+    --text-2: #4a5568;
+    --text-3: #a0aec0;
 
-    --border: rgba(255, 255, 255, 0.08);
-    --border-focus: rgba(58, 123, 213, 0.6);
+    --border: rgba(0, 0, 0, 0.09);
+    --border-focus: rgba(58, 123, 213, 0.5);
 
-    --glass-shadow: 0 16px 60px rgba(0, 0, 0, 0.65);
+    --glass-shadow: 0 8px 30px rgba(0, 0, 0, 0.08), 0 2px 10px rgba(0,0,0,0.04);
 }
 
 /* ─────────────────────────────────────────────
@@ -217,114 +217,47 @@ body {
     opacity: 1;
 }
 
-/* ---------------------------------------------
-   5. PROFESSIONAL HORIZONTAL PROFILE
-   --------------------------------------------- */
-.user-profile-premium {
-    margin: var(--s-2) 2px;
-    padding: 8px 8px;
-    background: rgba(255, 255, 255, 0.04);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: var(--r-md);
+.user-profile {
+    border-top: 1px solid var(--border);
+    padding-top: var(--s-4);
     display: flex;
     align-items: center;
-    gap: 8px;
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    overflow: hidden;
-    position: relative;
-}
-
-.profile-main {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    min-width: 0;
-    flex: 1;
-    overflow: hidden;
+    gap: var(--s-3);
+    margin-top: auto;
 }
 
 .avatar {
-    width: 32px;
-    height: 32px;
-    border-radius: 10px;
-    background: var(--g-primary);
+    width: 38px;
+    height: 38px;
+    border-radius: var(--r-full);
+    background: var(--g-secondary);
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 14px;
-    font-weight: 800;
+    font-size: 13px;
+    font-weight: 700;
     color: #fff;
     flex-shrink: 0;
-    box-shadow: 0 4px 12px rgba(58, 123, 213, 0.3);
 }
 
-.user-meta {
+.user-info {
     display: flex;
     flex-direction: column;
-    min-width: 0;
+    overflow: hidden;
 }
 
-.user-meta .name {
-    font-size: 12px;
-    font-weight: 700;
-    color: var(--text-1);
-    line-height: 1.2;
-    white-space: nowrap;
-}
-
-.role-balance {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 11px;
+.user-name {
+    font-size: 13px;
     font-weight: 600;
-    color: var(--text-3);
-    margin-top: 2px;
-}
-
-.role-balance .sep {
-    font-size: 8px;
-    opacity: 0.5;
-}
-
-#credits-display {
-    color: #10b981;
-}
-
-.profile-btns {
-    display: flex;
-    align-items: center;
-    gap: 2px;
-    margin-left: auto;
-    flex-shrink: 0;
-}
-
-.profile-btns button {
-    width: 26px;
-    height: 26px;
-    border-radius: 6px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    background: rgba(255, 255, 255, 0.05);
-    color: var(--text-2);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    font-size: 12px;
-}
-
-.profile-btns button:hover {
-    background: var(--bg-hover);
-    border-color: var(--accent);
     color: var(--text-1);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
-.profile-btns button.logout:hover {
-    background: rgba(239, 68, 68, 0.1);
-    border-color: #ef4444;
-    color: #ef4444;
+.user-role {
+    font-size: 11px;
+    color: var(--text-3);
 }
 
 /* ─────────────────────────────────────────────
@@ -442,18 +375,22 @@ body {
     box-shadow: var(--glass-shadow);
     border-radius: var(--r-lg);
     padding: var(--s-5);
-    transition: border-color 0.25s ease, transform 0.25s ease, background-color 0.35s ease;
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.glass-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(255,255,255,0.05), transparent);
+    pointer-events: none;
 }
 
 .glass-card:hover {
-    border-color: rgba(58, 123, 213, 0.35);
-    transform: translateY(-4px);
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
-}
-
-.gtask-card {
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    box-shadow: 0 15px 40px rgba(0, 0, 0, 0.4);
+    border-color: rgba(58, 123, 213, 0.25);
+    transform: translateY(-3px);
 }
 
 /* ─────────────────────────────────────────────

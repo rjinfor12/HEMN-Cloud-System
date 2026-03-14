@@ -1,4 +1,4 @@
-﻿from fastapi import FastAPI, HTTPException, Depends, Header, Request, UploadFile, File, BackgroundTasks
+from fastapi import FastAPI, HTTPException, Depends, Header, Request, UploadFile, File, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
@@ -51,7 +51,17 @@ app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 @app.get("/")
 async def read_index():
-    return FileResponse(os.path.join(STATIC_DIR, "index.html"))
+    # Prefer index_vps.html in root, then static
+    root_vps = os.path.join(APP_DIR, "index_vps.html")
+    if os.path.exists(root_vps):
+        return FileResponse(root_vps)
+    
+    static_vps = os.path.join(STATIC_DIR, "index_vps.html")
+    if os.path.exists(static_vps):
+        return FileResponse(static_vps)
+        
+    # Fallback to index.html in root
+    return FileResponse(os.path.join(APP_DIR, "index.html"))
 
 @app.get("/admin/monitor")
 async def read_monitor():
@@ -124,6 +134,13 @@ class CarrierRequest(BaseModel):
 class SplitRequest(BaseModel):
     file_id: str
 
+class LeadSearchRequest(BaseModel):
+    search_type: str # 'cpf', 'nome', 'telefone'
+    search_term: str
+    scope: str # 'ESTADO', 'REGIAO', 'BRASIL'
+    uf: Optional[str] = None
+    regiao_nome: Optional[str] = None
+
 # --- AUTH HELPERS ---
 def create_token(username: str):
     expire = datetime.utcnow() + timedelta(hours=24)
@@ -136,7 +153,8 @@ def get_current_user(authorization: str = Header(None)):
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         username = payload.get("sub")
-        conn = sqlite3.connect(DB_PATH)
+        conn = sqlite3.connect(DB_PATH, timeout=30)
+        conn.execute("PRAGMA journal_mode=WAL")
         conn.row_factory = sqlite3.Row
         user = conn.execute("SELECT * FROM users WHERE username = ?", (username,)).fetchone()
         conn.close()
@@ -145,11 +163,17 @@ def get_current_user(authorization: str = Header(None)):
     except:
         raise HTTPException(status_code=401, detail="Sessão expirada")
 
+def check_clinicas_access(user: dict = Depends(get_current_user)):
+    if user["role"] not in ["ADMIN", "CLINICAS"]:
+        raise HTTPException(status_code=403, detail="Acesso restrito ao perfil Clínicas ou Administrador")
+    return user
+
 def log_transaction(username: str, type: str, amount: float, module: str, description: str, task_id: str = None):
     try:
         now_br = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         print(f"[DEBUG] [{now_br}] Tentando logar transação para {username}: {type} {amount} no módulo {module}")
-        conn = sqlite3.connect(DB_PATH)
+        conn = sqlite3.connect(DB_PATH, timeout=30)
+        conn.execute("PRAGMA journal_mode=WAL")
         conn.execute(
             "INSERT INTO credit_transactions (username, type, amount, module, description, task_id, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?)",
             (username, type, amount, module, description, task_id, now_br)
@@ -180,7 +204,8 @@ async def download_result(task_id: str, user: dict = Depends(get_current_user)):
     count = task.get("record_count", 0)
     
     # Conferir se já foi pago (evitar duplicidade de cobrança e de log no extrato)
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=30)
+    conn.execute("PRAGMA journal_mode=WAL")
     already_paid = conn.execute(
         "SELECT 1 FROM credit_transactions WHERE username = ? AND task_id = ? AND type = 'DEBIT'",
         (user["username"], task_id)
@@ -194,7 +219,8 @@ async def download_result(task_id: str, user: dict = Depends(get_current_user)):
             if available < count:
                 raise HTTPException(status_code=403, detail=f"Saldo insuficiente. Necessário: {count:,} Cr | Disponível: {available:,.0f} Cr")
                 
-            conn = sqlite3.connect(DB_PATH)
+            conn = sqlite3.connect(DB_PATH, timeout=30)
+            conn.execute("PRAGMA journal_mode=WAL")
             conn.execute("UPDATE users SET current_usage = current_usage + ? WHERE username = ?", (count, user["username"]))
             conn.commit()
             conn.close()
@@ -243,6 +269,38 @@ def start_unify(req: UnifyRequest, user: dict = Depends(get_current_user)):
     tid = engine.start_unify(paths, RESULT_DIR, username=user["username"])
     return {"task_id": tid}
 
+@app.post("/leads/search")
+def search_leads(req: LeadSearchRequest, user: dict = Depends(check_clinicas_access)):
+    # Limpeza básica do termo
+    term = req.search_term.strip()
+    if not term:
+        raise HTTPException(status_code=400, detail="Termo de pesquisa é obrigatório")
+    
+    # Validação de escopo
+    if req.scope == 'ESTADO' and not req.uf:
+        raise HTTPException(status_code=400, detail="UF é obrigatória para pesquisa por estado")
+    if req.scope == 'REGIAO' and not req.regiao_nome:
+        raise HTTPException(status_code=400, detail="Nome da região é obrigatório")
+
+    try:
+        results = engine.search_leads(
+            search_type=req.search_type,
+            search_term=term,
+            scope=req.scope,
+            uf=req.uf,
+            regiao=req.regiao_nome
+        )
+        # Log transaction as a record (0 credits)
+        try:
+            log_transaction(user["username"], "DEBIT", 0.0, "CLINICAS", f"Consulta PF: {term}")
+        except Exception as te:
+            print(f"[ERROR] Failed to log PF search transaction: {te}")
+            
+        return results
+    except Exception as e:
+        print(f"[ERROR] Lead Search failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.post("/tasks/enrich")
 def start_enrich(req: EnrichRequest, user: dict = Depends(get_current_user)):
     if req.manual:
@@ -252,7 +310,8 @@ def start_enrich(req: EnrichRequest, user: dict = Depends(get_current_user)):
         
         # Débito de Consulta Manual se não for ilimitado
         if user["total_limit"] < 9000000:
-            conn = sqlite3.connect(DB_PATH)
+            conn = sqlite3.connect(DB_PATH, timeout=30)
+            conn.execute("PRAGMA journal_mode=WAL")
             conn.execute("UPDATE users SET current_usage = current_usage + 0.5 WHERE username = ?", (user["username"],))
             conn.commit()
             conn.close()
@@ -293,7 +352,8 @@ def start_carrier(req: CarrierRequest, user: dict = Depends(get_current_user)):
 def get_single_carrier(phone: str, user: dict = Depends(get_current_user)):
     # Débito de Consulta de Operadora se não for ilimitado
     if user["total_limit"] < 9000000:
-        conn = sqlite3.connect(DB_PATH)
+        conn = sqlite3.connect(DB_PATH, timeout=30)
+        conn.execute("PRAGMA journal_mode=WAL")
         conn.execute("UPDATE users SET current_usage = current_usage + 0.1 WHERE username = ?", (user["username"],))
         conn.commit()
         conn.close()
@@ -330,7 +390,8 @@ async def login(request: Request):
     except: data = await request.json()
     u, p = data.get("username"), data.get("password")
     
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=30)
+    conn.execute("PRAGMA journal_mode=WAL")
     conn.row_factory = sqlite3.Row
     user = conn.execute("SELECT * FROM users WHERE username = ? AND password = ?", (u, p)).fetchone()
     if user:
@@ -353,7 +414,8 @@ def get_me(user: dict = Depends(get_current_user)):
 def list_users(user: dict = Depends(get_current_user)):
     if user["role"] != "ADMIN": 
         raise HTTPException(status_code=403, detail="Acesso restrito.")
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=30)
+    conn.execute("PRAGMA journal_mode=WAL")
     conn.row_factory = sqlite3.Row
     users = conn.execute("SELECT * FROM users").fetchall()
     conn.close()

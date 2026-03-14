@@ -6,21 +6,21 @@ port = 22022
 username = "root"
 ssh_key_path = os.path.expanduser("~/.ssh/id_rsa")
 
-def check_logs():
+remote_path = "/var/www/hemn_cloud/static/design-system.css"
+local_path = r"C:\Users\Junior T.I\.gemini\antigravity\scratch\data_analysis\design-system.css"
+
+def download_css():
     key = paramiko.RSAKey.from_private_key_file(ssh_key_path)
     client = paramiko.SSHClient()
     client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     client.connect(hostname, port=port, username=username, pkey=key)
     
-    print("--- Server Logs (Last 20 lines) ---")
-    stdin, stdout, stderr = client.exec_command("journalctl -u hemn_cloud -n 20 --no-pager")
-    print(stdout.read().decode('utf-8'))
-    
-    print("\n--- Nginx Access Logs (Last 10 lines) ---")
-    stdin, stdout, stderr = client.exec_command("tail -n 10 /var/log/nginx/access.log")
-    print(stdout.read().decode('utf-8'))
-    
+    sftp = client.open_sftp()
+    print(f"Downloading {remote_path}...")
+    sftp.get(remote_path, local_path)
+    sftp.close()
     client.close()
+    print("Download complete.")
 
 if __name__ == "__main__":
-    check_logs()
+    download_css()

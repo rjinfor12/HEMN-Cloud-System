@@ -50,6 +50,52 @@ class CloudEngine:
             print(f"[ERROR] Falha ao conectar no ClickHouse: {e}")
             return None
 
+    def search_leads(self, search_type, search_term, scope, uf=None, regiao=None):
+        client = self._get_ch_client()
+        if not client:
+            return {"error": "Conexão com ClickHouse indisponível (Ambiente Windows)"}
+        
+        where_clauses = []
+        params = {}
+
+        # Tipo de Busca
+        if search_type == 'cpf':
+            cpf_clean = ''.join(filter(str.isdigit, search_term))
+            where_clauses.append("cpf = {cpf:String}")
+            params['cpf'] = cpf_clean
+        elif search_type == 'nome':
+            where_clauses.append("nome LIKE {nome:String}")
+            params['nome'] = f"%{search_term.upper().strip()}%"
+        elif search_type == 'telefone':
+            tel_clean = ''.join(filter(str.isdigit, search_term))
+            where_clauses.append("(tel_fixo1 = {tel:String} OR celular1 = {tel:String})")
+            params['tel'] = tel_clean
+        
+        # Filtros de Escopo
+        if scope == 'ESTADO' and uf:
+            where_clauses.append("uf = {uf:String}")
+            params['uf'] = uf.upper()
+        elif scope == 'REGIAO' and regiao:
+            where_clauses.append("regiao = {regiao:String}")
+            params['regiao'] = regiao.upper()
+        
+        if not where_clauses:
+            return {"results": [], "count": 0}
+
+        where_str = " AND ".join(where_clauses)
+        query = f"SELECT DISTINCT cpf, nome, dt_nascimento, uf, regiao FROM hemn.leads WHERE {where_str} LIMIT 100"
+        
+        try:
+            result = client.query(query, parameters=params)
+            columns = ['cpf', 'nome', 'dt_nascimento', 'uf', 'regiao']
+            leads = [dict(zip(columns, row)) for row in result.result_rows]
+            return {"results": leads, "count": len(leads)}
+        except Exception as e:
+            print(f"[ERROR] ClickHouse query failed: {e}")
+            return {"error": str(e)}
+        finally:
+            client.close()
+
     def _load_carrier_assets(self):
         """Loads prefix tree and operator dictionary from data_assets folder"""
         self.prefix_tree = {} # {prefix: operator_code}
@@ -100,7 +146,8 @@ class CloudEngine:
         return name
 
     def _init_db(self):
-        conn = sqlite3.connect(self.db_path)
+        conn = sqlite3.connect(self.db_path, timeout=30)
+        conn.execute("PRAGMA journal_mode=WAL")
         conn.execute("""
             CREATE TABLE IF NOT EXISTS background_tasks (
                 id TEXT PRIMARY KEY,
@@ -157,7 +204,8 @@ class CloudEngine:
     def _create_task(self, module="ENRICH", username=None, filters=None):
         tid = str(uuid.uuid4())
         created_at = datetime.now().isoformat()
-        conn = sqlite3.connect(self.db_path)
+        conn = sqlite3.connect(self.db_path, timeout=30)
+        conn.execute("PRAGMA journal_mode=WAL")
         conn.execute(
             "INSERT INTO background_tasks (id, username, module, status, progress, message, filters, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
             (tid, username, module, "QUEUED", 0, "Aguardando início...", filters, created_at)
@@ -167,14 +215,16 @@ class CloudEngine:
         return tid
 
     def cancel_task(self, tid):
-        conn = sqlite3.connect(self.db_path)
+        conn = sqlite3.connect(self.db_path, timeout=30)
+        conn.execute("PRAGMA journal_mode=WAL")
         conn.execute("UPDATE background_tasks SET status = 'CANCELLED', message = 'Processo cancelado pelo usuário.' WHERE id = ?", (tid,))
         conn.commit()
         conn.close()
         return True
 
     def get_user_tasks(self, username):
-        conn = sqlite3.connect(self.db_path)
+        conn = sqlite3.connect(self.db_path, timeout=30)
+        conn.execute("PRAGMA journal_mode=WAL")
         conn.row_factory = sqlite3.Row
         # Include COMPLETED and FAILED tasks from the last 24 hours for UI persistence
         rows = conn.execute(
@@ -187,13 +237,15 @@ class CloudEngine:
     def _update_task(self, tid, **kwargs):
         if not kwargs: return
         cols = ", ".join([f"{k} = ?" for k in kwargs.keys()])
-        conn = sqlite3.connect(self.db_path)
+        conn = sqlite3.connect(self.db_path, timeout=30)
+        conn.execute("PRAGMA journal_mode=WAL")
         conn.execute(f"UPDATE background_tasks SET {cols} WHERE id = ?", list(kwargs.values()) + [tid])
         conn.commit()
         conn.close()
 
     def get_task_status(self, tid):
-        conn = sqlite3.connect(self.db_path)
+        conn = sqlite3.connect(self.db_path, timeout=30)
+        conn.execute("PRAGMA journal_mode=WAL")
         conn.row_factory = sqlite3.Row
         row = conn.execute("SELECT * FROM background_tasks WHERE id = ?", (tid,)).fetchone()
         conn.close()
@@ -202,7 +254,8 @@ class CloudEngine:
 
     def get_internal_stats(self):
         try:
-            conn = sqlite3.connect(self.db_path)
+            conn = sqlite3.connect(self.db_path, timeout=30)
+            conn.execute("PRAGMA journal_mode=WAL")
             stats = {
                 "queued": conn.execute("SELECT COUNT(*) FROM background_tasks WHERE status = 'QUEUED'").fetchone()[0],
                 "processing": conn.execute("SELECT COUNT(*) FROM background_tasks WHERE status = 'PROCESSING'").fetchone()[0],
@@ -349,8 +402,8 @@ class CloudEngine:
 
 
     def _run_enrich(self, tid, input_file, output_dir, name_col, cpf_col):
-        self._update_task(tid, status="PROCESSING", message="Iniciando Escaneamento Titanium-MT (Motor Paralelo)...")
         try:
+            self._update_task(tid, status="PROCESSING", message="Iniciando Escaneamento Titanium-MT (Motor Paralelo)...")
             status = self.get_task_status(tid)
             if status.get("status") == "CANCELLED": return
             start_time = time.time()
@@ -652,10 +705,14 @@ class CloudEngine:
         return tid
 
     def _run_extraction(self, tid, filters, output_dir):
-        self._update_task(tid, status="PROCESSING", progress=1, message="Iniciando motores ClickHouse...")
+        print(f"[DEBUG] Starting _run_extraction for tid: {tid}")
         try:
+            self._update_task(tid, status="PROCESSING", progress=1, message="Iniciando motores ClickHouse...")
+            print(f"[DEBUG] [_run_extraction] Task {tid} set to PROCESSING")
             status = self.get_task_status(tid)
-            if status.get("status") == "CANCELLED": return
+            if status.get("status") == "CANCELLED":
+                print(f"[DEBUG] [_run_extraction] Task {tid} was CANCELLED before start")
+                return
             output_file = os.path.join(output_dir, f"Extracao_{tid[:8]}.xlsx")
             
             estab_conds = []
@@ -687,6 +744,8 @@ class CloudEngine:
                 empresas_conds.append("natureza_juridica = '2135'")
             elif perfil == "NAO MEI":
                 empresas_conds.append("natureza_juridica != '2135'")
+
+            print(f"[DEBUG] [_run_extraction] filters built: estab_conds={len(estab_conds)}, empresas_conds={len(empresas_conds)}")
 
             tipo_req = filters.get("tipo_tel", "TODOS")
             if tipo_req == "CELULAR":
@@ -941,7 +1000,13 @@ class CloudEngine:
 
             self._update_task(tid, status="COMPLETED", progress=100, message=f"Extração Pronta! {total_records_final:,} encontrados.", result_file=output_file, record_count=total_records_final)
         except Exception as e:
-            self._update_task(tid, status="FAILED", message=f"Erro: {str(e)}")
+            import traceback
+            err_msg = traceback.format_exc()
+            print(f"[CRITICAL] EXTRACTION THREAD FAILED for {tid}: {e}\n{err_msg}")
+            try:
+                self._update_task(tid, status="FAILED", message=f"TITANIUM-MT ERROR: {str(e)}")
+            except:
+                pass
 
     # --- UNIFY ---
     def start_unify(self, file_paths, output_dir, username=None):
@@ -951,8 +1016,8 @@ class CloudEngine:
         return tid
 
     def _run_unify(self, tid, file_paths, output_dir):
-        self._update_task(tid, status="PROCESSING", message="Unificando arquivos...")
         try:
+            self._update_task(tid, status="PROCESSING", message="Unificando arquivos...")
             status = self.get_task_status(tid)
             if status.get("status") == "CANCELLED": return
             output_file = os.path.join(output_dir, f"Unificado_{tid[:8]}.xlsx")

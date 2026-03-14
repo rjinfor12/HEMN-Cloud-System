@@ -84,7 +84,7 @@
                     <i class="icon fas fa-home"></i>
                     <span>Início</span>
                 </a>
-                <div class="nav-label">Inteligência</div>
+                <div class="nav-label" id="label-intelligence">Inteligência</div>
                 <a href="#" class="nav-link" id="nav-manual" onclick="app.showModule('manual', this)">
                     <i class="icon fas fa-search"></i>
                     <span>Busca Unitária</span>
@@ -93,8 +93,12 @@
                     <i class="icon fas fa-database"></i>
                     <span>Enriquecer Lote</span>
                 </a>
+                <a href="#" class="nav-link" id="nav-clinicas" onclick="app.showModule('clinicas', this)">
+                    <i class="icon fas fa-user-check"></i>
+                    <span>Encontre PF</span>
+                </a>
 
-                <div class="nav-label">Processamento</div>
+                <div class="nav-label" id="label-processing">Processamento</div>
                 <a href="#" class="nav-link" id="nav-extract" onclick="app.showModule('extract', this)">
                     <i class="icon fas fa-filter"></i>
                     <span>Extrair Dados</span>
@@ -130,16 +134,22 @@
                 </div>
             </nav>
 
-            <div class="user-profile">
-                <div class="avatar" id="avatar-initial">U</div>
-                <div class="user-info">
-                    <div class="user-name" id="user-display">Carregando...</div>
-                    <div class="user-role" id="credits-display">Saldo: --</div>
+            <div class="user-profile-premium">
+                <div class="profile-main">
+                    <div class="avatar" id="avatar-initial">U</div>
+                    <div class="user-meta">
+                        <div class="name" id="user-display">Carregando...</div>
+                        <div class="role-balance">
+                            <span id="sidebar-role-display">Perfil</span>
+                            <span class="sep">•</span>
+                            <span id="credits-display">--</span>
+                        </div>
+                    </div>
                 </div>
-                <button class="icon-btn" onclick="app.logout()" title="Sair"
-                    style="margin-left: auto; border:none; background:transparent">
-                    <i class="fas fa-sign-out-alt"></i>
-                </button>
+                <div class="profile-btns">
+                    <button onclick="app.openPasswordModal()" title="Senha"><i class="fas fa-key"></i></button>
+                    <button onclick="app.logout()" title="Sair" class="logout"><i class="fas fa-power-off"></i></button>
+                </div>
             </div>
         </aside>
 
@@ -215,6 +225,37 @@
                     </div>
                 </div>
 
+                <!-- PASSWORD MODAL -->
+                <div id="password-modal" class="modal-overlay" style="display:none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 9000; align-items: center; justify-content: center; backdrop-filter: blur(10px);">
+                    <div class="glass-card" style="width: 400px; padding: 30px; position: relative; border: 1px solid var(--border-focus);">
+                        <div style="text-align: center; margin-bottom: 25px;">
+                            <div style="width: 60px; height: 60px; background: var(--g-primary); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 15px; box-shadow: 0 10px 20px rgba(0,0,0,0.3);">
+                                <i class="fas fa-key" style="font-size: 24px; color: #fff;"></i>
+                            </div>
+                            <h2 style="font-size: 20px; font-weight: 700;">Alterar Senha</h2>
+                            <p style="font-size: 13px; color: var(--text-3); margin-top: 5px;">Mantenha sua conta segura</p>
+                        </div>
+
+                        <div class="form-group" style="margin-bottom: 15px; text-align: left;">
+                            <label style="display: block; font-size: 11px; font-weight: 600; text-transform: uppercase; margin-bottom: 8px; color: var(--text-2); letter-spacing: 0.5px;">Senha Atual</label>
+                            <input type="password" id="current-pass" class="form-control" placeholder="••••••••" style="width:100%">
+                        </div>
+                        <div class="form-group" style="margin-bottom: 15px; text-align: left;">
+                            <label style="display: block; font-size: 11px; font-weight: 600; text-transform: uppercase; margin-bottom: 8px; color: var(--text-2); letter-spacing: 0.5px;">Nova Senha</label>
+                            <input type="password" id="new-pass" class="form-control" placeholder="Mínimo 4 caracteres" style="width:100%">
+                        </div>
+                        <div class="form-group" style="margin-bottom: 25px; text-align: left;">
+                            <label style="display: block; font-size: 11px; font-weight: 600; text-transform: uppercase; margin-bottom: 8px; color: var(--text-2); letter-spacing: 0.5px;">Confirmar Nova Senha</label>
+                            <input type="password" id="confirm-pass" class="form-control" placeholder="Repita a nova senha" style="width:100%">
+                        </div>
+
+                        <div style="display: flex; gap: 10px;">
+                            <button class="btn-cancel" onclick="app.closePasswordModal()" style="flex: 1; padding: 12px; border-radius: var(--r-md); border: 1px solid var(--border); background: transparent; color: var(--text-2); font-weight: 600; cursor: pointer;">Cancelar</button>
+                            <button class="btn-primary" onclick="app.submitPasswordChange()" style="flex: 1; justify-content: center; color: #fff; font-weight: 700;">Salvar</button>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- MODULE: INÍCIO (Home) -->
                 <section id="module-inicio" class="module-view" style="display:none;">
                     <div class="welcome-hero">
@@ -263,7 +304,7 @@
                     </div>
 
                     <div class="quick-actions-grid stagger-in">
-                        <div class="action-card"
+                        <div class="action-card" id="manual-card"
                             onclick="app.showModule('manual', document.getElementById('nav-manual'))">
                             <div class="icon-box"><i class="fas fa-search"></i></div>
                             <h3>Busca Unitária</h3>
@@ -271,7 +312,7 @@
                             <i class="fas fa-chevron-right arrow"></i>
                         </div>
 
-                        <div class="action-card"
+                        <div class="action-card" id="dashboard-card"
                             onclick="app.showModule('dashboard', document.getElementById('nav-dashboard'))">
                             <div class="icon-box"><i class="fas fa-chart-line"></i></div>
                             <h3>Extrato & Dashboard</h3>
@@ -279,7 +320,7 @@
                             <i class="fas fa-chevron-right arrow"></i>
                         </div>
 
-                        <div class="action-card"
+                        <div class="action-card" id="enrich-card"
                             onclick="app.showModule('enrich', document.getElementById('nav-enrich'))">
                             <div class="icon-box"><i class="fas fa-database"></i></div>
                             <h3>Enriquecer Lote</h3>
@@ -287,7 +328,7 @@
                             <i class="fas fa-chevron-right arrow"></i>
                         </div>
 
-                        <div class="action-card"
+                        <div class="action-card" id="extract-card"
                             onclick="app.showModule('extract', document.getElementById('nav-extract'))">
                             <div class="icon-box"><i class="fas fa-filter"></i></div>
                             <h3>Extrair Dados</h3>
@@ -295,7 +336,23 @@
                             <i class="fas fa-chevron-right arrow"></i>
                         </div>
 
-                        <div class="action-card"
+                        <div class="action-card" id="unify-card"
+                            onclick="app.showModule('unify', document.getElementById('nav-unify'))">
+                            <div class="icon-box"><i class="fas fa-layer-group"></i></div>
+                            <h3>Unificar Bases</h3>
+                            <p>Deduplicação Inteligente: Importe e unifique registros em segundos.</p>
+                            <i class="fas fa-chevron-right arrow"></i>
+                        </div>
+
+                        <div class="action-card" id="split-card"
+                            onclick="app.showModule('split', document.getElementById('nav-split'))">
+                            <div class="icon-box"><i class="fas fa-cut"></i></div>
+                            <h3>Dividir Arquivo</h3>
+                            <p>Processamento Pesado: Quebre arquivos gigantes em pedaços de 1M.</p>
+                            <i class="fas fa-chevron-right arrow"></i>
+                        </div>
+
+                        <div class="action-card" id="carrier-card"
                             onclick="app.showModule('carrier', document.getElementById('nav-carrier'))">
                             <div class="icon-box"><i class="fas fa-signal"></i></div>
                             <h3>Consulta Operadora</h3>
@@ -320,6 +377,15 @@
                             <p>Acompanhe a saúde do servidor, CPU, RAM e integridade do ClickHouse.</p>
                             <i class="fas fa-chevron-right arrow"></i>
                         </div>
+
+                        <div id="clinicas-card" class="action-card"
+                             onclick="app.showModule('clinicas', document.getElementById('nav-clinicas'))"
+                             style="display: none;">
+                            <div class="icon-box"><i class="fas fa-user-check"></i></div>
+                            <h3>Encontre PF</h3>
+                            <p>Módulo exclusivo para gestão e localização de pacientes.</p>
+                            <i class="fas fa-chevron-right arrow"></i>
+                        </div>
                     </div>
                 </section>
 
@@ -327,9 +393,12 @@
                 <section id="module-manual" class="module-view" style="display:none;">
                     <div class="page-header">
                         <div>
-                            <h1 class="page-title">Busca Unitária de Inteligência</h1>
+                            <h1 class="page-title">PESQUISA: Busca Unitária</h1>
                             <p class="page-subtitle">Consulte o Big Data governamental em tempo real.</p>
                         </div>
+                        <button class="btn-icon" onclick="document.getElementById('manual-results').style.display='none'" style="background:rgba(255,255,255,0.05); border:1px solid var(--border); width:40px; height:40px; border-radius:12px; display:flex; align-items:center; justify-content:center; cursor:pointer; color:var(--text-3); transition:all 0.2s;">
+                            <i class="fas fa-times"></i>
+                        </button>
                     </div>
 
                     <div class="glass-card" style="margin-bottom: var(--s-6);">
@@ -339,8 +408,8 @@
                                 <input type="text" id="manual-name" placeholder="Ex: JOAO DA SILVA">
                             </div>
                             <div class="form-group">
-                                <label>CPF / CNPJ</label>
-                                <input type="text" id="manual-cpf" placeholder="Somente números">
+                                <label>CPF / CNPJ <span style="font-size: 10px; opacity: 0.6;">(Somente números)</span></label>
+                                <input type="text" id="manual-cpf" placeholder="000.000.000-00">
                             </div>
                         </div>
                         <div style="margin-top: var(--s-5); display: flex; justify-content: flex-end;">
@@ -359,7 +428,7 @@
                 <section id="module-extract" class="module-view" style="display:none;">
                     <div class="page-header">
                         <div>
-                            <h1 class="page-title">Extração Massiva</h1>
+                            <h1 class="page-title">PESQUISA: Extração Massiva</h1>
                             <p class="page-subtitle">Gere leads qualificados filtrando por UF, Cidade e CNAE.</p>
                         </div>
                     </div>
@@ -367,15 +436,15 @@
                     <div class="glass-card">
                         <div class="form-grid" style="margin-bottom: var(--s-5);">
                             <div class="form-group">
-                                <label>ESTADO (UF)</label>
-                                <input type="text" id="extract-uf" placeholder="Ex: RJ">
+                                <label>ESTADO (UF) <span style="font-size: 10px; opacity: 0.6;">(Obrigatório)</span></label>
+                                <input type="text" id="extract-uf" placeholder="Ex: RJ (Sigla)">
                             </div>
                             <div class="form-group">
-                                <label>CIDADE</label>
+                                <label>CIDADE <span style="font-size: 10px; opacity: 0.6;">(Opcional)</span></label>
                                 <input type="text" id="extract-cidade" placeholder="Ex: RIO DE JANEIRO">
                             </div>
                             <div class="form-group">
-                                <label>CNAE (PREFIXO)</label>
+                                <label>CNAE (PREFIXO) <span style="font-size: 10px; opacity: 0.6;">(Opcional)</span></label>
                                 <input type="text" id="extract-cnae" placeholder="Ex: 4711">
                             </div>
                             <div class="form-group">
@@ -457,7 +526,8 @@
                             style="width: 100%; justify-content: center;">
                             <i class="fas fa-rocket"></i> Iniciar Processamento Massivo (1 Cr por registro)
                         </button>
-                        <div id="tasks-extract" style="margin-top: var(--s-4);"></div>
+                        <h3 id="title-extract" style="display:none; margin-top: 25px; margin-bottom: 10px; font-size: 14px; font-weight: 700; color: var(--text-1); border-left: 3px solid var(--accent); padding-left: 10px;">Pesquisas:</h3>
+                        <div id="tasks-extract" style="margin-top: var(--s-2);"></div>
                     </div>
                 </section>
 
@@ -465,7 +535,7 @@
                 <section id="module-unify" class="module-view" style="display:none;">
                     <div class="page-header">
                         <div>
-                            <h1 class="page-title">Unificação de Bases</h1>
+                            <h1 class="page-title">PESQUISA: Unificação de Bases</h1>
                             <p class="page-subtitle">Misture e deduplique múltiplos arquivos em um único master.</p>
                         </div>
                     </div>
@@ -479,7 +549,8 @@
                         <div id="file-list-unify" style="margin: var(--s-4) 0;"></div>
                         <button class="btn-primary" onclick="app.startUnify()"
                             style="width: 100%; justify-content: center;">Confirmar Unificação</button>
-                        <div id="tasks-unify" style="margin-top: var(--s-4);"></div>
+                        <h3 id="title-unify" style="display:none; margin-top: 25px; margin-bottom: 10px; font-size: 14px; font-weight: 700; color: var(--text-1); border-left: 3px solid var(--accent); padding-left: 10px;">Pesquisas:</h3>
+                        <div id="tasks-unify" style="margin-top: var(--s-2);"></div>
                     </div>
                 </section>
 
@@ -487,7 +558,7 @@
                 <section id="module-enrich" class="module-view" style="display:none;">
                     <div class="page-header">
                         <div>
-                            <h1 class="page-title">Enriquecimento em Lote</h1>
+                            <h1 class="page-title">PESQUISA: Enriquecimento em Lote</h1>
                             <p class="page-subtitle">Cruze sua lista de Nomes/CPFs com nossa base de 40GB.</p>
                         </div>
                     </div>
@@ -503,7 +574,8 @@
                         </div>
                         <button class="btn-primary" onclick="app.startEnrich()"
                             style="width: 100%; justify-content: center;">Iniciar Enriquecimento</button>
-                        <div id="tasks-enrich" style="margin-top: var(--s-4);"></div>
+                        <h3 id="title-enrich" style="display:none; margin-top: 25px; margin-bottom: 10px; font-size: 14px; font-weight: 700; color: var(--text-1); border-left: 3px solid var(--accent); padding-left: 10px;">Pesquisas:</h3>
+                        <div id="tasks-enrich" style="margin-top: var(--s-2);"></div>
                     </div>
                 </section>
 
@@ -511,7 +583,7 @@
                 <section id="module-carrier" class="module-view" style="display:none;">
                     <div class="page-header">
                         <div>
-                            <h1 class="page-title">Consulta de Operadoras</h1>
+                            <h1 class="page-title">PESQUISA: Consulta de Operadoras</h1>
                             <p class="page-subtitle">Identificação de portabilidade em listas de telefones.</p>
                         </div>
                     </div>
@@ -546,7 +618,8 @@
                         </div>
                         <button class="btn-primary" onclick="app.startCarrier()"
                             style="width: 100%; justify-content: center;">Executar Consulta Operadora</button>
-                        <div id="tasks-carrier" style="margin-top: var(--s-4);"></div>
+                        <h3 id="title-carrier" style="display:none; margin-top: 25px; margin-bottom: 10px; font-size: 14px; font-weight: 700; color: var(--text-1); border-left: 3px solid var(--accent); padding-left: 10px;">Pesquisas:</h3>
+                        <div id="tasks-carrier" style="margin-top: var(--s-2);"></div>
                     </div>
                 </section>
 
@@ -554,7 +627,7 @@
                 <section id="module-split" class="module-view" style="display:none;">
                     <div class="page-header">
                         <div>
-                            <h1 class="page-title">Divisor de Arquivos Heavy</h1>
+                            <h1 class="page-title">PESQUISA: Divisor de Arquivos Heavy</h1>
                             <p class="page-subtitle">Quebre arquivos massivos em pedaços de 1M de linhas.</p>
                         </div>
                     </div>
@@ -567,7 +640,115 @@
                         <div id="file-list-split" style="margin: var(--s-4) 0;"></div>
                         <button class="btn-primary" onclick="app.startSplit()"
                             style="width: 100%; justify-content: center;">Fatiar Arquivo</button>
-                        <div id="tasks-split" style="margin-top: var(--s-4);"></div>
+                        <h3 id="title-split" style="display:none; margin-top: 25px; margin-bottom: 10px; font-size: 14px; font-weight: 700; color: var(--text-1); border-left: 3px solid var(--accent); padding-left: 10px;">Pesquisas:</h3>
+                        <div id="tasks-split" style="margin-top: var(--s-2);"></div>
+                    </div>
+                </section>
+
+                <!-- MODULE: CLINICAS -->
+                <section id="module-clinicas" class="module-view" style="display:none;">
+                    <div class="page-header">
+                        <div>
+                            <h1 class="page-title">Encontre <span style="color:var(--accent)">PF</span></h1>
+                            <p class="page-subtitle">Busca unitária em base regionalizada Titanium.</p>
+                        </div>
+                        <button class="btn-icon" onclick="document.getElementById('clinicas-results-container').style.display='none'" style="background:rgba(255,255,255,0.05); border:1px solid var(--border); width:40px; height:40px; border-radius:12px; display:flex; align-items:center; justify-content:center; cursor:pointer; color:var(--text-3); transition:all 0.2s;">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <div class="glass-card" style="border-top: 3px solid var(--accent);">
+                        <div class="stat-label" style="margin-bottom: var(--s-4);">CRITÉRIOS DE PESQUISA</div>
+                        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap:15px; margin-bottom: 20px;">
+                            <div class="form-group">
+                                <label>PESQUISAR POR</label>
+                                <select id="clinicas-search-type">
+                                    <option value="nome" selected>NOME COMPLETO</option>
+                                    <option value="cpf">CPF (Somente Números)</option>
+                                    <option value="fone">TELEFONE (DDD+NÚMERO)</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>TERMO DE BUSCA</label>
+                                <input type="text" id="clinicas-search-term" placeholder="Digite para pesquisar...">
+                            </div>
+                            <div class="form-group">
+                                <label>ABRANGÊNCIA</label>
+                                <select id="clinicas-search-scope" onchange="app.updateClinicasFilters()">
+                                    <option value="brasil">BRASIL TODO</option>
+                                    <option value="regiao">POR REGIÃO</option>
+                                    <option value="estado">POR ESTADO (UF)</option>
+                                </select>
+                            </div>
+                            
+                            <!-- Dynamic Filters moved into grid -->
+                            <div id="clinicas-filter-region" style="display:none;" class="form-group">
+                                <label>REGIÃO DO BRASIL</label>
+                                <select id="clinicas-val-region">
+                                    <option value="SUDESTE">SUDESTE</option>
+                                    <option value="SUL">SUL</option>
+                                    <option value="CENTRO-OESTE">CENTRO-OESTE</option>
+                                    <option value="NORDESTE">NORDESTE</option>
+                                    <option value="NORTE">NORTE</option>
+                                </select>
+                            </div>
+
+                            <div id="clinicas-filter-uf" style="display:none;" class="form-group">
+                                <label>ESTADO (UF)</label>
+                                <select id="clinicas-val-uf">
+                                    <option value="SP">SÃO PAULO (SP)</option>
+                                    <option value="RJ">RIO DE JANEIRO (RJ)</option>
+                                    <option value="MG">MINAS GERAIS (MG)</option>
+                                    <option value="ES">ESPÍRITO SANTO (ES)</option>
+                                    <option value="PR">PARANÁ (PR)</option>
+                                    <option value="SC">SANTA CATARINA (SC)</option>
+                                    <option value="RS">RIO GRANDE DO SUL (RS)</option>
+                                    <option value="MT">MATO GROSSO (MT)</option>
+                                    <option value="MS">MATO GROSSO DO SUL (MS)</option>
+                                    <option value="GO">GOIÁS (GO)</option>
+                                    <option value="DF">DISTRITO FEDERAL (DF)</option>
+                                    <option value="AC">ACRE (AC)</option>
+                                    <option value="AL">ALAGOAS (AL)</option>
+                                    <option value="AP">AMAPÁ (AP)</option>
+                                    <option value="AM">AMAZONAS (AM)</option>
+                                    <option value="BA">BAHIA (BA)</option>
+                                    <option value="CE">CEARÁ (CE)</option>
+                                    <option value="MA">MARANHÃO (MA)</option>
+                                    <option value="PA">PARÁ (PA)</option>
+                                    <option value="PB">PARAÍBA (PB)</option>
+                                    <option value="PE">PERNAMBUCO (PE)</option>
+                                    <option value="PI">PIAUÍ (PI)</option>
+                                    <option value="RN">RIO GRANDE DO NORTE (RN)</option>
+                                    <option value="RO">RONDÔNIA (RO)</option>
+                                    <option value="RR">RORAIMA (RR)</option>
+                                    <option value="SE">SERGIPE (SE)</option>
+                                    <option value="TO">TOCANTINS (TO)</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div style="display: flex; justify-content: flex-end; margin-top: 20px;">
+                            <button class="btn-primary" id="btn-run-clinicas" onclick="app.runClinicasSearch()">
+                                <i class="fas fa-search-dollar"></i> REALIZAR PESQUISA PREMIUM
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="clinicas-results-container" style="display:none; margin-top: 30px;">
+                        <div class="nav-label" style="margin-bottom: 15px;">RESULTADOS ENCONTRADOS</div>
+                        <div class="glass-card" style="padding:0; overflow:hidden;">
+                            <table class="data-table" id="clinicas-table">
+                                <thead>
+                                    <tr>
+                                        <th>CPF</th>
+                                        <th>NOME COMPLETO</th>
+                                        <th>DATA NASC.</th>
+                                        <th>UF</th>
+                                        <th>REGIÃO</th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
                     </div>
                 </section>
 
@@ -916,21 +1097,26 @@
                                     <input type="password" id="modal-password" placeholder="••••••••">
                                 </div>
                             </div>
-                            <div class="form-grid" style="grid-template-columns: 1fr 1fr; gap: var(--s-4);">
-                                <div class="form-group">
-                                    <label>LIMITE DE CRÉDITOS</label>
-                                    <input type="number" id="modal-limit" value="1000">
-                                </div>
-                                <div class="form-group">
-                                    <label>DATA EXPIRAÇÃO</label>
-                                    <input type="date" id="modal-expiration">
-                                </div>
-                            </div>
+                             <div class="form-grid" style="grid-template-columns: 1fr 1fr; gap: var(--s-4);">
+                                 <div class="form-group">
+                                     <label>LIMITE DE CRÉDITOS</label>
+                                     <input type="number" id="modal-limit" value="1000">
+                                     <div style="margin-top: 8px; display: flex; align-items: center; gap: 8px;">
+                                         <input type="checkbox" id="modal-unlimited" onchange="app.toggleUnlimitedCredits()" style="width: 16px; height: 16px; cursor: pointer;">
+                                         <label for="modal-unlimited" style="margin: 0; font-size: 12px; cursor: pointer; color: var(--accent); font-weight: 700;">CRÉDITOS ILIMITADOS</label>
+                                     </div>
+                                 </div>
+                                 <div class="form-group">
+                                     <label>DATA EXPIRAÇÃO</label>
+                                     <input type="date" id="modal-expiration">
+                                 </div>
+                             </div>
                             <div class="form-group">
                                 <label>CARGO / ROLE</label>
                                 <select id="modal-role">
                                     <option value="USER">USUÁRIO COMUM</option>
                                     <option value="ADMIN">ADMINISTRADOR</option>
+                                    <option value="CLINICAS">PERFIL CLÍNICAS</option>
                                 </select>
                             </div>
                         </div>
@@ -1078,7 +1264,7 @@
     <!-- Premium Titanium Modal -->
     <div id="premium-modal" class="modal" style="display: none; z-index: 9999;">
         <div class="modal-content"
-            style="max-width: 420px; text-align: center; border: 1px solid var(--border-focus); background: rgba(13, 17, 23, 0.98); box-shadow: 0 20px 50px rgba(0,0,0,0.6);">
+            style="max-width: 420px; text-align: center; border: 1px solid var(--border-focus); background: var(--bg-card); backdrop-filter: var(--glass-blur); box-shadow: var(--glass-shadow); color: var(--text-1);">
             <div id="modal-icon-container"
                 style="font-size: 44px; margin-bottom: 15px;">
                 <i class="fas fa-exclamation-circle"></i>
@@ -1089,11 +1275,13 @@
             <p id="modal-message" style="color: var(--text-2); margin-bottom: 24px; line-height: 1.5; font-size: 14px;">
                 Mensagem do sistema.</p>
 
-            <div style="display: flex; gap: 12px; justify-content: center;">
+            <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
                 <button id="modal-btn-cancel" class="btn-secondary"
-                    style="flex: 1; height: 44px; justify-content: center;">Cancelar</button>
+                    style="flex: 1; height: 44px; justify-content: center; min-width: 120px;">Cancelar</button>
                 <button id="modal-btn-confirm" class="btn-primary"
-                    style="flex: 1; height: 44px; justify-content: center;">Confirmar</button>
+                    style="flex: 1; height: 44px; justify-content: center; min-width: 120px;">Confirmar</button>
+                <button id="modal-btn-recharge" class="btn-primary"
+                    style="flex: 1; height: 44px; justify-content: center; min-width: 120px; background: var(--g-warm); border:none; display:none;">Recarregar</button>
             </div>
         </div>
     </div>
@@ -1275,7 +1463,7 @@
     </div>
 
     <script>
-        const API = "";
+        const API = "/areadocliente";
         const app = {
             token: localStorage.getItem("hemn_token"),
             uploadedFiles: { unify: [], enrich: [], carrier: [], split: [], cep: [] },
@@ -1285,13 +1473,21 @@
             notifications: JSON.parse(localStorage.getItem("hemn_notifications") || "[]"),
             monChart: null,
             monInterval: null,
-
+            statusMap: {
+                'QUEUED': 'AGUARDANDO',
+                'PROCESSING': 'PROCESSANDO',
+                'COMPLETED': 'CONCLUÍDO',
+                'SUCCESS': 'CONCLUÍDO',
+                'FAILED': 'FALHOU',
+                'CANCELLED': 'CANCELADO'
+            },
             initialized: false,
             currentModule: null,
 
             init() {
                 if (this.initialized) return;
                 this.initialized = true;
+
                 // Universal Robust Closer (Always Active)
                 const handleGlobalClick = (e) => {
                     const dropdown = document.getElementById('notification-dropdown');
@@ -1328,14 +1524,18 @@
                 if (this.token) {
                     document.getElementById('login-overlay').style.display = 'none';
 
-                    // RESTAURAÇÃO BLOQUEADA (Sync) para evitar pulo de página
+                    // RESTAURAÇÃO BLOQUEADA (Sync)
                     const lastModule = localStorage.getItem('hemn_last_module') || 'inicio';
                     const lastNavEl = document.getElementById(`nav-${lastModule}`);
                     this.showModule(lastModule, lastNavEl);
 
                     this.refreshUser();
+                    this.recoverActiveTasks();
+                    this.pollTasks();
+                    this.refreshDashboard();
+                    this.setupDragAndDrop();
                 }
-
+                
                 // Mostrar o app apenas APÓS o showModule inicial ter definido o display:block!important
                 setTimeout(() => {
                     document.getElementById('app').classList.add('app-ready');
@@ -1428,6 +1628,7 @@
                     const msgEl = document.getElementById('modal-message');
                     const btnConfirm = document.getElementById('modal-btn-confirm');
                     const btnCancel = document.getElementById('modal-btn-cancel');
+                    const btnRecharge = document.getElementById('modal-btn-recharge');
                     const iconContainer = document.getElementById('modal-icon-container');
 
                     titleEl.innerText = title;
@@ -1435,6 +1636,14 @@
                     btnConfirm.innerText = options.confirmText || 'Confirmar';
                     btnCancel.style.display = (options.showCancel === false) ? 'none' : 'flex';
                     if (options.cancelText) btnCancel.innerText = options.cancelText;
+
+                    // Extra Recharge Button
+                    if (options.showRecharge) {
+                        btnRecharge.style.display = 'flex';
+                        if (options.rechargeText) btnRecharge.innerText = options.rechargeText;
+                    } else {
+                        btnRecharge.style.display = 'none';
+                    }
 
                     // Icon and Color based on type
                     let iconHtml = '<i class="fas fa-exclamation-circle"></i>';
@@ -1461,11 +1670,13 @@
                         modal.style.display = 'none';
                         btnConfirm.onclick = null;
                         btnCancel.onclick = null;
+                        btnRecharge.onclick = null;
                         resolve(val);
                     };
 
                     btnConfirm.onclick = () => cleanup(true);
                     btnCancel.onclick = () => cleanup(false);
+                    btnRecharge.onclick = () => cleanup('recharge');
                 });
             },
 
@@ -1540,58 +1751,87 @@
                 location.reload();
             },
 
+            openPasswordModal() {
+                document.getElementById('password-modal').style.display = 'flex';
+                document.getElementById('current-pass').value = '';
+                document.getElementById('new-pass').value = '';
+                document.getElementById('confirm-pass').value = '';
+            },
+
+            closePasswordModal() {
+                document.getElementById('password-modal').style.display = 'none';
+            },
+
+            async submitPasswordChange() {
+                const current = document.getElementById('current-pass').value;
+                const next = document.getElementById('new-pass').value;
+                const confirm = document.getElementById('confirm-pass').value;
+
+                if (!current || !next || !confirm) {
+                    this.showToast('Preencha todos os campos.', 'error');
+                    return;
+                }
+                if (next !== confirm) {
+                    this.showToast('As novas senhas não coincidem.', 'error');
+                    return;
+                }
+                if (next.length < 4) {
+                    this.showToast('A nova senha deve ter pelo menos 4 caracteres.', 'error');
+                    return;
+                }
+
+                try {
+                    const res = await fetch(`${API}/user/change-password`, {
+                        method: 'POST',
+                        headers: { 
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${this.token}`
+                        },
+                        body: JSON.stringify({
+                            current_password: current,
+                            new_password: next,
+                            confirm_password: confirm
+                        })
+                    });
+                    const data = await res.json();
+                    if (res.ok) {
+                        this.showToast('Senha alterada com sucesso!', 'success');
+                        this.closePasswordModal();
+                    } else {
+                        this.showToast(data.detail || 'Falha ao alterar senha', 'error');
+                    }
+                } catch (err) {
+                    this.showToast('Erro na conexão', 'error');
+                }
+            },
+
             async refreshUser() {
                 try {
                     const res = await fetch(`${API}/me`, { headers: { 'Authorization': `Bearer ${this.token}` } });
                     const user = await res.json();
                     if (res.ok) {
                         this.user = user;
-                        if (document.getElementById('user-display')) document.getElementById('user-display').innerText = user.full_name;
+                        if (document.getElementById('user-display')) {
+                            document.getElementById('user-display').innerText = user.full_name.split(' ')[0];
+                        }
                         if (document.getElementById('avatar-initial')) document.getElementById('avatar-initial').innerText = user.full_name.charAt(0).toUpperCase();
+                        
+                        // Update Sidebar Role
+                        const sidebarRole = document.getElementById('sidebar-role-display');
+                        if (sidebarRole) {
+                            if (user.role === 'ADMIN') sidebarRole.innerText = 'Admin';
+                            else if (user.role === 'CLINICAS') sidebarRole.innerText = 'Clínicas';
+                            else sidebarRole.innerText = 'Bronze';
+                        }
+
                         if (document.getElementById('credits-display')) {
                             const oldText = document.getElementById('credits-display').innerText;
-                            const newBalance = Math.max(0, user.total_limit - user.current_usage).toFixed(1);
-                            const newText = `Saldo: ${newBalance} Cr`;
-                            if (oldText !== "--" && oldText !== "Saldo: --" && oldText !== newText) {
-                                const oldVal = parseFloat(oldText.replace(/[^0-9.]/g, ''));
-                                const newVal = parseFloat(newBalance);
-                                if (newVal > oldVal) {
-                                    const pStatus = document.getElementById('payment-status-message');
-                                    if (this.rechargeInterval && pStatus) {
-                                        pStatus.innerHTML = '<i class="fas fa-check-circle" style="color: #10b981; font-size: 48px; animation: checkmarkPop 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;"></i> <span style="color: #10b981; font-size: 16px; margin-top: 10px;">Pagamento concluído com sucesso!</span>';
-                                        clearInterval(this.rechargeInterval);
-                                        this.rechargeInterval = null;
-                                        try {
-                                            const AudioContext = window.AudioContext || window.webkitAudioContext;
-                                            if (AudioContext) {
-                                                const ctx = new AudioContext();
-                                                const osc1 = ctx.createOscillator();
-                                                const gain1 = ctx.createGain();
-                                                osc1.type = 'sine';
-                                                osc1.frequency.setValueAtTime(987.77, ctx.currentTime);
-                                                gain1.gain.setValueAtTime(0.5, ctx.currentTime);
-                                                gain1.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.1);
-                                                osc1.connect(gain1);
-                                                gain1.connect(ctx.destination);
-                                                osc1.start();
-                                                osc1.stop(ctx.currentTime + 0.1);
-
-                                                const osc2 = ctx.createOscillator();
-                                                const gain2 = ctx.createGain();
-                                                osc2.type = 'sine';
-                                                osc2.frequency.setValueAtTime(1318.51, ctx.currentTime + 0.1);
-                                                gain2.gain.setValueAtTime(0.5, ctx.currentTime + 0.1);
-                                                gain2.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.4);
-                                                osc2.connect(gain2);
-                                                gain2.connect(ctx.destination);
-                                                osc2.start(ctx.currentTime + 0.1);
-                                                osc2.stop(ctx.currentTime + 0.4);
-                                            }
-                                        } catch(e) {}
-                                        setTimeout(() => this.closeRechargeModal(), 3500);
-                                    }
-                                }
-                                this.addNotification("Saldo Atualizado", `Seu saldo agora é de ${newBalance} créditos.`, "info");
+                            let displayBalance = Math.max(0, user.total_limit - user.current_usage).toFixed(0);
+                            if (user.total_limit >= 900000000) displayBalance = "Infinito";
+                            
+                            const newText = displayBalance === "Infinito" ? "∞" : `${displayBalance} Cr`;
+                            if (oldText !== "--" && oldText !== "∞" && oldText !== newText) {
+                                this.addNotification("Saldo Atualizado", `Seu saldo agora é: ${displayBalance}`, "info");
                             }
                             document.getElementById('credits-display').innerText = newText;
                         }
@@ -1607,18 +1847,73 @@
                         else if (hour < 18) greet = "Boa tarde";
                         document.getElementById('main-greeting').innerText = `${greet}, ${user.full_name.split(' ')[0]}!`;
 
-                        // Handle Admin Menu
+                        // Handle Admin & Clinicas Menu
+                        console.log("[DEBUG] Checking access for role:", user.role);
+                        
+                        // Default states
+                        document.getElementById('admin-menu').style.display = 'none';
+                        if (document.getElementById('admin-card-users')) document.getElementById('admin-card-users').style.display = 'none';
+                        if (document.getElementById('admin-card-monitor')) document.getElementById('admin-card-monitor').style.display = 'none';
+                        
+                        const clinNav = document.getElementById('nav-clinicas');
+                        const clinCard = document.getElementById('clinicas-card');
+                        const processingLabel = document.getElementById('label-processing');
+                        const intelligenceLabel = document.getElementById('label-intelligence');
+                        
+                        // Individual module elements for strict hiding
+                        const manualEls = [document.getElementById('nav-manual'), document.getElementById('manual-card')];
+                        const enrichEls = [document.getElementById('nav-enrich'), document.getElementById('enrich-card')];
+                        const extractEls = [document.getElementById('nav-extract'), document.getElementById('extract-card')];
+                        const unifyEls = [document.getElementById('nav-unify'), document.getElementById('unify-card')];
+                        const splitEls = [document.getElementById('nav-split'), document.getElementById('split-card')];
+                        const carrierEls = [document.getElementById('nav-carrier'), document.getElementById('carrier-card')];
+                        const dashboardEls = [document.getElementById('nav-dashboard'), document.getElementById('dashboard-card')];
+
                         if (user.role === 'ADMIN') {
+                            // ADMIN: Show everything
                             document.getElementById('admin-menu').style.display = 'block';
                             if (document.getElementById('admin-card-users')) document.getElementById('admin-card-users').style.display = 'flex';
                             if (document.getElementById('admin-card-monitor')) document.getElementById('admin-card-monitor').style.display = 'flex';
+                            
+                            if (clinNav) clinNav.style.setProperty('display', 'flex', 'important');
+                            if (clinCard) clinCard.style.setProperty('display', 'flex', 'important');
+                            
+                            [...manualEls, ...enrichEls, ...extractEls, ...unifyEls, ...splitEls, ...carrierEls, ...dashboardEls].forEach(el => {
+                                if (el) el.style.display = el.classList.contains('action-card') ? 'flex' : 'flex';
+                            });
+                            if (processingLabel) processingLabel.style.display = 'block';
+                            if (intelligenceLabel) intelligenceLabel.style.display = 'block';
                             this.populateAdminUserSelect();
-                        }
 
-                        // Restore last module or default to Inicio
-                        const lastModule = localStorage.getItem('hemn_last_module') || 'inicio';
-                        const lastNavEl = document.getElementById(`nav-${lastModule}`);
-                        this.showModule(lastModule, lastNavEl);
+                        } else if (user.role === 'CLINICAS') {
+                            // CLINICAS: STRICT ACCESS (Inicio, Encontre PF, Dashboard)
+                            if (clinNav) clinNav.style.setProperty('display', 'flex', 'important');
+                            if (clinCard) clinCard.style.setProperty('display', 'flex', 'important');
+                            
+                            // Show Dashboard (Extrato)
+                            dashboardEls.forEach(el => { if (el) el.style.display = el.classList.contains('action-card') ? 'flex' : 'flex'; });
+                            
+                            // HIDE ALL OTHERS
+                            [...manualEls, ...enrichEls, ...extractEls, ...unifyEls, ...splitEls, ...carrierEls].forEach(el => {
+                                if (el) el.style.display = 'none';
+                            });
+                            if (processingLabel) processingLabel.style.display = 'none';
+                            if (intelligenceLabel) intelligenceLabel.style.display = 'block'; // Keep for spacing/clinicas
+                            
+                            console.log("[DEBUG] Strict RBAC applied for CLINICAS");
+
+                        } else {
+                            // Standard USER (Bronze)
+                            if (clinNav) clinNav.style.display = 'none';
+                            if (clinCard) clinCard.style.display = 'none';
+                            
+                            // Standard users see everything except Admin and Clinicas
+                            [...manualEls, ...enrichEls, ...extractEls, ...unifyEls, ...splitEls, ...carrierEls, ...dashboardEls].forEach(el => {
+                                if (el) el.style.display = el.classList.contains('action-card') ? 'flex' : 'flex';
+                            });
+                            if (processingLabel) processingLabel.style.display = 'block';
+                            if (intelligenceLabel) intelligenceLabel.style.display = 'block';
+                        }
 
                         // Set Welcome Message
                         const welcomeEl = document.getElementById('welcome-title');
@@ -1626,10 +1921,18 @@
 
                         // Update Status Cards
                         const balanceEl = document.getElementById('status-balance');
-                        if (balanceEl) balanceEl.innerText = `${Math.max(0, user.total_limit - user.current_usage).toFixed(1)} Cr`;
+                        if (balanceEl) {
+                            let val = Math.max(0, user.total_limit - user.current_usage).toFixed(1);
+                            if (user.total_limit >= 900000000) val = "Ilimitado";
+                            balanceEl.innerText = val === "Ilimitado" ? val : `${val} Cr`;
+                        }
 
                         const roleEl = document.getElementById('status-role');
-                        if (roleEl) roleEl.innerText = user.role === 'ADMIN' ? 'Administrador' : 'Usuário Bronze';
+                        if (roleEl) {
+                            if (user.role === 'ADMIN') roleEl.innerText = 'Administrador';
+                            else if (user.role === 'CLINICAS') roleEl.innerText = 'Perfil Clínicas';
+                            else roleEl.innerText = 'Usuário Bronze';
+                        }
                     } else {
                         this.logout();
                     }
@@ -1849,6 +2152,11 @@
                     document.getElementById('modal-limit').value = user.total_limit;
                     document.getElementById('modal-expiration').value = user.expiration;
                     document.getElementById('modal-role').value = user.role;
+                    
+                    const isUnlimited = user.total_limit >= 1000000;
+                    document.getElementById('modal-unlimited').checked = isUnlimited;
+                    document.getElementById('modal-limit').disabled = isUnlimited;
+                    if(isUnlimited) document.getElementById('modal-limit').value = 999999999;
                 } else {
                     title.innerText = "Novo Usuário";
                     document.getElementById('edit-username-orig').value = "";
@@ -1858,6 +2166,8 @@
                     document.getElementById('modal-limit').value = "1000";
                     document.getElementById('modal-expiration').value = "2099-12-31";
                     document.getElementById('modal-role').value = "USER";
+                    document.getElementById('modal-unlimited').checked = false;
+                    document.getElementById('modal-limit').disabled = false;
                 }
                 modal.style.display = "flex";
             },
@@ -1866,12 +2176,24 @@
                 document.getElementById('user-modal').style.display = "none";
             },
 
+            toggleUnlimitedCredits() {
+                const isUnlimited = document.getElementById('modal-unlimited').checked;
+                const limitInput = document.getElementById('modal-limit');
+                limitInput.disabled = isUnlimited;
+                if (isUnlimited) {
+                    limitInput.value = 999999999;
+                } else {
+                    limitInput.value = 1000;
+                }
+            },
+
             async saveUser() {
                 const origUsername = document.getElementById('edit-username-orig').value;
+                const isUnlimited = document.getElementById('modal-unlimited').checked;
                 const body = {
                     full_name: document.getElementById('modal-full-name').value,
                     username: document.getElementById('modal-username').value,
-                    total_limit: parseFloat(document.getElementById('modal-limit').value),
+                    total_limit: isUnlimited ? 999999999 : parseFloat(document.getElementById('modal-limit').value),
                     expiration: document.getElementById('modal-expiration').value,
                     role: document.getElementById('modal-role').value
                 };
@@ -1990,6 +2312,11 @@
                 } catch (e) {
                     this.showToast(e.message, "error");
                 }
+            },
+
+            async downloadTask(taskId, count) {
+                // Wrapper para compatibilidade e lógica de confirmação se necessário
+                return this.downloadFile(taskId);
             },
 
             async populateAdminUserSelect() {
@@ -2251,7 +2578,12 @@
                     }
 
                     if (data.task_id) {
-                        const taskInfo = { id: data.task_id, mid: mid, startTime: Date.now() };
+                        const taskInfo = { 
+                            id: data.task_id, 
+                            mid: mid, 
+                            startTime: Date.now(),
+                            filters: body.filterSummary || null
+                        };
                         this.tasks.push(taskInfo);
                         // Persist to localStorage for recovery on refresh
                         const saved = JSON.parse(localStorage.getItem('hemn_active_tasks') || '[]');
@@ -2259,6 +2591,7 @@
                         localStorage.setItem('hemn_active_tasks', JSON.stringify(saved));
 
                         this.showToast("Tarefa iniciada na nuvem", "success");
+
                         const moduleLabels = {
                             'enrich': 'ENRIQUECIMENTO',
                             'extract': 'EXTRAÇÃO',
@@ -2271,7 +2604,8 @@
                         const moduleName = moduleLabels[mid] || mid.toUpperCase();
                         this.addNotification("Novo Processo", `Sua tarefa de ${moduleName} (TI-${data.task_id.substring(0, 6)}) foi encaminhada para a nuvem.`, "info");
 
-                        this.renderTaskCard(data.task_id, mid);
+                        // Passa o resumo dos filtros para renderização imediata
+                        this.renderTaskCard(data.task_id, mid, { filters: body.filterSummary || null });
                         this.renderGlobalTaskCard(data.task_id, mid);
                     }
                     return data;
@@ -2327,22 +2661,28 @@
                 const moduleLabel = moduleLabels[mid] || mid.toUpperCase();
 
                 // Use saved data for instant UI or defaults
-                const status = savedData?.status?.toUpperCase() || "AGUARDANDO";
+                const rawStatus = savedData?.status?.toUpperCase() || "QUEUED";
+                const statusLabel = this.statusMap[rawStatus] || rawStatus;
                 const message = savedData?.message || "Iniciando...";
                 const progress = savedData?.progress || 0;
 
                 card.innerHTML = `
                     <div class="gtask-name">
                         <span><i class="fas fa-cog"></i> ${moduleLabel} &mdash; TI-${tid.substring(0, 6)}</span>
-                        <span id="gstatus-${tid}" style="color:var(--text-3); font-weight:600">${status}</span>
+                        <span id="gstatus-${tid}" style="color:var(--text-3); font-weight:600">${statusLabel}</span>
                     </div>
                     <div class="gtask-msg" id="gmsg-${tid}">${message}</div>
                     <div class="gtask-progress">
                         <div class="gtask-bar" id="gprog-${tid}" style="width: ${progress}%"></div>
                     </div>
-                    <button class="gtask-cancel" onclick="app.cancelTask('${tid}')" title="Cancelar Processo">
-                        <i class="fas fa-times-circle"></i>
-                    </button>
+                    <div style="position: absolute; top: 10px; right: 10px; display: flex; gap: 8px;">
+                        <button class="gtask-dismiss" onclick="this.closest('.glass-card').remove()" title="Remover Card" style="background:none; border:none; color:var(--text-3); cursor:pointer; font-size:14px; opacity:0.6; transition:opacity 0.2s;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.6'">
+                            <i class="fas fa-times"></i>
+                        </button>
+                        <button class="gtask-cancel" id="cancel-zone-${tid}" onclick="app.cancelTask('${tid}')" title="Cancelar Processo" style="${(rawStatus === 'COMPLETED' || rawStatus === 'FAILED' || rawStatus === 'CANCELLED') ? 'display:none' : ''}">
+                            <i class="fas fa-times-circle" style="color:#ef4444"></i>
+                        </button>
+                    </div>
                 `;
             },
 
@@ -2375,14 +2715,23 @@
                 card.style.marginTop = "15px";
                 card.style.borderColor = "var(--border-focus)";
 
-                const status = savedData?.status?.toUpperCase() || "AGUARDANDO";
+                const rawStatus = (savedData?.status || "QUEUED").toUpperCase();
+                const statusLabel = this.statusMap[rawStatus] || rawStatus;
                 const message = savedData?.message || "Iniciando motores de busca Titanium...";
                 const progress = savedData?.progress || 0;
+                const filterText = savedData?.filters || savedData?.filterSummary || '';
 
                 card.innerHTML = `
-                    <div style="display:flex; justify-content:space-between; align-items:center">
+                    <button onclick="this.closest('.glass-card').remove()" style="position:absolute; top:8px; right:8px; background:rgba(0,0,0,0.1); border:none; color:var(--text-2); cursor:pointer; width:22px; height:22px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:10px; z-index:10; transition:all 0.2s;" onmouseover="this.style.background='rgba(239,68,68,0.2)'; this.style.color='#ef4444'" onmouseout="this.style.background='rgba(0,0,0,0.1)'; this.style.color='var(--text-2)'">
+                        <i class="fas fa-times"></i>
+                    </button>
+                    <div style="display:flex; justify-content:space-between; align-items:center; padding-right:30px">
                         <span style="font-size:12px; font-weight:700">TI-ID: ${tid.substring(0, 8)}</span>
-                        <div class="badge badge-blue" id="status-${tid}">${status}</div>
+                        <div class="badge badge-blue" id="status-${tid}">${statusLabel}</div>
+                    </div>
+                    <div id="filters-${tid}" style="font-size:10px; color:var(--accent); font-weight:600; margin-top:4px; display:${filterText ? 'flex' : 'none'}; align-items:center; gap:5px">
+                        <i class="fas fa-filter" style="font-size:9px"></i>
+                        <span>${filterText}</span>
                     </div>
                     <div id="msg-${tid}" style="font-size:11px; color:var(--text-dim); margin-top:8px">${message}</div>
                     <div style="height:4px; background:var(--bg-input); border-radius:10px; margin:10px 0; overflow:hidden">
@@ -2401,21 +2750,47 @@
                         </button>
                     </div>
                 `;
-                container.prepend(card);
+                card.style.position = "relative";
+                container.appendChild(card);
+                
+                const title = document.getElementById(`title-${mid}`);
+                if (title) {
+                    title.style.display = 'block';
+                    title.innerHTML = "PESQUISAS ATIVAS:";
+                }
 
                 if (savedData && (savedData.status === 'COMPLETED' || savedData.status === 'SUCCESS' || savedData.result_file)) {
                     const count = savedData.record_count || 0;
+                    const isSplit = mid === 'split';
+                    const btnText = isSplit ? "Baixar Arquivos Divididos" : `Baixar e Consumir Créditos (${count.toLocaleString()} Cr)`;
+                    const btnIcon = isSplit ? "fa-file-archive" : "fa-download";
+                    
                     const downloadHtml = `
                         <div style="margin-top:15px; padding-top:12px; border-top:1px solid var(--border-color); color:var(--text-3); font-size:11px">
-                            <i class="fas fa-database"></i> Encontrados: <b>${count.toLocaleString()}</b> registros.
+                            <i class="fas fa-database"></i> ${isSplit ? 'Fatiamento concluído' : `Encontrados: <b>${count.toLocaleString()}</b> registros.`}
                         </div>
                         <button onclick="app.downloadTask('${tid}', ${count})" class="btn-primary" style="margin-top:10px; width:100%; border:none; height:40px; border-radius:8px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px">
-                            <i class="fas fa-download"></i> Baixar e Consumir Créditos (${count.toLocaleString()} Cr)
+                            <i class="fas ${btnIcon}"></i> ${btnText}
                         </button>
                     `;
                     card.insertAdjacentHTML('beforeend', downloadHtml);
                     const cancelZone = document.getElementById(`cancel-zone-${tid}`);
                     if (cancelZone) cancelZone.style.display = 'none';
+                    
+                    const timeLabel = document.getElementById(`time-label-${tid}`);
+                    if (timeLabel) timeLabel.innerHTML = `<i class="fas fa-check-circle" style="color:var(--g-success); margin-right:5px"></i> PROCESSO CONCLUÍDO`;
+                }
+            },
+
+            dismissTask(tid, mid) {
+                const el = document.getElementById(`task-${tid}`);
+                if (el) el.remove();
+                
+                // Se não houver mais cards, esconde o título
+                const container = document.getElementById(`tasks-${mid}`);
+                if (container && container.children.length === 0) {
+                    const title = document.getElementById(`title-${mid}`);
+                    if (title) title.style.display = 'none';
                 }
             },
 
@@ -2437,7 +2812,12 @@
                     </div>
                 `;
 
-                const data = await this.startTask('/tasks/enrich', { manual: true, name, cpf }, 'manual');
+                const data = await this.startTask('/tasks/enrich', { 
+                    manual: true, 
+                    name, 
+                    cpf,
+                    filterSummary: `Busca: ${cpf || name}`
+                }, 'manual');
 
                 if (data && Array.isArray(data)) {
                     await this.refreshUser(); // Update balance
@@ -2452,7 +2832,14 @@
                             </div>
                         `;
                     } else {
-                        let html = `<div class="nav-label" style="margin-bottom:var(--s-3)">Resultados da Inteligência (${data.length})</div>`;
+                        let html = `
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:var(--s-4)">
+                                <div class="nav-label" style="margin:0">PESQUISA: Resultados da Inteligência (${data.length})</div>
+                                <button onclick="document.getElementById('manual-results').style.display='none'" style="background:none; border:none; color:var(--text-3); cursor:pointer; font-size:18px">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                        `;
                         data.forEach((item, i) => {
                             html += `
                             <div class="glass-card fade-in-up" style="margin-bottom: var(--s-4); animation-delay: ${i * 0.1}s">
@@ -2536,7 +2923,7 @@
                                 const gstatus = document.getElementById(`gstatus-${t.id}`);
                                 if (gmsg && data.message) gmsg.innerText = data.message;
                                 if (gprog && data.progress !== undefined) gprog.style.width = data.progress + '%';
-                                if (gstatus) gstatus.innerText = data.status.toUpperCase();
+                                if (gstatus) gstatus.innerText = this.statusMap[data.status.toUpperCase()] || data.status.toUpperCase();
 
                                 // Update localStorage to preserve state for next refresh
                                 t.status = data.status;
@@ -2555,14 +2942,31 @@
                             }
 
                             if (statusBadge && data.status) {
-                                statusBadge.innerText = data.status.toUpperCase();
+                                const rawStatus = data.status.toUpperCase();
+                                statusBadge.innerText = this.statusMap[rawStatus] || rawStatus;
                                 if (msgLabel && data.message) msgLabel.innerText = data.message;
+                                
+                                if (data.filters) {
+                                    const filterDiv = document.getElementById(`filters-${t.id}`);
+                                    if (filterDiv) {
+                                        filterDiv.style.display = 'flex';
+                                        filterDiv.querySelector('span').innerText = data.filters;
+                                        // Update memory/storage to keep it on refresh
+                                        t.filters = data.filters;
+                                        let saved = JSON.parse(localStorage.getItem('hemn_active_tasks') || '[]');
+                                        const idx = saved.findIndex(x => x.id === t.id);
+                                        if (idx !== -1) {
+                                            saved[idx].filters = data.filters;
+                                            localStorage.setItem('hemn_active_tasks', JSON.stringify(saved));
+                                        }
+                                    }
+                                }
+
                                 if (progressBar && data.progress !== undefined) {
                                     progressBar.style.width = data.progress + "%";
                                     if (pctLabel) pctLabel.innerText = data.progress + "%";
                                 }
 
-                                // Lógica de Estimativa (Modo Realidade Extrema)
                                 if (data.status === 'PROCESSING') {
                                     if (data.progress > 10 && data.progress < 100) {
                                         const elapsed = (Date.now() - t.startTime) / 1000;
@@ -2582,35 +2986,43 @@
                                     } else {
                                         if (timeLabel) {
                                             if (data.progress <= 10) timeLabel.innerHTML = `<i class="fas fa-circle-notch fa-spin" style="margin-right:5px"></i> ESTIMATIVA: REALIDADE EM CURSO...`;
-                                            else timeLabel.innerHTML = `<i class="fas fa-circle-notch fa-spin" style="margin-right:5px"></i> ESTIMATIVA: FINALIZANDO...`;
+                                            else timeLabel.innerHTML = `<i class="fas fa-circle-notch fa-spin" style="margin-right:5px; opacity:1 !important"></i> ESTIMATIVA: FINALIZANDO...`;
                                         }
                                     }
                                 }
 
                                 if (data.status === 'COMPLETED' || data.status === 'SUCCESS' || data.result_file) {
                                     statusBadge.className = "badge badge-green";
-                                    progressBar.style.width = "100%";
-                                    if (pctLabel) pctLabel.innerText = "100%";
-                                    t.remaining = 0;
+                                    statusBadge.innerText = "CONCLUÍDO";
                                     if (!t.done) {
                                         const count = (data.record_count !== undefined) ? data.record_count : 0;
                                         this.showToast(`Concluído: ${count.toLocaleString()} registros!`, "success");
                                         const card = document.getElementById(`task-${t.id}`);
+                                        const isSplit = t.mid === 'split';
+                                        const btnText = isSplit ? "Baixar Arquivos Divididos" : `Baixar e Consumir Créditos (${count.toLocaleString()} Cr)`;
+                                        const btnIcon = isSplit ? "fa-file-archive" : "fa-download";
+
                                         const downloadHtml = `
                                             <div style="margin-top:15px; padding-top:12px; border-top:1px solid var(--border-color); color:var(--text-3); font-size:11px">
-                                                <i class="fas fa-database"></i> Encontrados: <b>${count.toLocaleString()}</b> registros.
+                                                <i class="fas fa-database"></i> ${isSplit ? 'Fatiamento concluído' : `Encontrados: <b>${count.toLocaleString()}</b> registros.`}
                                             </div>
                                             <button onclick="app.downloadTask('${t.id}', ${count})" class="btn-primary" style="margin-top:10px; width:100%; border:none; height:40px; border-radius:8px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px">
-                                                <i class="fas fa-download"></i> Baixar e Consumir Créditos (${count.toLocaleString()} Cr)
+                                                <i class="fas ${btnIcon}"></i> ${btnText}
                                             </button>
                                         `;
                                         card.insertAdjacentHTML('beforeend', downloadHtml);
+                                        
+                                        if (timeLabel) {
+                                            timeLabel.innerHTML = `<i class="fas fa-check-circle" style="color:var(--g-success); margin-right:5px"></i> PROCESSO CONCLUÍDO`;
+                                            timeLabel.style.color = "var(--g-success)";
+                                        }
                                         t.done = true;
                                         const modName = t.mid ? t.mid.toUpperCase() : 'Processo';
                                         this.addNotification(`${modName} Concluído`, `Processamento do lote (TI-${t.id.substring(0, 6)}) finalizado. Foram encontrados ${count} registros prontos para download.`, "success");
                                         this.refreshUser();
                                     }
-                                } else if (data.status === 'FAILED' || data.status === 'CANCELLED') {
+                                }
+                                else if (data.status === 'FAILED' || data.status === 'CANCELLED') {
                                     statusBadge.className = "badge badge-red";
                                     const cancelZone = document.getElementById(`cancel-zone-${t.id}`);
                                     if (cancelZone) cancelZone.style.display = 'none';
@@ -2645,15 +3057,99 @@
                 }, 3000);
             },
 
-            startUnify() { this.startTask('/tasks/unify', { file_ids: this.uploadedFiles.unify }, 'unify'); },
+            startUnify() { 
+                const count = this.uploadedFiles.unify?.length || 0;
+                this.startTask('/tasks/unify', { 
+                    file_ids: this.uploadedFiles.unify,
+                    filterSummary: `Unificando ${count} arquivo(s)`
+                }, 'unify'); 
+            },
             startEnrich() {
                 this.startTask('/tasks/enrich', {
                     file_id: this.uploadedFiles.enrich[0],
                     name_col: null,
-                    cpf_col: null
+                    cpf_col: null,
+                    filterSummary: "Enriquecimento via Planilha"
                 }, 'enrich');
             },
-            startCarrier() { this.startTask('/tasks/carrier', { file_id: this.uploadedFiles.carrier[0], phone_col: document.getElementById('carrier-col').value }, 'carrier'); },
+            startCarrier() { 
+                const phoneCol = document.getElementById('carrier-col').value;
+                this.startTask('/tasks/carrier', { 
+                    file_id: this.uploadedFiles.carrier[0], 
+                    phone_col: phoneCol,
+                    filterSummary: `Consulta de Operadoras (Coluna: ${phoneCol})`
+                }, 'carrier'); 
+            },
+            updateClinicasFilters() {
+                const scope = document.getElementById('clinicas-search-scope').value;
+                document.getElementById('clinicas-filter-region').style.display = (scope === 'regiao') ? 'block' : 'none';
+                document.getElementById('clinicas-filter-uf').style.display = (scope === 'estado') ? 'block' : 'none';
+            },
+            async runClinicasSearch() {
+                const type = document.getElementById('clinicas-search-type').value;
+                const term = document.getElementById('clinicas-search-term').value;
+                const scope = document.getElementById('clinicas-search-scope').value;
+                
+                if (!term) {
+                    this.showToast("Informe o termo de busca", "warning");
+                    return;
+                }
+
+                const btn = document.getElementById('btn-run-clinicas');
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Pesquisando na Base ClickHouse...';
+
+                try {
+                    const body = { type, term, scope };
+                    if (scope === 'regiao') body.region = document.getElementById('clinicas-val-region').value;
+                    if (scope === 'estado') body.uf = document.getElementById('clinicas-val-uf').value;
+
+                    const res = await fetch(`${API}/leads/search`, {
+                        method: 'POST',
+                        headers: { 
+                            'Authorization': `Bearer ${this.token}`,
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(body)
+                    });
+                    const data = await res.json();
+                    if (res.ok) {
+                        this.renderClinicasResults(data.leads);
+                        await this.refreshUser();
+                        this.showToast("Pesquisa concluída", "success");
+                    } else {
+                        this.showToast(data.detail || "Erro na pesquisa de clínicas", "error");
+                    }
+                } catch (e) {
+                    this.showToast("Erro de rede ao acessar ClickHouse", "error");
+                } finally {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fas fa-search-dollar"></i> REALIZAR PESQUISA PREMIUM';
+                }
+            },
+            renderClinicasResults(leads) {
+                const container = document.getElementById('clinicas-results-container');
+                const tbody = document.querySelector('#clinicas-table tbody');
+                tbody.innerHTML = '';
+
+                if (!leads || leads.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding: 40px;">Nenhum lead encontrado com estes critérios.</td></tr>';
+                } else {
+                    leads.forEach(l => {
+                        const tr = document.createElement('tr');
+                        tr.innerHTML = `
+                            <td>${l.cpf}</td>
+                            <td style="font-weight: 700;">${l.nome}</td>
+                            <td>${l.dt_nascimento}</td>
+                            <td><span class="badge badge-blue">${l.uf}</span></td>
+                            <td><span class="badge badge-purple">${l.regiao}</span></td>
+                        `;
+                        tbody.appendChild(tr);
+                    });
+                }
+                container.style.display = 'block';
+                container.scrollIntoView({ behavior: 'smooth' });
+            },
             async runSingleCarrier() {
                 const phone = document.getElementById('carrier-single-phone').value.replace(/\D/g, '');
                 if (phone.length < 10) {
@@ -2726,19 +3222,41 @@
                     btn.innerHTML = '<i class="fas fa-search"></i> Consultar';
                 }
             },
-            startSplit() { this.startTask('/tasks/split', { file_id: this.uploadedFiles.split[0] }, 'split'); },
+            startSplit() { 
+                if (!this.uploadedFiles.split || this.uploadedFiles.split.length === 0) {
+                    this.showToast("Nenhum arquivo submetido para fatiamento", "warning");
+                    return;
+                }
+                this.startTask('/tasks/split', { 
+                    file_id: this.uploadedFiles.split[0],
+                    filterSummary: "Divisão de Arquivo Heavy"
+                }, 'split'); 
+            },
             startExtract() {
+                const uf = document.getElementById('extract-uf').value.toUpperCase();
+                const cidade = document.getElementById('extract-cidade').value.toUpperCase();
+                const cnae = document.getElementById('extract-cnae').value;
+                const situacao = document.getElementById('extract-status').value;
+                
+                const sitMap = {"02": "Ativas", "04": "Baixadas", "08": "Suspensas"};
+                let summary = [];
+                if (uf) summary.push(uf);
+                if (cidade) summary.push(cidade);
+                if (cnae) summary.push(`CNAE:${cnae}`);
+                if (situacao != "TODOS") summary.push(sitMap[situacao] || situacao);
+
                 const body = {
-                    uf: document.getElementById('extract-uf').value.toUpperCase(),
-                    cidade: document.getElementById('extract-cidade').value.toUpperCase(),
-                    cnae: document.getElementById('extract-cnae').value,
-                    situacao: document.getElementById('extract-status').value,
+                    uf: uf,
+                    cidade: cidade,
+                    cnae: cnae,
+                    situacao: situacao,
                     tipo_tel: document.getElementById('extract-tipo-tel').value,
                     somente_com_telefone: document.getElementById('extract-somente-tel').checked,
                     cep_file: this.uploadedFiles.cep[0] || null,
                     operadora_inc: document.getElementById('extract-operadora-inc').value,
                     operadora_exc: document.getElementById('extract-operadora-exc').value,
-                    perfil: document.getElementById('extract-perfil').value
+                    perfil: document.getElementById('extract-perfil').value,
+                    filterSummary: summary.join(' | ') || "Extração Personalizada"
                 };
                 this.startTask('/tasks/extract', body, 'extract');
             },
@@ -2755,19 +3273,41 @@
                     });
                     if (resp.status === 403) {
                         const err = await resp.json();
-                        this.alert("Saldo Insuficiente", err.detail, { type: 'error' });
+                        // Flexible parse: match any numbers followed by "Cr"
+                        let missingAmount = 0;
+                        try {
+                            const credits = err.detail.match(/([\d,.]+)\s*Cr/g);
+                            if (credits && credits.length >= 2) {
+                                const parseNum = (s) => parseFloat(s.replace(/[^\d.]/g, ''));
+                                const nec = parseNum(credits[0]);
+                                const dis = parseNum(credits[1]);
+                                missingAmount = Math.ceil((nec - dis) / 100);
+                                if (missingAmount < 5) missingAmount = 5;
+                            }
+                        } catch(e) { console.error("Erro ao calcular recarga:", e); }
+
+                        const action = await this.confirm("Saldo Insuficiente", err.detail, { 
+                            type: 'error',
+                            showRecharge: missingAmount > 0,
+                            rechargeText: `Recarregar R$ ${missingAmount}`,
+                            confirmText: 'Entendido',
+                            showCancel: false
+                        });
+
+                        if (action === 'recharge') {
+                            this.openRechargeModal(missingAmount);
+                        }
                         return;
                     }
                     if (resp.ok) {
-                        const blob = await resp.blob();
-                        const url = window.URL.createObjectURL(blob);
-                        const a = document.createElement('a'); a.href = url;
-                        a.download = `Resultado_${tid.substring(0, 8)}.xlsx`;
-                        document.body.appendChild(a); a.click(); a.remove();
+                        const token = localStorage.getItem('hemn_token');
+                        // Usar window.open ou location.href para arquivos grandes, evitando limites de memória do Blob
+                        window.location.href = `${API}/download-direct/${tid}?token=${token}`;
+                        
                         await this.refreshUser();
                         let saldoAtual = this.user ? Math.max(0, this.user.total_limit - this.user.current_usage).toFixed(1) : '--';
-                        this.showToast("Pronto!", "success");
-                        this.addNotification("Download Lote Concluído", `Registros baixados da nuvem. Gastou: ${cost.toLocaleString()} Cr | Saldo Atual: ${saldoAtual} Cr`, "success");
+                        this.showToast("Iniciando Download...", "success");
+                        this.addNotification("Download Iniciado", `O arquivo está sendo baixado diretamente pelo navegador. Gastou: ${cost.toLocaleString()} Cr | Saldo Atual: ${saldoAtual} Cr`, "success");
                     } else this.alert("Erro no Download", "Ocorreu um problema ao baixar o arquivo.", { type: 'error' });
                 } catch (e) { console.error(e); }
             },
@@ -2801,11 +3341,19 @@
                 document.getElementById('fields-card').style.display = method === 'CREDIT_CARD' ? 'block' : 'none';
                 document.getElementById('recharge-submit-btn').innerText = method === 'PIX' ? 'Gerar QR Code PIX' : 'Pagar Agora';
             },
-            openRechargeModal() {
+            openRechargeModal(amount = null) {
                 document.getElementById('recharge-step-1').style.display = 'block';
                 document.getElementById('recharge-step-2').style.display = 'none';
                 document.getElementById('recharge-step-3').style.display = 'none';
-                document.getElementById('recharge-amount').value = '';
+                
+                const input = document.getElementById('recharge-amount');
+                if (amount) {
+                    input.value = amount;
+                    this.updateCreditPreview();
+                } else {
+                    input.value = '';
+                }
+
                 document.getElementById('modal-recharge').style.display = 'flex';
                 const pStatus = document.getElementById('payment-status-message');
                 if (pStatus) {
@@ -2901,7 +3449,6 @@
                 this.showToast("Copiado!", "success");
             }
         };
-        window.app = app;
         app.init();
     </script>
 </body>
