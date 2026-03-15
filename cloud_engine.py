@@ -51,6 +51,7 @@ class CloudEngine:
             return None
 
     def search_leads(self, search_type, search_term, scope, uf=None, regiao=None):
+        search_type = str(search_type).lower().strip()
         client = self._get_ch_client()
         if not client:
             return {"error": "Conexão com ClickHouse indisponível (Ambiente Windows)"}
@@ -80,7 +81,7 @@ class CloudEngine:
             params['regiao'] = regiao.upper()
         
         if not where_clauses:
-            return {"results": [], "count": 0}
+            return {"leads": [], "count": 0}
 
         where_str = " AND ".join(where_clauses)
         query = f"SELECT DISTINCT cpf, nome, dt_nascimento, uf, regiao FROM hemn.leads WHERE {where_str} LIMIT 100"
@@ -89,7 +90,7 @@ class CloudEngine:
             result = client.query(query, parameters=params)
             columns = ['cpf', 'nome', 'dt_nascimento', 'uf', 'regiao']
             leads = [dict(zip(columns, row)) for row in result.result_rows]
-            return {"results": leads, "count": len(leads)}
+            return {"leads": leads, "count": len(leads)}
         except Exception as e:
             print(f"[ERROR] ClickHouse query failed: {e}")
             return {"error": str(e)}
