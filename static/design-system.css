@@ -456,7 +456,6 @@ body {
     padding: var(--s-6);
     scroll-behavior: smooth;
     -webkit-overflow-scrolling: touch;
-    overscroll-behavior-y: contain;
 }
 
 /* ─────────────────────────────────────────────
@@ -2378,7 +2377,7 @@ input::placeholder {
 
     .page-container {
         padding: var(--s-4);
-        padding-bottom: 100px; /* Extra space for mobile browser bars */
+        padding-bottom: calc(var(--s-6) + env(safe-area-inset-bottom, 20px));
     }
 
     .welcome-hero {
