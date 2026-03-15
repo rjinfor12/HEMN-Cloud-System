@@ -89,7 +89,26 @@ class CloudEngine:
         try:
             result = client.query(query, parameters=params)
             columns = ['cpf', 'nome', 'dt_nascimento', 'uf', 'regiao']
-            leads = [dict(zip(columns, row)) for row in result.result_rows]
+            leads = []
+            today = datetime.now()
+            for row in result.result_rows:
+                lead = dict(zip(columns, row))
+                # Calcular idade
+                idade = "N/A"
+                dt_nasc = lead.get('dt_nascimento', '')
+                if dt_nasc and '/' in dt_nasc:
+                    try:
+                        parts = dt_nasc.split('/')
+                        if len(parts) == 3:
+                            day, month, year = int(parts[0]), int(parts[1]), int(parts[2])
+                            birth_date = datetime(year, month, day)
+                            age = today.year - birth_date.year - ((today.month, today.day) < (birth_date.month, birth_date.day))
+                            idade = str(age)
+                    except Exception:
+                        pass
+                lead['idade'] = idade
+                leads.append(lead)
+            
             return {"leads": leads, "count": len(leads)}
         except Exception as e:
             print(f"[ERROR] ClickHouse query failed: {e}")

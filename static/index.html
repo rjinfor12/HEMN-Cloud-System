@@ -745,6 +745,7 @@
                                         <th>CPF</th>
                                         <th>NOME COMPLETO</th>
                                         <th>DATA NASC.</th>
+                                        <th>IDADE</th>
                                         <th>UF</th>
                                         <th>REGIÃO</th>
                                     </tr>
@@ -3148,7 +3149,7 @@
                 tbody.innerHTML = '';
 
                 if (!leads || leads.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding: 40px;">Nenhum lead encontrado com estes critérios.</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding: 40px;">Nenhum lead encontrado com estes critérios.</td></tr>';
                 } else {
                     leads.forEach(l => {
                         const tr = document.createElement('tr');
@@ -3156,6 +3157,7 @@
                             <td>${l.cpf}</td>
                             <td style="font-weight: 700;">${l.nome}</td>
                             <td>${l.dt_nascimento}</td>
+                            <td><span class="badge badge-warm">${l.idade}</span></td>
                             <td><span class="badge badge-blue">${l.uf}</span></td>
                             <td><span class="badge badge-purple">${l.regiao}</span></td>
                         `;
