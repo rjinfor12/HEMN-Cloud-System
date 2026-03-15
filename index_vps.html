@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
@@ -73,6 +73,9 @@
 
         <!-- Sidebar Navigation -->
         <aside class="sidebar" id="sidebar">
+            <button class="sidebar-close" onclick="app.toggleSidebar()">
+                <i class="fas fa-times"></i>
+            </button>
             <div class="logo-container">
                 <img src="/static/logo.png" class="logo" alt="HEMN WEB Logo">
                 <div class="brand-name">HEMN WEB <small style="font-size: 10px; opacity: 0.5;">v2.1</small></div>
@@ -205,7 +208,7 @@
                 <div id="login-overlay"
                     style="position: fixed; inset: 0; background: var(--bg); z-index: 2000; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(10px); padding: 15px;">
                     <div class="glass-card"
-                        style="width: 100%; max-width: 400px; padding: var(--s-6); text-align: center;">
+                        style="width: 100%; max-width: 400px; text-align: center;">
                         <img src="/static/logo.png"
                             style="width: 80px; height: 80px; margin-bottom: var(--s-4);">
                         <h2 style="margin-bottom: var(--s-5); font-family: var(--font-heading);">Acesso Titanium Cloud
@@ -227,7 +230,7 @@
 
                 <!-- PASSWORD MODAL -->
                 <div id="password-modal" class="modal-overlay" style="display:none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 9000; align-items: center; justify-content: center; backdrop-filter: blur(10px); padding: 15px;">
-                    <div class="glass-card" style="width: 100%; max-width: 420px; padding: 25px; position: relative; border: 1px solid var(--border-focus);">
+                    <div class="glass-card" style="width: 100%; max-width: 420px; position: relative; border: 1px solid var(--border-focus);">
                         <div style="text-align: center; margin-bottom: 25px;">
                             <div style="width: 60px; height: 60px; background: var(--g-primary); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 15px; box-shadow: 0 10px 20px rgba(0,0,0,0.3);">
                                 <i class="fas fa-key" style="font-size: 24px; color: #fff;"></i>
@@ -1616,7 +1619,7 @@
             toggleSidebar() {
                 const sidebar = document.getElementById('sidebar');
                 const overlay = document.getElementById('sidebar-overlay');
-                sidebar.classList.toggle('open');
+                sidebar.classList.toggle('active');
                 overlay.classList.toggle('active');
             },
 
@@ -1978,6 +1981,14 @@
                         this.initMonitorChart();
                         this.updateMonitorStats();
                         this.monInterval = setInterval(() => this.updateMonitorStats(), 3000);
+                    }
+                }
+
+                // Mobile auto-close sidebar when navigating
+                if (window.innerWidth <= 768) {
+                    const sidebar = document.getElementById('sidebar');
+                    if (sidebar && sidebar.classList.contains('active')) {
+                        this.toggleSidebar();
                     }
                 }
             },
@@ -3100,8 +3111,12 @@
                 btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Pesquisando na Base ClickHouse...';
 
                 try {
-                    const body = { type, term, scope };
-                    if (scope === 'regiao') body.region = document.getElementById('clinicas-val-region').value;
+                    const body = { 
+                        search_type: type, 
+                        search_term: term, 
+                        scope: scope.toUpperCase() 
+                    };
+                    if (scope === 'regiao') body.regiao_nome = document.getElementById('clinicas-val-region').value;
                     if (scope === 'estado') body.uf = document.getElementById('clinicas-val-uf').value;
 
                     const res = await fetch(`${API}/leads/search`, {

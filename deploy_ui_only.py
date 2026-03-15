@@ -20,11 +20,17 @@ try:
     local_vps = r'c:\Users\Junior T.I\.gemini\antigravity\scratch\data_analysis\index_vps.html'
     remote_vps = '/var/www/hemn_cloud/index_vps.html'
     
+    local_css = r'c:\Users\Junior T.I\.gemini\antigravity\scratch\data_analysis\static\design-system.css'
+    remote_css = '/var/www/hemn_cloud/static/design-system.css'
+    
     print(f"Uploading {local_index} to {remote_index}...")
     sftp.put(local_index, remote_index)
     
     print(f"Uploading {local_vps} to {remote_vps}...")
     sftp.put(local_vps, remote_vps)
+    
+    print(f"Uploading {local_css} to {remote_css}...")
+    sftp.put(local_css, remote_css)
     
     print("Restarting service just in case...")
     client.exec_command('systemctl restart hemn_cloud.service')

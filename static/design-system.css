@@ -111,6 +111,7 @@ body {
     grid-template-columns: var(--sidebar-w) 1fr;
     grid-template-rows: 1fr;
     height: 100vh;
+    height: 100dvh;
     width: 100vw;
     overflow: hidden;
     position: relative;
@@ -131,8 +132,35 @@ body {
     padding: var(--s-5);
     gap: var(--s-4);
     z-index: 100;
-    transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.4s ease;
     overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none; /* Firefox */
+}
+
+.sidebar::-webkit-scrollbar {
+    display: none; /* Chrome, Safari, Opera */
+}
+
+.sidebar-close {
+    display: none;
+    position: absolute;
+    top: var(--s-4);
+    right: var(--s-4);
+    width: 36px;
+    height: 36px;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-hover);
+    border-radius: var(--r-md);
+    color: var(--text-2);
+    cursor: pointer;
+    border: 1px solid var(--border);
+}
+
+.sidebar-close:hover {
+    color: var(--text-1);
+    background: var(--bg-input);
 }
 
 .logo-container {
@@ -222,7 +250,7 @@ body {
    --------------------------------------------- */
 .user-profile-premium {
     margin: var(--s-2) 2px;
-    padding: 8px 8px;
+    padding: 10px 12px;
     background: rgba(255, 255, 255, 0.04);
     border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: var(--r-md);
@@ -231,8 +259,8 @@ body {
     gap: 8px;
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
-    overflow: hidden;
     position: relative;
+    min-height: 56px;
 }
 
 .profile-main {
@@ -241,7 +269,6 @@ body {
     gap: 8px;
     min-width: 0;
     flex: 1;
-    overflow: hidden;
 }
 
 .avatar {
@@ -428,6 +455,8 @@ body {
     overflow-y: auto;
     padding: var(--s-6);
     scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: contain;
 }
 
 /* ─────────────────────────────────────────────
@@ -727,6 +756,7 @@ input::placeholder {
     max-width: 680px;
     max-height: 90vh;
     overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
     position: relative;
     box-shadow: 0 25px 80px rgba(0, 0, 0, 0.5);
     animation: modalIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
@@ -2348,6 +2378,7 @@ input::placeholder {
 
     .page-container {
         padding: var(--s-4);
+        padding-bottom: 100px; /* Extra space for mobile browser bars */
     }
 
     .welcome-hero {
@@ -2402,6 +2433,12 @@ input::placeholder {
         gap: var(--s-2);
     }
 
+    .modal {
+        align-items: flex-start !important;
+        padding-top: 40px !important;
+        padding-bottom: 40px !important;
+    }
+
     .icon-btn {
         width: 36px;
         height: 36px;
@@ -2409,5 +2446,82 @@ input::placeholder {
 
     .btn-primary {
         padding: 8px 14px;
+        font-size: 12px;
+    }
+
+    /* Modal scaling for small vertical screens */
+    #password-modal .glass-card,
+    #login-overlay .glass-card {
+        padding: var(--s-4) !important;
+    }
+
+    #password-modal .glass-card > div:first-child {
+        margin-bottom: 15px !important;
+    }
+
+    #password-modal .glass-card i.fas.fa-key {
+        font-size: 18px !important;
+    }
+
+    #password-modal .glass-card div[style*="width: 60px"] {
+        width: 44px !important;
+        height: 44px !important;
+    }
+
+    /* Form spacing on small screens */
+    .form-group {
+        gap: 4px;
+    }
+
+    .form-group label {
+        font-size: 10px;
+    }
+
+    /* Force 16px font to prevent iOS auto-zoom on focus */
+    input, select, textarea {
+        font-size: 16px !important;
+    }
+
+    /* Multi-column grid fixes */
+    #fields-card div[style*="grid-template-columns: 1fr 1fr 1fr"],
+    #fields-card div[style*="grid-template-columns: 1fr 1fr"],
+    #fields-card div[style*="grid-template-columns: 1fr 2fr"] {
+        grid-template-columns: 1fr !important;
+        gap: 12px !important;
+    }
+
+    /* Recharge Modal Compacting */
+    #modal-recharge .modal-content {
+        padding: var(--s-4) !important;
+        max-height: 95vh !important;
+    }
+
+    #modal-recharge .modal-header {
+        margin-bottom: 12px !important;
+        padding-bottom: 10px !important;
+    }
+
+    #modal-recharge label {
+        margin-bottom: 4px !important;
+        font-size: 10px !important;
+    }
+
+    #modal-recharge input {
+        height: 40px !important;
+        padding: 0 12px !important;
+    }
+
+    #fields-card > div[style*="grid-template-columns"] {
+        gap: 8px !important;
+        margin-bottom: 12px !important;
+    }
+
+    #fields-card > div {
+        margin-bottom: 12px !important;
+    }
+
+    #recharge-submit-btn {
+        height: 44px !important;
+        margin-top: 5px !important;
     }
 }
