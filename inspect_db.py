@@ -1,16 +1,15 @@
 import sqlite3
-import pandas as pd
+import os
 
-db_path = r"C:\Users\Junior T.I\OneDrive\Área de Trabalho\cruzar\cnpj.db"
+DB_PATH = "hemn_cloud.db"
 
-try:
-    conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
-    
-    print("Colunas da tabela estabelecimento:")
-    cursor.execute("PRAGMA table_info(estabelecimento)")
-    for info in cursor.fetchall(): print(f"  {info[1]} ({info[2]})")
-    
+if not os.path.exists(DB_PATH):
+    print(f"Database not found at {DB_PATH}")
+else:
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    users = conn.execute("SELECT username, password, role, status FROM users").fetchall()
+    print("--- User Records ---")
+    for u in users:
+        print(dict(u))
     conn.close()
-except Exception as e:
-    print(f"Erro: {e}")

@@ -15,7 +15,7 @@ import os
 sys.path.insert(0, '/var/www/hemn_cloud')
 from cloud_engine import CloudEngine
 engine = CloudEngine()
-res = engine.search_leads(search_type='NOME', search_term='ROGERIO ELIAS DO NASCIMENTO JUNIOR', scope='BRASIL')
+res = engine.search_leads(search_type='NOME', search_term='ROGÉRIO ELIAS DO NASCIMENTO JÚNIOR', scope='BRASIL')
 import json
 print(json.dumps(res, indent=2))
 """

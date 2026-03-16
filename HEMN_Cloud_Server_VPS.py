@@ -156,7 +156,7 @@ def get_current_user(authorization: str = Header(None)):
         conn = sqlite3.connect(DB_PATH, timeout=30)
         conn.execute("PRAGMA journal_mode=WAL")
         conn.row_factory = sqlite3.Row
-        user = conn.execute("SELECT * FROM users WHERE username = ?", (username,)).fetchone()
+        user = conn.execute("SELECT * FROM users WHERE username = ? COLLATE NOCASE", (username,)).fetchone()
         conn.close()
         if not user: raise HTTPException(status_code=401)
         return dict(user)
@@ -393,13 +393,13 @@ async def login(request: Request):
     conn = sqlite3.connect(DB_PATH, timeout=30)
     conn.execute("PRAGMA journal_mode=WAL")
     conn.row_factory = sqlite3.Row
-    user = conn.execute("SELECT * FROM users WHERE username = ? AND password = ?", (u, p)).fetchone()
+    user = conn.execute("SELECT * FROM users WHERE username = ? COLLATE NOCASE AND password = ?", (u, p)).fetchone()
     if user:
         if user["status"] != "ACTIVE": 
             conn.close()
             raise HTTPException(status_code=403, detail="Acesso bloqueado.")
         token = create_token(u)
-        conn.execute("UPDATE users SET last_login = ? WHERE username = ?", (datetime.now().isoformat(), u))
+        conn.execute("UPDATE users SET last_login = ? WHERE username = ? COLLATE NOCASE", (datetime.now().isoformat(), u))
         conn.commit()
         conn.close()
         return {"access_token": token, "token_type": "bearer"}
@@ -468,10 +468,10 @@ def update_user(username: str, data: dict, user: dict = Depends(get_current_user
     if user["role"] != "ADMIN": raise HTTPException(status_code=403)
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
-    old_user = conn.execute("SELECT * FROM users WHERE username = ?", (username,)).fetchone()
+    old_user = conn.execute("SELECT * FROM users WHERE username = ? COLLATE NOCASE", (username,)).fetchone()
     
     for k, v in data.items():
-        conn.execute(f"UPDATE users SET {k} = ? WHERE username = ?", (v, username))
+        conn.execute(f"UPDATE users SET {k} = ? WHERE username = ? COLLATE NOCASE", (v, username))
     
     # Se o limite aumentou, logar como crédito/recarga
     if "total_limit" in data and old_user:
@@ -529,7 +529,7 @@ def get_user_stats(target_username: str, user: dict = Depends(get_current_user))
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
 
-    target_user = conn.execute("SELECT * FROM users WHERE username = ?", (target_username,)).fetchone()
+    target_user = conn.execute("SELECT * FROM users WHERE username = ? COLLATE NOCASE", (target_username,)).fetchone()
     if not target_user:
         conn.close()
         raise HTTPException(status_code=404, detail="Usuário não encontrado.")

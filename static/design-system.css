@@ -756,7 +756,9 @@ body {
 }
 
 input[type="password"],
-input[type="text"] {
+input[type="text"],
+select,
+textarea {
     width: 100%;
     padding: 10px 14px;
     padding-right: 42px; /* Espaço para o ícone */
@@ -2753,9 +2755,9 @@ input::placeholder {
     }
 }
 @media (max-width: 767px) {
-    .aurora-container,
-    .app-sidebar,
-    .top-bar {
+    html:not(.is-logged-in) .aurora-container,
+    html:not(.is-logged-in) .sidebar,
+    html:not(.is-logged-in) .top-bar {
         display: none !important;
     }
 
@@ -2771,8 +2773,10 @@ input::placeholder {
 
     input[type="text"], 
     input[type="password"], 
+    select,
+    textarea,
     .form-control,
     button:not(.password-toggle-btn) {
-        border-radius: 16px !important; /* Softer inputs */
+        border-radius: 16px !important; /* Softer/Consistent inputs */
     }
 }

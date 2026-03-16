@@ -220,7 +220,7 @@ def get_current_user(authorization: str = Header(None), token: Optional[str] = N
         conn = sqlite3.connect(DB_PATH, timeout=30)
         conn.execute("PRAGMA journal_mode=WAL")
         conn.row_factory = sqlite3.Row
-        user = conn.execute("SELECT * FROM users WHERE username = ?", (username,)).fetchone()
+        user = conn.execute("SELECT * FROM users WHERE username = ? COLLATE NOCASE", (username,)).fetchone()
         conn.close()
         if not user: raise HTTPException(status_code=401)
         return dict(user)
@@ -339,7 +339,7 @@ async def asaas_webhook(request: Request):
             credits = local_pay["credits"]
             
             # Update user balance
-            conn.execute("UPDATE users SET total_limit = total_limit + ? WHERE username = ?", (credits, username))
+            conn.execute("UPDATE users SET total_limit = total_limit + ? WHERE username = ? COLLATE NOCASE", (credits, username))
             conn.execute("UPDATE asaas_payments SET status = 'RECEIVED', confirmed_at = ? WHERE id = ?", (datetime.now().isoformat(), pay_id))
             
             # Log transaction
@@ -653,13 +653,13 @@ async def login(request: Request):
     conn = sqlite3.connect(DB_PATH, timeout=30)
     conn.execute("PRAGMA journal_mode=WAL")
     conn.row_factory = sqlite3.Row
-    user = conn.execute("SELECT * FROM users WHERE username = ? AND password = ?", (u, p)).fetchone()
+    user = conn.execute("SELECT * FROM users WHERE username = ? COLLATE NOCASE AND password = ?", (u, p)).fetchone()
     if user:
         if user["status"] != "ACTIVE": 
             conn.close()
             raise HTTPException(status_code=403, detail="Acesso bloqueado.")
         token = create_token(u)
-        conn.execute("UPDATE users SET last_login = ? WHERE username = ?", (datetime.now().isoformat(), u))
+        conn.execute("UPDATE users SET last_login = ? WHERE username = ? COLLATE NOCASE", (datetime.now().isoformat(), u))
         conn.commit()
         conn.close()
         return {"access_token": token, "token_type": "bearer"}
@@ -677,13 +677,13 @@ async def change_password(req: PasswordChangeRequest, user: dict = Depends(get_c
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     # Verify current password
-    db_user = conn.execute("SELECT * FROM users WHERE username = ? AND password = ?", (user["username"], req.current_password)).fetchone()
+    db_user = conn.execute("SELECT * FROM users WHERE username = ? COLLATE NOCASE AND password = ?", (user["username"], req.current_password)).fetchone()
     if not db_user:
         conn.close()
         raise HTTPException(status_code=401, detail="Senha atual incorreta.")
     
     # Update password
-    conn.execute("UPDATE users SET password = ? WHERE username = ?", (req.new_password, user["username"]))
+    conn.execute("UPDATE users SET password = ? WHERE username = ? COLLATE NOCASE", (req.new_password, user["username"]))
     conn.commit()
     conn.close()
     return {"status": "success", "message": "Senha alterada com sucesso."}
@@ -696,7 +696,7 @@ async def get_me(user: dict = Depends(get_current_user)):
         conn = sqlite3.connect(DB_PATH, timeout=30)
         conn.execute("PRAGMA journal_mode=WAL")
         conn.row_factory = sqlite3.Row
-        pendings = conn.execute("SELECT * FROM asaas_payments WHERE username = ? AND status = 'PENDING'", (user["username"],)).fetchall()
+        pendings = conn.execute("SELECT * FROM asaas_payments WHERE username = ? COLLATE NOCASE AND status = 'PENDING'", (user["username"],)).fetchall()
         
         if pendings:
             h = {"access_token": ASAAS_API_KEY}
@@ -705,7 +705,7 @@ async def get_me(user: dict = Depends(get_current_user)):
                 status = res.get("status")
                 if status in ["RECEIVED", "CONFIRMED", "RECEIVED_IN_CASH"]:
                     credits = p["credits"]
-                    conn.execute("UPDATE users SET total_limit = total_limit + ? WHERE username = ?", (credits, user["username"]))
+                    conn.execute("UPDATE users SET total_limit = total_limit + ? WHERE username = ? COLLATE NOCASE", (credits, user["username"]))
                     conn.execute("UPDATE asaas_payments SET status = 'RECEIVED', confirmed_at = ? WHERE id = ?", (datetime.now().isoformat(), p['id']))
                     now_br = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                     conn.execute(
@@ -714,7 +714,7 @@ async def get_me(user: dict = Depends(get_current_user)):
                     )
             conn.commit()
             # Atualizar dados do usuário no retorno
-            user = conn.execute("SELECT * FROM users WHERE username = ?", (user["username"],)).fetchone()
+            user = conn.execute("SELECT * FROM users WHERE username = ? COLLATE NOCASE", (user["username"],)).fetchone()
             user = dict(user)
         conn.close()
     except Exception as e:
@@ -790,10 +790,10 @@ def update_user(username: str, data: dict, user: dict = Depends(get_current_user
     conn = sqlite3.connect(DB_PATH, timeout=30)
     conn.execute("PRAGMA journal_mode=WAL")
     conn.row_factory = sqlite3.Row
-    old_user = conn.execute("SELECT * FROM users WHERE username = ?", (username,)).fetchone()
+    old_user = conn.execute("SELECT * FROM users WHERE username = ? COLLATE NOCASE", (username,)).fetchone()
     
     for k, v in data.items():
-        conn.execute(f"UPDATE users SET {k} = ? WHERE username = ?", (v, username))
+        conn.execute(f"UPDATE users SET {k} = ? WHERE username = ? COLLATE NOCASE", (v, username))
     
     # Se o limite aumentou, logar como cr├®dito/recarga
     if "total_limit" in data and old_user:
@@ -855,7 +855,7 @@ def get_user_stats(target_username: str, user: dict = Depends(get_current_user))
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
 
-    target_user = conn.execute("SELECT * FROM users WHERE username = ?", (target_username,)).fetchone()
+    target_user = conn.execute("SELECT * FROM users WHERE username = ? COLLATE NOCASE", (target_username,)).fetchone()
     if not target_user:
         conn.close()
         raise HTTPException(status_code=404, detail="Usuário não encontrado.")

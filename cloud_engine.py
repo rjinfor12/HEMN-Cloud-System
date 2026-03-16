@@ -66,7 +66,7 @@ class CloudEngine:
             params['cpf'] = cpf_clean
         elif search_type == 'nome':
             where_clauses.append("nome LIKE {nome:String}")
-            params['nome'] = f"%{search_term.upper().strip()}%"
+            params['nome'] = f"%{remove_accents(search_term).upper().strip()}%"
         elif search_type == 'telefone':
             tel_clean = ''.join(filter(str.isdigit, search_term))
             where_clauses.append("(tel_fixo1 = {tel:String} OR celular1 = {tel:String})")
