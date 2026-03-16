@@ -40,7 +40,59 @@
             from { opacity: 0; transform: translateY(5px); }
             to { opacity: 1; transform: translateY(0); }
         }
+        /* Efeito 3D para a Logo */
+        .logo-3d {
+            filter: contrast(1.15) brightness(1.05) drop-shadow(0 0 1px rgba(0,0,0,1)) drop-shadow(0 4px 12px rgba(0,0,0,0.3)) !important;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), filter 0.4s ease !important;
+            transform-style: preserve-3d;
+            will-change: transform, filter;
+            image-rendering: -webkit-optimize-contrast;
+        }
+        .logo-3d:hover {
+            transform: rotateX(15deg) rotateY(-15deg) scale(1.12) !important;
+            filter: contrast(1.25) brightness(1.1) drop-shadow(0 0 2px rgba(0,0,0,1)) drop-shadow(0 15px 35px rgba(0,0,0,0.5)) !important;
+        }
+        /* Animação de Flutuação */
+        @keyframes logoFloat {
+            0% { transform: translateY(0) rotateX(5deg); }
+            50% { transform: translateY(-10px) rotateX(-5deg); }
+            100% { transform: translateY(0) rotateX(5deg); }
+        }
+        .logo-float {
+            animation: logoFloat 4s ease-in-out infinite;
+        }
+        /* Animação de Entrada */
+        @keyframes logoReveal {
+            0% { transform: scale(0) rotate(-45deg); opacity: 0; }
+            70% { transform: scale(1.1) rotate(5deg); opacity: 1; }
+            100% { transform: scale(1) rotate(0); opacity: 1; }
+        }
+        .logo-reveal {
+            animation: logoReveal 1s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+            display: inline-block;
+        }
+        /* Password Toggle Helper */
+        .password-field-wrapper { position: relative; }
+        .password-toggle-btn {
+            position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+            background: none; border: none; color: rgba(255,255,255,0.4); 
+            cursor: pointer; z-index: 10; font-size: 14px; padding: 5px;
+            display: flex; align-items: center; justify-content: center;
+        }
     </style>
+    <script>
+        function togglePasswordVisibility(id, btn) {
+            const input = document.getElementById(id);
+            const icon = btn.querySelector('i');
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.className = 'fas fa-eye-slash';
+            } else {
+                input.type = 'password';
+                icon.className = 'fas fa-eye';
+            }
+        }
+    </script>
     <style>
         /* Extreme Sharp Icons Fix */
         i.fas, i.fab, i.far, #modal-icon-container i,
@@ -61,7 +113,7 @@
     <!-- Icons and Fonts -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- Premium Design System -->
-    <link rel="stylesheet" href="/static/design-system.css?v=1.4.2">
+    <link rel="stylesheet" href="/static/design-system.css?v=1.4.3">
     <!-- Charts -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
@@ -75,7 +127,7 @@
         <!-- Sidebar Navigation -->
         <aside class="sidebar" id="sidebar">
             <div class="logo-container">
-                <img src="/static/logo.png" class="logo" alt="HEMN WEB Logo">
+                <img src="/static/logo.png" class="logo logo-3d logo-reveal" alt="HEMN WEB Logo">
                 <div class="brand-name">HEMN WEB <small style="font-size: 10px; opacity: 0.5;">v2.1</small></div>
             </div>
 
@@ -207,16 +259,23 @@
                     style="position: fixed; inset: 0; background: var(--bg); z-index: 2000; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(10px); padding: 15px;">
                     <div class="glass-card"
                         style="width: 100%; max-width: 400px; padding: var(--s-6); text-align: center;">
-                        <img src="/static/logo.png"
-                            style="width: 80px; height: 80px; margin-bottom: var(--s-4);">
-                        <h2 style="margin-bottom: var(--s-5); font-family: var(--font-heading);">Acesso HEMN SYSTEM</h2>
+                        <div class="logo-reveal">
+                            <img src="/static/logo.png" class="logo-3d logo-float"
+                                style="width: 80px; height: 80px; margin-bottom: var(--s-4);">
+                        </div>
+                        <h2 style="margin-bottom: var(--s-5); font-family: var(--font-heading);">Acesso HEMN SYSTEM <span style="font-size: 0.8em; vertical-align: middle;">💠</span></h2>
                         <div class="form-group" style="margin-bottom: var(--s-4); text-align: left;">
                             <label>USUÁRIO</label>
                             <input type="text" id="login-user" placeholder="Seu login registrado">
                         </div>
                         <div class="form-group" style="margin-bottom: var(--s-5); text-align: left;">
                             <label>SENHA</label>
-                            <input type="password" id="login-pass" placeholder="••••••••">
+                            <div class="password-field-wrapper">
+                                <input type="password" id="login-pass" placeholder="••••••••">
+                                <button type="button" class="password-toggle-btn" onclick="togglePasswordVisibility('login-pass', this)" title="Ver/Esconder Senha">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                            </div>
                         </div>
                         <button class="btn-primary" onclick="app.login()"
                             style="width: 100%; justify-content: center; height: 50px; font-size: 15px;">
