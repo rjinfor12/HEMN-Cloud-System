@@ -757,6 +757,8 @@ body {
 
 input[type="password"],
 input[type="text"],
+input[type="number"],
+input[type="date"],
 select,
 textarea {
     width: 100%;

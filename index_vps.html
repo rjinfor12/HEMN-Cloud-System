@@ -2289,7 +2289,12 @@
                     document.getElementById('modal-username').value = "";
                     document.getElementById('modal-password').value = "";
                     document.getElementById('modal-limit').value = "1000";
-                    document.getElementById('modal-expiration').value = "2099-12-31";
+                    
+                    const d = new Date();
+                    d.setMonth(d.getMonth() + 1);
+                    const dateStr = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+                    document.getElementById('modal-expiration').value = dateStr;
+
                     document.getElementById('modal-role').value = "USER";
                     document.getElementById('modal-unlimited').checked = false;
                     document.getElementById('modal-limit').disabled = false;
