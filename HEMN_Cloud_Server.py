@@ -81,6 +81,8 @@ async def read_index():
 
 @app.get("/areadocliente")
 @app.get("/areadocliente/")
+@app.get("/areadoclieente")      # Suporte ao erro de digitação comum
+@app.get("/areadoclieente/")     # Suporte ao erro de digitação comum
 async def read_index_prefixed():
     # Prioritize index_vps.html for production parity
     vps_path = os.path.join(APP_DIR, "index_vps.html")

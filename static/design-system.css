@@ -619,36 +619,50 @@ input::placeholder {
 
 .data-table {
     width: 100%;
-    border-collapse: collapse;
-    font-size: 14px;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: 13px;
     min-width: 600px;
+    table-layout: auto;
 }
 
 .data-table thead th {
-    background: var(--bg-input);
-    color: var(--text-3);
-    font-size: 11px;
-    font-weight: 700;
+    background: var(--bg-card) !important;
+    color: var(--text-2) !important; /* Slightly darker than text-3 for headers */
+    font-size: 10px;
+    font-weight: 800;
     text-transform: uppercase;
-    letter-spacing: 1px;
-    padding: var(--s-3) var(--s-4);
+    letter-spacing: 1.5px;
+    padding: 14px 20px;
     text-align: left;
-    border-bottom: 1px solid var(--border);
+    border-bottom: 2px solid var(--border) !important;
+    position: sticky !important;
+    top: -1px !important;
+    z-index: 1000 !important;
+    background-clip: padding-box;
 }
 
 .data-table tbody tr {
-    transition: background 0.15s ease;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
 }
 
 .data-table tbody tr:hover {
-    background: var(--bg-hover);
+    background: var(--bg-hover) !important;
+    transform: scale(1.002);
+    box-shadow: inset 4px 0 0 var(--accent);
 }
 
 .data-table tbody td {
-    padding: var(--s-3) var(--s-4);
+    padding: 12px 20px;
     border-bottom: 1px solid var(--border);
     color: var(--text-1);
     vertical-align: middle;
+    transition: color 0.2s ease;
+}
+
+.data-table tbody tr:hover td {
+    color: var(--text-1); /* Use theme variable instead of hardcoded white */
 }
 
 .data-table tbody tr:last-child td {
@@ -659,45 +673,55 @@ input::placeholder {
    13. BADGES & STATUS
 ───────────────────────────────────────────── */
 .badge {
-    display: inline-flex;
-    align-items: center;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
     gap: 4px;
-    padding: 3px 10px;
-    border-radius: var(--r-full);
-    font-size: 11px;
-    font-weight: 700;
+    padding: 2px 8px !important;
+    border-radius: 4px !important;
+    font-size: 10px !important;
+    font-weight: 800 !important;
     text-transform: uppercase;
     letter-spacing: 0.5px;
+    min-width: 32px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05); /* Softer shadow */
+    border: 1px solid transparent;
 }
 
 .badge-green {
-    background: rgba(16, 185, 129, 0.15);
-    color: #10b981;
-    border: 1px solid rgba(16, 185, 129, 0.3);
+    background: rgba(16, 185, 129, 0.12);
+    color: #059669;
+    border-color: rgba(16, 185, 129, 0.3);
 }
 
 .badge-yellow {
-    background: rgba(245, 158, 11, 0.15);
-    color: #f59e0b;
-    border: 1px solid rgba(245, 158, 11, 0.3);
+    background: rgba(217, 119, 6, 0.12); /* Saturated orange for legibility */
+    color: #d97706;
+    border-color: rgba(245, 158, 11, 0.3);
 }
 
 .badge-red {
-    background: rgba(239, 68, 68, 0.15);
-    color: #ef4444;
-    border: 1px solid rgba(239, 68, 68, 0.3);
+    background: rgba(220, 38, 38, 0.12);
+    color: #dc2626;
+    border-color: rgba(239, 68, 68, 0.3);
 }
 
 .badge-blue {
-    background: rgba(59, 130, 246, 0.15);
-    color: #3b82f6;
-    border: 1px solid rgba(59, 130, 246, 0.3);
+    background: rgba(37, 99, 235, 0.12);
+    color: #2563eb;
+    border-color: rgba(59, 130, 246, 0.4);
 }
 
 .badge-purple {
-    background: rgba(139, 92, 246, 0.15);
-    color: #8b5cf6;
-    border: 1px solid rgba(139, 92, 246, 0.3);
+    background: rgba(124, 58, 237, 0.12);
+    color: #7c3aed;
+    border-color: rgba(139, 92, 246, 0.4);
+}
+
+.badge-warm {
+    background: rgba(234, 88, 12, 0.12);
+    color: #ea580c;
+    border-color: rgba(247, 151, 30, 0.4);
 }
 
 /* Legacy - keep compatibility */
