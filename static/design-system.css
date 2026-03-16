@@ -1730,13 +1730,8 @@ input::placeholder {
         border-right: 1px solid var(--border);
     }
 
-    .sidebar.open {
+    .sidebar.active {
         transform: translateX(0);
-    }
-
-    .sidebar-overlay.open {
-        display: block;
-        z-index: 499;
     }
 
     .drawer-toggle {
@@ -2166,32 +2161,7 @@ input::placeholder {
 }
 
 /* Helper classes for mobile */
-.menu-toggle {
-    display: none;
-    width: 40px;
-    height: 40px;
-    border-radius: var(--r-md);
-    border: 1px solid var(--border);
-    background: var(--bg-card);
-    color: var(--text-1);
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    font-size: 18px;
-}
-
-.sidebar-overlay {
-    display: none;
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.5);
-    backdrop-filter: blur(4px);
-    z-index: 90;
-}
-
-.sidebar-overlay.active {
-    display: block;
-}
+/* Consolidated Menu Toggle and Overlay logic moved to media queries */
 
 /* Live Indicator Animation */
 @keyframes pulse-live {
@@ -2549,23 +2519,21 @@ input::placeholder {
     }
 
     .sidebar-overlay {
-        position: fixed;
-        inset: 0;
-        background: rgba(0,0,0,0.5);
-        backdrop-filter: blur(8px) !important;
-        -webkit-backdrop-filter: blur(8px) !important;
-        z-index: 4999;
+        position: fixed !important;
+        inset: 0 !important;
+        background: rgba(0,0,0,0.6) !important;
+        backdrop-filter: blur(12px) !important;
+        -webkit-backdrop-filter: blur(12px) !important;
+        z-index: 4999 !important;
         display: none !important;
         animation: fadeIn 0.3s ease;
+        visibility: hidden;
+        pointer-events: none;
     }
 
-    /* Target specific open states */
-    .sidebar.open ~ .sidebar-overlay,
-    .sidebar.active ~ .sidebar-overlay {
-        display: block !important;
-    }
-
-    html.is-logged-in .sidebar-overlay.open {
+    .sidebar.active + .sidebar-overlay,
+    .sidebar.active ~ .sidebar-overlay,
+    .sidebar-overlay.active {
         display: block !important;
         visibility: visible !important;
         pointer-events: auto !important;
