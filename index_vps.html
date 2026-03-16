@@ -104,7 +104,17 @@
                 if (el) el.textContent = 'Indisponível';
             }
         }
-        window.addEventListener('load', fetchClientIP);
+
+        // Garante que os campos estejam limpos ao carregar e busca o IP
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                const userField = document.getElementById('login-user');
+                const passField = document.getElementById('login-pass');
+                if (userField) userField.value = '';
+                if (passField) passField.value = '';
+            }, 100);
+            fetchClientIP();
+        });
     </script>
     <style>
         /* Extreme Sharp Icons Fix */
@@ -292,7 +302,7 @@
                         <div class="form-group" style="margin-bottom: var(--s-5); text-align: left;">
                             <label>SENHA</label>
                             <div class="password-field-wrapper">
-                                <input type="password" id="login-pass" placeholder="••••••••">
+                                <input type="password" id="login-pass" placeholder="••••••••" autocomplete="off">
                                 <button type="button" class="password-toggle-btn" onclick="togglePasswordVisibility('login-pass', this)" title="Ver/Esconder Senha">
                                     <i class="fas fa-eye"></i>
                                 </button>
