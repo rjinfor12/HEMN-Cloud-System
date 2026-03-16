@@ -2753,17 +2753,10 @@ input::placeholder {
     }
 }
 @media (max-width: 767px) {
-    .aurora-blob {
-        width: 120vw; /* Larger blobs for mobile */
-        height: 120vw;
-        filter: blur(80px); /* Less blur to show more color */
-        opacity: 0.15;
+    .aurora-container {
+        display: none !important;
     }
     
-    .blob-1 { top: -30%; left: -20%; }
-    .blob-2 { top: -20%; right: -20%; }
-    .blob-3 { bottom: -30%; right: -15%; }
-
     /* Softening the 'Square' feel */
     .glass-card {
         border-radius: 32px !important; /* Softer, more modern corners */
