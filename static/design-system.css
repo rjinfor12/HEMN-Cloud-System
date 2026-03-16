@@ -2763,4 +2763,17 @@ input::placeholder {
     .blob-1 { top: -30%; left: -20%; }
     .blob-2 { top: -20%; right: -20%; }
     .blob-3 { bottom: -30%; right: -15%; }
+
+    /* Softening the 'Square' feel */
+    .glass-card {
+        border-radius: 32px !important; /* Softer, more modern corners */
+        padding: var(--s-7) var(--s-5) !important;
+    }
+
+    input[type="text"], 
+    input[type="password"], 
+    .form-control,
+    button:not(.password-toggle-btn) {
+        border-radius: 16px !important; /* Softer inputs */
+    }
 }
