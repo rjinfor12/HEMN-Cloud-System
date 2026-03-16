@@ -2752,3 +2752,15 @@ input::placeholder {
         display: none !important;
     }
 }
+@media (max-width: 767px) {
+    .aurora-blob {
+        width: 120vw; /* Larger blobs for mobile */
+        height: 120vw;
+        filter: blur(80px); /* Less blur to show more color */
+        opacity: 0.15;
+    }
+    
+    .blob-1 { top: -30%; left: -20%; }
+    .blob-2 { top: -20%; right: -20%; }
+    .blob-3 { bottom: -30%; right: -15%; }
+}
