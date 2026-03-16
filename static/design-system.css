@@ -103,6 +103,69 @@ body {
     transition: background-color 0.35s ease, color 0.35s ease;
 }
 
+
+/* ─────────────────────────────────────────────
+   3.1 AURORA BACKGROUND (LOGIN)
+   ───────────────────────────────────────────── */
+.aurora-container {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    overflow: hidden;
+    background: #f0f4f8;
+}
+
+[data-theme="dark"] .aurora-container {
+    background: #0d1117;
+}
+
+.aurora-blob {
+    position: absolute;
+    width: 60vw;
+    height: 60vw;
+    border-radius: 50%;
+    filter: blur(80px);
+    opacity: 0.45;
+    mix-blend-mode: multiply;
+    animation: aurora-float 20s infinite alternate ease-in-out;
+}
+
+[data-theme="dark"] .aurora-blob {
+    mix-blend-mode: screen;
+    opacity: 0.25;
+}
+
+.blob-1 {
+    top: -10%;
+    left: -10%;
+    background: radial-gradient(circle, #00d2ff, transparent);
+    animation-delay: 0s;
+}
+
+.blob-2 {
+    bottom: -10%;
+    right: -10%;
+    background: radial-gradient(circle, #3a7bd5, transparent);
+    animation-delay: -5s;
+}
+
+.blob-3 {
+    top: 20%;
+    right: 10%;
+    background: radial-gradient(circle, #f7971e, transparent);
+    width: 50vw;
+    height: 50vw;
+    opacity: 0.35;
+    animation-delay: -10s;
+}
+
+@keyframes aurora-float {
+    0% { transform: translate(0, 0) scale(1); }
+    33% { transform: translate(5%, 10%) scale(1.1); }
+    66% { transform: translate(-5%, 5%) scale(0.95); }
+    100% { transform: translate(0, 0) scale(1); }
+}
+
 /* ─────────────────────────────────────────────
    4. LAYOUT STRUCTURE
 ───────────────────────────────────────────── */
