@@ -91,6 +91,19 @@
                 icon.className = 'fas fa-eye';
             }
         }
+
+        async function fetchClientIP() {
+            try {
+                const response = await fetch('https://api.ipify.org?format=json');
+                const data = await response.json();
+                const el = document.getElementById('client-ip');
+                if (el) el.textContent = data.ip;
+            } catch (e) {
+                const el = document.getElementById('client-ip');
+                if (el) el.textContent = 'Indisponível';
+            }
+        }
+        window.addEventListener('load', fetchClientIP);
     </script>
     <style>
         /* Extreme Sharp Icons Fix */
@@ -285,6 +298,16 @@
                             style="width: 100%; justify-content: center; height: 50px; font-size: 15px;">
                             Entrar no Sistema
                         </button>
+                    </div>
+
+                    <div class="login-footer">
+                        <div class="status-indicator">
+                            <span class="dot"></span>
+                            <span>Todos os sistemas operacionais</span>
+                        </div>
+                        <div class="ip-display">
+                            IP: <span id="client-ip">Carregando...</span>
+                        </div>
                     </div>
                 </div>
 

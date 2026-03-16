@@ -130,6 +130,37 @@ body {
     animation: aurora-float 20s infinite alternate ease-in-out;
 }
 
+.login-footer {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: var(--s-4) var(--s-6);
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    font-size: 11px;
+    font-family: var(--font-body);
+    color: var(--text-3);
+    pointer-events: none;
+    z-index: 10;
+}
+
+.login-footer .status-indicator {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-right: 15px;
+}
+
+.login-footer .dot {
+    width: 6px;
+    height: 6px;
+    background: #00b09b;
+    border-radius: 50%;
+    box-shadow: 0 0 8px rgba(0, 176, 155, 0.5);
+}
+
 [data-theme="dark"] .aurora-blob {
     mix-blend-mode: screen;
     opacity: 0.25;
