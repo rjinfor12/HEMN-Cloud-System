@@ -1,8 +1,8 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Lexend:wght@300;400;500;600;700;800&display=swap');
 
-/* ─────────────────────────────────────────────
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
    1. TOKENS & DESIGN VARIABLES
-───────────────────────────────────────────── */
+â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 :root {
     /* Brand Gradients */
     --g-primary: linear-gradient(135deg, #00d2ff 0%, #3a7bd5 100%);
@@ -27,9 +27,6 @@
 
     --glass-blur: blur(28px);
     --glass-shadow: 0 12px 50px rgba(0, 0, 0, 0.55);
-
-    /* Sidebar Blur Fix: Ensure no global blur is leaking */
-    --global-blur: 0px;
 
     /* Spacing Scale */
     --s-1: 4px;
@@ -58,9 +55,9 @@
     --topbar-h: 72px;
 }
 
-/* ─────────────────────────────────────────────
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
    2. DARK THEME OVERRIDE
-───────────────────────────────────────────── */
+â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 [data-theme="dark"] {
     --bg: #0d1117;
     --bg-card: rgba(22, 30, 46, 0.82);
@@ -78,9 +75,9 @@
     --glass-shadow: 0 16px 60px rgba(0, 0, 0, 0.65);
 }
 
-/* ─────────────────────────────────────────────
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
    3. RESET & BASE
-───────────────────────────────────────────── */
+â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 *,
 *::before,
 *::after {
@@ -107,9 +104,9 @@ body {
 }
 
 
-/* ─────────────────────────────────────────────
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
    3.1 AURORA BACKGROUND (LOGIN)
-   ───────────────────────────────────────────── */
+   â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .aurora-container {
     position: fixed;
     inset: 0;
@@ -237,9 +234,9 @@ body {
     100% { transform: translate(0, 0) scale(1); }
 }
 
-/* ─────────────────────────────────────────────
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
    4. LAYOUT STRUCTURE
-───────────────────────────────────────────── */
+â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 #app {
     display: grid;
     grid-template-columns: var(--sidebar-w) 1fr;
@@ -251,9 +248,9 @@ body {
     position: relative;
 }
 
-/* ─────────────────────────────────────────────
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
    5. SIDEBAR
-───────────────────────────────────────────── */
+â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .sidebar {
     grid-column: 1;
     grid-row: 1;
@@ -326,7 +323,7 @@ body {
     filter: contrast(1.25) brightness(1.1) drop-shadow(0 0 2px rgba(0,0,0,1)) drop-shadow(0 15px 35px rgba(0,0,0,0.5)) !important;
 }
 
-/* Animação de Flutuação */
+/* AnimaÃ§Ã£o de FlutuaÃ§Ã£o */
 @keyframes logoFloat {
     0% { transform: translateY(0) rotateX(5deg); }
     50% { transform: translateY(-10px) rotateX(-5deg); }
@@ -337,7 +334,7 @@ body {
     animation: logoFloat 4s ease-in-out infinite !important;
 }
 
-/* Animação de Entrada (Reveal) */
+/* AnimaÃ§Ã£o de Entrada (Reveal) */
 @keyframes logoReveal {
     0% { transform: scale(0) rotate(-45deg); opacity: 0; }
     70% { transform: scale(1.1) rotate(5deg); opacity: 1; }
@@ -524,9 +521,9 @@ body {
     color: #ef4444;
 }
 
-/* ─────────────────────────────────────────────
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
    6. CONTENT AREA
-───────────────────────────────────────────── */
+â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .content-area {
     grid-column: 2;
     grid-row: 1;
@@ -535,9 +532,9 @@ body {
     overflow: hidden;
 }
 
-/* ─────────────────────────────────────────────
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
    7. TOP BAR
-───────────────────────────────────────────── */
+â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .top-bar {
     display: flex;
     align-items: center;
@@ -617,9 +614,9 @@ body {
     transform: scale(0.96);
 }
 
-/* ─────────────────────────────────────────────
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
    8. PAGE CONTAINER
-───────────────────────────────────────────── */
+â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .page-container {
     flex: 1;
     overflow-y: auto;
@@ -628,9 +625,9 @@ body {
     -webkit-overflow-scrolling: touch;
 }
 
-/* ─────────────────────────────────────────────
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
    9. CARDS & GLASS
-───────────────────────────────────────────── */
+â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .glass-effect,
 .glass-card {
     background: var(--bg-card);
@@ -654,9 +651,9 @@ body {
     box-shadow: 0 15px 40px rgba(0, 0, 0, 0.4);
 }
 
-/* ─────────────────────────────────────────────
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
    10. BUTTONS
-───────────────────────────────────────────── */
+â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .btn-primary {
     display: inline-flex;
     align-items: center;
@@ -725,9 +722,9 @@ body {
     background: rgba(239, 68, 68, 0.2);
 }
 
-/* ─────────────────────────────────────────────
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
    11. FORMS
-───────────────────────────────────────────── */
+â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .password-field-wrapper {
     position: relative;
     display: flex;
@@ -766,7 +763,7 @@ select,
 textarea {
     width: 100%;
     padding: 10px 14px;
-    padding-right: 42px; /* Espaço para o ícone */
+    padding-right: 42px; /* EspaÃ§o para o Ã­cone */
     background: var(--bg-input);
     border: 1px solid var(--border);
     border-radius: var(--r-sm);
@@ -813,9 +810,9 @@ input::placeholder {
     gap: var(--s-4);
 }
 
-/* ─────────────────────────────────────────────
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
    12. TABLES
-───────────────────────────────────────────── */
+â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .table-wrapper {
     overflow-x: auto;
     border-radius: var(--r-md);
@@ -873,9 +870,9 @@ input::placeholder {
     border-bottom: none;
 }
 
-/* ─────────────────────────────────────────────
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
    13. BADGES & STATUS
-───────────────────────────────────────────── */
+â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .badge {
     display: inline-flex !important;
     align-items: center !important;
@@ -953,9 +950,9 @@ input::placeholder {
     border: 1px solid rgba(59, 130, 246, 0.3);
 }
 
-/* ─────────────────────────────────────────────
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
    14. MODALS
-───────────────────────────────────────────── */
+â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .modal {
     position: fixed;
     inset: 0;
@@ -1041,9 +1038,9 @@ input::placeholder {
     flex-wrap: wrap;
 }
 
-/* ─────────────────────────────────────────────
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
    15. PAGE HEADERS
-───────────────────────────────────────────── */
+â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .page-header {
     display: flex;
     align-items: center;
@@ -1072,9 +1069,9 @@ input::placeholder {
     flex-wrap: wrap;
 }
 
-/* ─────────────────────────────────────────────
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
    16. DASHBOARD
-───────────────────────────────────────────── */
+â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .welcome-header {
     margin-bottom: var(--s-6);
 }
@@ -1131,9 +1128,9 @@ input::placeholder {
     color: #ef4444;
 }
 
-/* ─────────────────────────────────────────────
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
    17. DRAG & DROP ZONES
-───────────────────────────────────────────── */
+â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .drop-zone {
     border: 2px dashed var(--border);
     border-radius: var(--r-lg);
@@ -1285,9 +1282,9 @@ input::placeholder {
     background: #ef4444;
 }
 
-/* ─────────────────────────────────────────────
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
    17. EMPLOYEE MANAGEMENT
-───────────────────────────────────────────── */
+â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .emp-info-cell {
     display: flex;
     align-items: center;
@@ -1313,9 +1310,9 @@ input::placeholder {
     color: var(--text-2);
 }
 
-/* ─────────────────────────────────────────────
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
    18. NOTIFICATIONS / TOAST
-───────────────────────────────────────────── */
+â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .notification-container {
     position: fixed;
     top: var(--s-5);
@@ -1365,9 +1362,9 @@ input::placeholder {
     border-left-color: #f59e0b;
 }
 
-/* ─────────────────────────────────────────────
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
    19. HOLERITE / PAYSLIP
-───────────────────────────────────────────── */
+â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .payslip-modal-content {
     max-width: 820px;
 }
@@ -1467,9 +1464,9 @@ input::placeholder {
     font-size: 11px;
 }
 
-/* ─────────────────────────────────────────────
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
    20. EMPTY STATE
-───────────────────────────────────────────── */
+â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .empty-state {
     display: flex;
     flex-direction: column;
@@ -1496,9 +1493,9 @@ input::placeholder {
     font-size: 13px;
 }
 
-/* ─────────────────────────────────────────────
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
    21. ANIMATIONS
-───────────────────────────────────────────── */
+â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 @keyframes fadeIn {
     from {
         opacity: 0;
@@ -1545,9 +1542,9 @@ input::placeholder {
     animation: slideInLeft 0.4s ease-out forwards;
 }
 
-/* ─────────────────────────────────────────────
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
    22. GRADIENT TEXT
-───────────────────────────────────────────── */
+â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .gradient-text {
     background: var(--g-primary);
     background-clip: text;
@@ -1556,9 +1553,9 @@ input::placeholder {
     font-weight: 800;
 }
 
-/* ─────────────────────────────────────────────
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
    23. MOBILE DRAWER
-───────────────────────────────────────────── */
+â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .drawer-toggle {
     display: none;
     position: fixed;
@@ -1596,9 +1593,9 @@ input::placeholder {
     color: var(--text-1);
 }
 
-/* ─────────────────────────────────────────────
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
    24. PRINT STYLES
-───────────────────────────────────────────── */
+â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 @media print {
     body * {
         visibility: hidden;
@@ -1630,9 +1627,9 @@ input::placeholder {
     }
 }
 
-/* ─────────────────────────────────────────────
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
    25. UTILITY GRID CLASSES (used by JS components)
-───────────────────────────────────────────── */
+â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .grid-2 {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -1664,18 +1661,18 @@ input::placeholder {
     min-height: var(--topbar-h);
 }
 
-/* ─────────────────────────────────────────────
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
    26. RESPONSIVE BREAKPOINTS
-───────────────────────────────────────────── */
+â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
-/* ── Large Desktop ≤ 1280px ── */
+/* â”€â”€ Large Desktop â‰¤ 1280px â”€â”€ */
 @media (max-width: 1280px) {
     .stats-grid {
         grid-template-columns: repeat(3, 1fr);
     }
 }
 
-/* ── Tablet ≤ 1024px ── */
+/* â”€â”€ Tablet â‰¤ 1024px â”€â”€ */
 @media (max-width: 1024px) {
     :root {
         --sidebar-w: 230px;
@@ -1701,31 +1698,30 @@ input::placeholder {
     }
 }
 
-/* ── Mobile ≤ 768px ── */
+/* â”€â”€ Mobile â‰¤ 768px â”€â”€ */
 @media (max-width: 768px) {
     :root {
         --sidebar-w: 285px;
         --topbar-h: 64px;
     }
 
-    /* ·· App Layout ·· */
+    /* Â·Â· App Layout Â·Â· */
     #app {
         grid-template-columns: 1fr;
         grid-template-rows: 1fr;
     }
 
-    /* ·· Sidebar → Drawer ·· */
+    /* Â·Â· Sidebar â†’ Drawer Â·Â· */
     .sidebar {
         position: fixed;
         top: 0;
         left: 0;
-        bottom: 0 !important;
-        height: 100dvh !important;
+        bottom: 0;
         width: var(--sidebar-w);
         transform: translateX(-110%);
-        border-radius: 0 !important;
+        border-radius: 0 var(--r-xl) var(--r-xl) 0;
         box-shadow: 16px 0 56px rgba(0, 0, 0, 0.6);
-        z-index: 5000 !important;
+        z-index: 500;
         margin: 0;
         border-right: 1px solid var(--border);
     }
@@ -1749,14 +1745,14 @@ input::placeholder {
         display: flex;
     }
 
-    /* ·· Content Area ·· */
+    /* Â·Â· Content Area Â·Â· */
     .content-area {
         grid-column: 1;
         width: 100%;
         min-width: 0;
     }
 
-    /* ·· Top Bar ·· */
+    /* Â·Â· Top Bar Â·Â· */
     .top-bar {
         padding: 0 var(--s-3) 0 68px;
         height: var(--topbar-h);
@@ -1769,12 +1765,12 @@ input::placeholder {
         min-width: 0;
     }
 
-    /* ·· Page Container ·· */
+    /* Â·Â· Page Container Â·Â· */
     .page-container {
         padding: var(--s-3);
     }
 
-    /* ·· Stats & Grids ·· */
+    /* Â·Â· Stats & Grids Â·Â· */
     .stats-grid {
         grid-template-columns: 1fr;
     }
@@ -1792,7 +1788,7 @@ input::placeholder {
         grid-template-columns: 1fr;
     }
 
-    /* ·· Inline style grid overrides ·· */
+    /* Â·Â· Inline style grid overrides Â·Â· */
     [style*="grid-template-columns: 1fr 1fr"],
     [style*="grid-template-columns:1fr 1fr"],
     [style*="grid-template-columns: 2fr 1fr"],
@@ -1800,12 +1796,12 @@ input::placeholder {
         grid-template-columns: 1fr !important;
     }
 
-    /* ·· Card hover transforms off on touch ·· */
+    /* Â·Â· Card hover transforms off on touch Â·Â· */
     .glass-card:hover {
         transform: none;
     }
 
-    /* ·· Tables: horizontal scroll ·· */
+    /* Â·Â· Tables: horizontal scroll Â·Â· */
     .glass-card {
         overflow-x: auto;
     }
@@ -1814,7 +1810,7 @@ input::placeholder {
         min-width: 520px;
     }
 
-    /* ·· Modals ·· */
+    /* Â·Â· Modals Â·Â· */
     .modal {
         padding: var(--s-2);
         align-items: flex-end;
@@ -1834,7 +1830,7 @@ input::placeholder {
         border-radius: var(--r-xl) var(--r-xl) 0 0;
     }
 
-    /* ·· Page Header ·· */
+    /* Â·Â· Page Header Â·Â· */
     .page-header {
         flex-direction: column;
         align-items: flex-start;
@@ -1847,20 +1843,20 @@ input::placeholder {
         justify-content: flex-start;
     }
 
-    /* ·· Payroll table actions ·· */
+    /* Â·Â· Payroll table actions Â·Â· */
     .data-table td:last-child>div {
         flex-direction: column;
         gap: 4px;
     }
 
-    /* ·· Attendance module two-panel layout ·· */
+    /* Â·Â· Attendance module two-panel layout Â·Â· */
     #att-main-grid {
         display: flex !important;
         flex-direction: column !important;
         gap: var(--s-4) !important;
     }
 
-    /* ·· Status picker repositioning ·· */
+    /* Â·Â· Status picker repositioning Â·Â· */
     #status-picker {
         position: fixed !important;
         left: var(--s-3) !important;
@@ -1870,12 +1866,12 @@ input::placeholder {
         width: auto !important;
     }
 
-    /* ·· Payroll form grid ·· */
+    /* Â·Â· Payroll form grid Â·Â· */
     #payroll-modal .form-grid {
         grid-template-columns: 1fr 1fr;
     }
 
-    /* ·· Toast notifications ·· */
+    /* Â·Â· Toast notifications Â·Â· */
     .notification-container {
         top: auto;
         bottom: var(--s-4);
@@ -1890,7 +1886,7 @@ input::placeholder {
         width: 100%;
     }
 
-    /* ·· Holerite ·· */
+    /* Â·Â· Holerite Â·Â· */
     .holerite-container {
         padding: 16px;
         overflow-x: auto;
@@ -1901,7 +1897,7 @@ input::placeholder {
     }
 }
 
-/* ── Small Mobile ≤ 480px ── */
+/* â”€â”€ Small Mobile â‰¤ 480px â”€â”€ */
 @media (max-width: 480px) {
     :root {
         --topbar-h: 56px;
@@ -1965,7 +1961,7 @@ input::placeholder {
         padding: var(--s-3);
     }
 
-    /* Payroll form grid → single col on small screens */
+    /* Payroll form grid â†’ single col on small screens */
     #payroll-modal .form-grid {
         grid-template-columns: 1fr;
     }
@@ -2058,9 +2054,10 @@ input::placeholder {
     -webkit-text-fill-color: transparent;
 }
 
-/* ─────────────────────────────────────────────
-   20. MOBILE RESPONSIVENESS (MEDIA QUERIES)
-───────────────────────────────────────────── */
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+   14. RESPONSIVE DESIGN (MOBILE & TABLET)
+â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+
 @media (max-width: 992px) {
     :root {
         --sidebar-w: 260px;
@@ -2236,7 +2233,7 @@ input::placeholder {
 }
 
 /* ---------------------------------------------
-   19. IN�CIO / HOME LANDING PAGE
+   19. INï¿½CIO / HOME LANDING PAGE
    --------------------------------------------- */
 .welcome-hero {
     background-color: #f7971e;
@@ -2299,228 +2296,10 @@ input::placeholder {
     z-index: 1;
 }
 
-.welcome-hero p {
-    font-size: 18px;
-    opacity: 1;
-    color: rgba(255, 255, 255, 0.95);
-    max-width: 750px;
-    line-height: 1.7;
-    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
-    position: relative;
-    z-index: 1;
-}
-
-.quick-actions-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-    gap: var(--s-5);
-    margin-top: var(--s-6);
-    animation: fadeIn 0.8s ease-out;
-}
-
-@keyframes fadeIn {
-    from {
-        opacity: 0;
-        transform: translateY(20px);
-    }
-
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-.action-card {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: var(--r-lg);
-    padding: var(--s-6);
-    display: flex;
-    flex-direction: column;
-    gap: var(--s-4);
-    cursor: pointer;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    position: relative;
-    overflow: hidden;
-    min-height: 200px;
-    justify-content: center;
-}
-
-.action-card:hover {
-    border-color: var(--border-focus);
-    transform: translateY(-8px);
-    background: var(--bg-hover);
-    box-shadow: var(--glass-shadow);
-}
-
-.action-card .icon-box {
-    width: 60px;
-    height: 60px;
-    border-radius: var(--r-md);
-    background: var(--bg-input);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 28px;
-    color: #3a7bd5;
-    transition: all 0.3s ease;
-    margin-bottom: var(--s-2);
-}
-
-.action-card:hover .icon-box {
-    background: var(--g-primary);
-    color: #fff;
-    transform: rotate(-5deg) scale(1.1);
-}
-
-.action-card h3 {
-    font-family: var(--font-heading);
-    font-size: 20px;
-    font-weight: 700;
-    color: var(--text-1);
-}
-
-.action-card p {
-    font-size: 14px;
-    color: var(--text-2);
-    line-height: 1.5;
-}
-
-.action-card .arrow {
-    position: absolute;
-    bottom: var(--s-6);
-    right: var(--s-6);
-    opacity: 0;
-    transform: translateX(-10px);
-    transition: all 0.3s ease;
-    color: #3a7bd5;
-    font-size: 18px;
-}
-
-.action-card:hover .arrow {
-    opacity: 1;
-    transform: translateX(0);
-}
-
-
-
-/* ─────────────────────────────────────────────
-   20. SISTEMA STATUS CARDS & PREMIUM ACTIONS
-   ───────────────────────────────────────────── */
-
-/* Row of status summary cards below the hero */
-.system-status-row {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: var(--s-5);
-    margin-top: var(--s-5);
-    margin-bottom: var(--s-6);
-    padding: 0;
-    z-index: 10;
-    position: relative;
-}
-
-.status-summary-card {
-    background: var(--bg-card);
-    backdrop-filter: var(--glass-blur);
-    -webkit-backdrop-filter: var(--glass-blur);
-    border: 1px solid var(--border);
-    border-radius: var(--r-lg);
-    padding: var(--s-5);
-    display: flex;
-    align-items: center;
-    gap: var(--s-4);
-    box-shadow: var(--glass-shadow);
-    transition: all 0.3s ease;
-}
-
-.status-summary-card:hover {
-    transform: translateY(-4px);
-    border-color: rgba(247, 151, 30, 0.4);
-    box-shadow: 0 12px 35px rgba(0, 0, 0, 0.35);
-}
-
-.status-summary-card .icon-circ {
-    width: 44px;
-    height: 44px;
-    border-radius: 50%;
-    background: rgba(247, 151, 30, 0.12);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 18px;
-    color: #f7971e;
-    flex-shrink: 0;
-    border: 1px solid rgba(247, 151, 30, 0.2);
-}
-
-.status-summary-card .details {
-    display: flex;
-    flex-direction: column;
-}
-
-.status-summary-card .label {
-    font-size: 11px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.8px;
-    color: var(--text-2);
-    margin-bottom: 4px;
-}
-
-.status-summary-card .value {
-    font-family: var(--font-heading);
-    font-size: 18px;
-    font-weight: 700;
-    color: var(--text-1);
-}
-
-/* Premium action cards stagger animation */
-.stagger-in .action-card {
-    opacity: 0;
-    transform: translateY(30px);
-    animation: staggerFadeUp 0.5s ease forwards;
-}
-
-.stagger-in .action-card:nth-child(1) { animation-delay: 0.05s; }
-.stagger-in .action-card:nth-child(2) { animation-delay: 0.15s; }
-.stagger-in .action-card:nth-child(3) { animation-delay: 0.25s; }
-.stagger-in .action-card:nth-child(4) { animation-delay: 0.35s; }
-.stagger-in .action-card:nth-child(5) { animation-delay: 0.45s; }
-.stagger-in .action-card:nth-child(6) { animation-delay: 0.55s; }
-
-@keyframes staggerFadeUp {
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-/* Enhanced action card hover effect */
-.action-card:hover .icon-box {
-    background: linear-gradient(135deg, #f7971e 0%, #ea580c 100%);
-    color: #fff;
-    transform: rotate(-5deg) scale(1.1);
-}
-
-/* Explore section title */
-.explore-title {
-    font-family: var(--font-heading);
-    font-size: 26px;
-    font-weight: 700;
-    color: var(--text-1);
-    margin-bottom: var(--s-2);
-}
-
-.explore-subtitle {
-    font-size: 14px;
-    color: var(--text-2);
-    margin-bottom: var(--s-5);
-}
-
-/* ─────────────────────────────────────────────
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
    14. RESPONSIVE DESIGN (MOBILE & TABLET)
-───────────────────────────────────────────── */
+â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+
 
 @media (max-width: 992px) {
     :root {
@@ -2529,6 +2308,32 @@ input::placeholder {
 }
 
 @media (max-width: 768px) {
+    /* Softening the 'Square' feel */
+    .glass-card {
+        border-radius: 32px !important;
+        padding: var(--s-7) var(--s-5) !important;
+    }
+
+    input[type="text"],
+    input[type="password"],
+    select,
+    textarea,
+    .form-control,
+    button:not(.password-toggle-btn):not(.hemn-switch) {
+        border-radius: 16px !important;
+    }
+
+    /* Filter Toggles Stacking on Mobile */
+    .filter-toggles-container {
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        gap: 15px !important;
+    }
+    .filter-toggles-container .switch-group {
+        width: 100% !important;
+        justify-content: flex-start !important;
+    }
+
     #app {
         grid-template-columns: 1fr;
     }
@@ -2555,15 +2360,12 @@ input::placeholder {
         backdrop-filter: blur(4px);
         -webkit-backdrop-filter: blur(4px);
         z-index: 4999;
-        display: none !important;
+        display: none;
         animation: fadeIn 0.3s ease;
     }
 
-    .sidebar.open + .sidebar-overlay,
-    .sidebar.open ~ .sidebar-overlay,
-    .sidebar.active + .sidebar-overlay,
-    .sidebar.active ~ .sidebar-overlay {
-        display: block !important;
+    .sidebar.active + .sidebar-overlay {
+        display: block;
     }
 
     .content-area {
@@ -2573,6 +2375,7 @@ input::placeholder {
     .top-bar {
         padding: 0 var(--s-4);
         height: 60px;
+        display: flex !important;
     }
 
     .menu-toggle {
@@ -2589,7 +2392,7 @@ input::placeholder {
     }
 
     .greeting-container {
-        display: none;
+        display: block;
     }
 
     .header-tools .btn-primary {
@@ -2762,32 +2565,10 @@ input::placeholder {
         display: none !important;
     }
 }
+
 @media (max-width: 767px) {
-    html.is-logged-in .aurora-container,
-    html.is-logged-in .sidebar-overlay:not(.open),
-    html.is-logged-in #login-overlay {
-        display: none !important;
-        visibility: hidden !important;
-        pointer-events: none !important;
-    }
-
     #login-overlay {
-        background: #ffffff !important; /* Solid white background for mobile login */
-    }
-    
-    /* Softening the 'Square' feel */
-    .glass-card {
-        border-radius: 32px !important; /* Softer, more modern corners */
-        padding: var(--s-7) var(--s-5) !important;
-    }
-
-    input[type="text"], 
-    input[type="password"], 
-    select,
-    textarea,
-    .form-control,
-    button:not(.password-toggle-btn) {
-        border-radius: 16px !important; /* Softer/Consistent inputs */
+        background: #ffffff !important;
     }
 }
 
@@ -2797,6 +2578,7 @@ input::placeholder {
     display: inline-block;
     width: 60px;
     height: 30px;
+    flex-shrink: 0;
 }
 
 .hemn-switch input {
@@ -2808,10 +2590,7 @@ input::placeholder {
 .hemn-slider {
     position: absolute;
     cursor: pointer;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
+    inset: 0;
     background-color: #e0e0e0;
     transition: .4s;
     border-radius: 34px;
@@ -2832,10 +2611,6 @@ input::placeholder {
     z-index: 2;
 }
 
-.hemn-slider:after {
-    display: none;
-}
-
 input:checked + .hemn-slider {
     background-color: #3a7bd5;
     box-shadow: inset 2px 2px 5px rgba(0,0,0,0.2), inset -2px -2px 5px rgba(255,255,255,0.1);
@@ -2845,22 +2620,21 @@ input:checked + .hemn-slider:before {
     transform: translateX(30px);
 }
 
-
-/* Responsive Extraction Filters */
-.extract-filters-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    width: 100%;
-    margin-bottom: var(--s-5);
-    flex-wrap: nowrap;
-    gap: 25px;
-}
-
+/* FINAL VISIBILITY OVERRIDE FOR MOBILE */
 @media (max-width: 768px) {
-    .extract-filters-row {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 15px;
+    .is-logged-in .top-bar {
+        display: flex !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+    }
+    .is-logged-in .greeting-container {
+        display: block !important;
+    }
+    .is-logged-in .header-tools .btn-primary span,
+    .is-logged-in .header-tools .btn-primary .text {
+        display: inline-block !important;
+    }
+    .is-logged-in .menu-toggle {
+        display: flex !important;
     }
 }
