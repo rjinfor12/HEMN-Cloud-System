@@ -105,15 +105,25 @@
             }
         }
 
-        // Garante que os campos estejam limpos ao carregar e busca o IP
+        // Garante que os campos estejam limpos ao carregar
+        function clearLoginFields() {
+            const userField = document.getElementById('login-user');
+            const passField = document.getElementById('login-pass');
+            if (userField && !userField.dataset.interacted) userField.value = '';
+            if (passField && !passField.dataset.interacted) passField.value = '';
+        }
+
         window.addEventListener('load', () => {
-            setTimeout(() => {
-                const userField = document.getElementById('login-user');
-                const passField = document.getElementById('login-pass');
-                if (userField) userField.value = '';
-                if (passField) passField.value = '';
-            }, 100);
+            // Limpa em múltiplos intervalos para vencer o preenchimento automático agressivo
+            [10, 100, 300, 500, 1000, 2000].forEach(t => setTimeout(clearLoginFields, t));
             fetchClientIP();
+        });
+
+        // Detecta interação manual para parar de limpar
+        document.addEventListener('input', (e) => {
+            if (e.target.id === 'login-user' || e.target.id === 'login-pass') {
+                e.target.dataset.interacted = 'true';
+            }
         });
     </script>
     <style>
@@ -295,14 +305,20 @@
                                 style="width: 80px; height: 80px; margin-bottom: var(--s-4);">
                         </div>
                         <h2 style="margin-bottom: var(--s-5); font-family: var(--font-heading);">Acesso HEMN SYSTEM <span class="responsive-icon" style="font-size: 0.8em; vertical-align: middle;">💠</span></h2>
+                        <!-- Fake fields to trick aggressive browser autofill -->
+                        <div style="position: absolute; opacity: 0; pointer-events: none; z-index: -1;">
+                            <input type="text" name="fake-username-field" tabindex="-1">
+                            <input type="password" name="fake-password-field" tabindex="-1">
+                        </div>
+
                         <div class="form-group" style="margin-bottom: var(--s-4); text-align: left;">
                             <label>USUÁRIO</label>
-                            <input type="text" id="login-user" placeholder="Seu login registrado">
+                            <input type="text" id="login-user" placeholder="Seu login registrado" autocomplete="new-password">
                         </div>
                         <div class="form-group" style="margin-bottom: var(--s-5); text-align: left;">
                             <label>SENHA</label>
                             <div class="password-field-wrapper">
-                                <input type="password" id="login-pass" placeholder="••••••••" autocomplete="off">
+                                <input type="password" id="login-pass" placeholder="••••••••" autocomplete="new-password">
                                 <button type="button" class="password-toggle-btn" onclick="togglePasswordVisibility('login-pass', this)" title="Ver/Esconder Senha">
                                     <i class="fas fa-eye"></i>
                                 </button>
