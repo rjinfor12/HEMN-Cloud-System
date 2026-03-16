@@ -112,22 +112,47 @@ body {
     inset: 0;
     z-index: -1;
     overflow: hidden;
-    background: #f0f4f8;
+    background: #ffffff; /* White base as requested */
 }
 
 [data-theme="dark"] .aurora-container {
-    background: #0d1117;
+    background: #0a0c10;
 }
 
 .aurora-blob {
     position: absolute;
-    width: 60vw;
-    height: 60vw;
+    width: 50vw;
+    height: 50vw;
     border-radius: 50%;
-    filter: blur(80px);
-    opacity: 0.45;
-    mix-blend-mode: multiply;
-    animation: aurora-float 20s infinite alternate ease-in-out;
+    filter: blur(120px);
+    opacity: 0.18; /* Subtle details */
+    animation: aurora-move 20s infinite alternate ease-in-out;
+}
+
+/* Specific Blobs matching the reference details */
+.blob-1 {
+    top: -20%;
+    left: -10%;
+    background: radial-gradient(circle, #3a7bd5, transparent 70%); /* Soft Blue */
+}
+
+.blob-2 {
+    top: -15%;
+    right: -10%;
+    background: radial-gradient(circle, #ff00ff, transparent 70%); /* Soft Pink */
+    animation-delay: -5s;
+}
+
+.blob-3 {
+    bottom: -20%;
+    right: -5%;
+    background: radial-gradient(circle, #ffcc00, transparent 70%); /* Soft Gold */
+    animation-delay: -10s;
+}
+
+@keyframes aurora-move {
+    0% { transform: translate(0, 0) rotate(0deg); }
+    100% { transform: translate(10vw, 5vw) rotate(5deg); }
 }
 
 .login-footer {
