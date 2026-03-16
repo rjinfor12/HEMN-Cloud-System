@@ -2551,19 +2551,24 @@ input::placeholder {
     .sidebar-overlay {
         position: fixed;
         inset: 0;
-        background: rgba(0,0,0,0.6);
-        backdrop-filter: blur(4px);
-        -webkit-backdrop-filter: blur(4px);
+        background: rgba(0,0,0,0.5);
+        backdrop-filter: blur(8px) !important;
+        -webkit-backdrop-filter: blur(8px) !important;
         z-index: 4999;
         display: none !important;
         animation: fadeIn 0.3s ease;
     }
 
-    .sidebar.open + .sidebar-overlay,
+    /* Target specific open states */
     .sidebar.open ~ .sidebar-overlay,
-    .sidebar.active + .sidebar-overlay,
     .sidebar.active ~ .sidebar-overlay {
         display: block !important;
+    }
+
+    html.is-logged-in .sidebar-overlay.open {
+        display: block !important;
+        visibility: visible !important;
+        pointer-events: auto !important;
     }
 
     .content-area {
@@ -2764,7 +2769,6 @@ input::placeholder {
 }
 @media (max-width: 767px) {
     html.is-logged-in .aurora-container,
-    html.is-logged-in .sidebar-overlay:not(.open),
     html.is-logged-in #login-overlay {
         display: none !important;
         visibility: hidden !important;
