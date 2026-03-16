@@ -770,6 +770,19 @@ class CloudEngine:
             elif perfil == "NAO MEI":
                 empresas_conds.append("natureza_juridica != '2135'")
 
+            # Filtro de Órgãos Governamentais
+            if filters.get("sem_governo"):
+                gov_keywords = [
+                    "FEDERAL", "GOVERNO", "PUBLICO", "PUBLICA", "ESTADUAL", "ESTADO", 
+                    "MUNICIPIO", "MUNICIPAL", "POLICIA", "BOMBEIRO", "BANCO DO BRASIL", "CORREIOS", 
+                    "MINISTERIO", "ADVOCACIA-GERAL", "BANCO CENTRAL", "CASA CIVIL", "CONTROLADORIA-GERAL",
+                    "GABINETE DE SEGURANCA", "SECRETARIA"
+                ]
+                # Filter in companies table (natureza_juridica check is also good, but name is what user asked)
+                # Grouping keywords to avoid huge query, using multiSearchAny for performance
+                empresas_conds.append("NOT multiSearchAnyCaseInsensitive(razao_social, %(gov_keys)s)")
+                params['gov_keys'] = gov_keywords
+
             print(f"[DEBUG] [_run_extraction] filters built: estab_conds={len(estab_conds)}, empresas_conds={len(empresas_conds)}")
 
             tipo_req = filters.get("tipo_tel", "TODOS")

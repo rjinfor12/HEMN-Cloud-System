@@ -621,12 +621,18 @@
                             </div>
                         </div>
 
-                        <div class="form-group" style="margin-bottom: var(--s-5);">
+                        <div class="form-group" style="margin-bottom: var(--s-5); display: flex; gap: 20px; flex-wrap: wrap;">
                             <label class="checkbox-group"
                                 style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
                                 <input type="checkbox" id="extract-somente-tel" style="width: 20px; height: 20px;">
                                 <span style="font-size: 14px; color: var(--text-2);">Apenas registros com contatos
                                     validados</span>
+                            </label>
+
+                            <label class="checkbox-group"
+                                style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                                <input type="checkbox" id="extract-sem-governo" style="width: 20px; height: 20px;">
+                                <span style="font-size: 14px; color: var(--text-2);">Tirar Órgãos Governamentais</span>
                             </label>
                         </div>
 
@@ -3387,6 +3393,7 @@
                     situacao: situacao,
                     tipo_tel: document.getElementById('extract-tipo-tel').value,
                     somente_com_telefone: document.getElementById('extract-somente-tel').checked,
+                    sem_governo: document.getElementById('extract-sem-governo').checked,
                     cep_file: this.uploadedFiles.cep[0] || null,
                     operadora_inc: document.getElementById('extract-operadora-inc').value,
                     operadora_exc: document.getElementById('extract-operadora-exc').value,
