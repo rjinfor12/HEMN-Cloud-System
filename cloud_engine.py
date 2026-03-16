@@ -126,7 +126,11 @@ class CloudEngine:
             "55315": "TELECALL", "55322": "BRISANET"
         }
         
-        base_dir = "/var/www/hemn_cloud/data_assets"
+        if self.is_linux:
+            base_dir = "/var/www/hemn_cloud/data_assets"
+        else:
+            base_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data_assets")
+            
         prefix_path = os.path.join(base_dir, "prefix_anatel.csv")
         dict_path = os.path.join(base_dir, "cod_operadora.csv")
         
@@ -154,11 +158,12 @@ class CloudEngine:
         code = str(code).strip()
         name = self.anatel_dict.get(code, f"OUTRA ({code})" if code else "OUTRA")
         # NORMALIZAÇÃO HEMN (Híbrida para clareza e filtros)
-        nu = name.upper()
+        nu = name.upper().strip()
         if "TELEFONICA" in nu or "VIVO" in nu: return "VIVO / TELEFONICA"
         if "CLARO" in nu: return "CLARO"
         if "TIM" in nu: return "TIM"
-        if "OI" in nu: return "OI"
+        if nu == "OI" or nu.startswith("OI ") or "OI S.A" in nu or "OI MOVEL" in nu or "TELEMAR" in nu: 
+            return "OI"
         if "ALGAR" in nu: return "ALGAR"
         if "BRISANET" in nu: return "BRISANET"
         if "TELECALL" in nu: return "TELECALL"
@@ -1333,16 +1338,23 @@ class CloudEngine:
         }
         op_map.update(full_map)
         
+        # MERGE WITH DYNAMICALLY LOADED ANATEL DICT (From CSV)
+        if hasattr(self, 'anatel_dict'):
+            op_map.update(self.anatel_dict)
+            
         # NORMALIZAÇÃO HEMN PARA FILTROS ROBUSTOS
         normalized = {}
         for k, v in op_map.items():
-            vu = str(v).upper()
+            vu = str(v).upper().strip()
+            # Identificação Específica (evita que "VOICE/VOIP" seja detectado como "OI")
             if "TELEFONICA" in vu or "VIVO" in vu: normalized[k] = "VIVO / TELEFONICA"
             elif "CLARO" in vu: normalized[k] = "CLARO"
             elif "TIM" in vu: normalized[k] = "TIM"
-            elif "OI" in vu: normalized[k] = "OI"
+            elif vu == "OI" or vu.startswith("OI ") or "OI S.A" in vu or "OI MOVEL" in vu or "TELEMAR" in vu: 
+                normalized[k] = "OI"
             elif "ALGAR" in vu: normalized[k] = "ALGAR"
-            else: normalized[k] = str(v).upper()
+            elif "BRISANET" in vu: normalized[k] = "BRISANET"
+            else: normalized[k] = vu
         return normalized
 
     def _append_operator_column(self, tid, df):
