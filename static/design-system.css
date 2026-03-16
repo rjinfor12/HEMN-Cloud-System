@@ -2753,8 +2753,14 @@ input::placeholder {
     }
 }
 @media (max-width: 767px) {
-    .aurora-container {
+    .aurora-container,
+    .app-sidebar,
+    .top-bar {
         display: none !important;
+    }
+
+    #login-overlay {
+        background: #ffffff !important; /* Solid white background for mobile login */
     }
     
     /* Softening the 'Square' feel */
