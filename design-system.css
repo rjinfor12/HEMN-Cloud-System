@@ -2196,3 +2196,51 @@ input::placeholder {
     color: var(--text-2);
     margin-bottom: var(--s-5);
 }
+
+/* Premium Switch Toggle */
+.hemn-switch {
+    position: relative;
+    display: inline-block;
+    width: 44px;
+    height: 24px;
+}
+
+.hemn-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.hemn-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: var(--border);
+    transition: .4s;
+    border-radius: 24px;
+    border: 1px solid rgba(255,255,255,0.05);
+}
+
+.hemn-slider:before {
+    position: absolute;
+    content: "";
+    height: 16px;
+    width: 16px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    transition: .4s;
+    border-radius: 50%;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+input:checked + .hemn-slider {
+    background: linear-gradient(135deg, var(--accent) 0%, #0ea5e9 100%);
+}
+
+input:checked + .hemn-slider:before {
+    transform: translateX(20px);
+}

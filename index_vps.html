@@ -621,18 +621,23 @@
                             </div>
                         </div>
 
-                        <div class="form-group" style="margin-bottom: var(--s-5); display: flex; gap: 20px; flex-wrap: wrap;">
-                            <label class="checkbox-group"
-                                style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
-                                <input type="checkbox" id="extract-somente-tel" style="width: 20px; height: 20px;">
-                                <span style="font-size: 14px; color: var(--text-2);">Apenas registros com contatos
-                                    validados</span>
+                        <div class="form-group" style="margin-bottom: var(--s-5); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 20px;">
+                            <label class="switch-group"
+                                style="display: flex; align-items: center; gap: 12px; cursor: pointer;">
+                                <div class="hemn-switch">
+                                    <input type="checkbox" id="extract-somente-tel">
+                                    <span class="hemn-slider"></span>
+                                </div>
+                                <span style="font-size: 14px; color: var(--text-2);">Apenas registros com contatos validados</span>
                             </label>
 
-                            <label class="checkbox-group"
-                                style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
-                                <input type="checkbox" id="extract-sem-governo" style="width: 20px; height: 20px;">
+                            <label class="switch-group"
+                                style="display: flex; align-items: center; gap: 12px; cursor: pointer;">
                                 <span style="font-size: 14px; color: var(--text-2);">Tirar Órgãos Governamentais</span>
+                                <div class="hemn-switch">
+                                    <input type="checkbox" id="extract-sem-governo">
+                                    <span class="hemn-slider"></span>
+                                </div>
                             </label>
                         </div>
 
