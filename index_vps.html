@@ -1880,6 +1880,11 @@
             },
 
             openPasswordModal() {
+                // Auto-close sidebar on mobile
+                const sidebar = document.getElementById('sidebar');
+                if (window.innerWidth <= 768 && sidebar && (sidebar.classList.contains('active') || sidebar.classList.contains('open'))) {
+                    this.toggleSidebar();
+                }
                 document.getElementById('password-modal').style.display = 'flex';
                 document.getElementById('current-pass').value = '';
                 document.getElementById('new-pass').value = '';

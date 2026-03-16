@@ -2076,7 +2076,7 @@ input::placeholder {
         padding: var(--s-4);
     }
 
-    .sidebar.open {
+    .sidebar.active {
         transform: translateX(0);
     }
 
