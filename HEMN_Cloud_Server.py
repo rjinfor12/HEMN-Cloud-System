@@ -155,6 +155,7 @@ class ExtractionFilter(BaseModel):
     operadora_inc: Optional[str] = "TODAS"
     operadora_exc: Optional[str] = "NENHUMA"
     perfil: Optional[str] = "TODOS"
+    sem_governo: Optional[bool] = False
 
 class UnifyRequest(BaseModel):
     file_ids: List[str]
@@ -570,7 +571,8 @@ def start_extract(filters: ExtractionFilter, user: dict = Depends(get_current_us
         "cep_file": filters.cep_file,
         "operadora_inc": filters.operadora_inc,
         "operadora_exc": filters.operadora_exc,
-        "perfil": filters.perfil
+        "perfil": filters.perfil,
+        "sem_governo": filters.sem_governo
     }
     
     tid = engine.start_extraction(f_dict, RESULT_DIR, username=user["username"])
