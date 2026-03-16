@@ -2197,12 +2197,12 @@ input::placeholder {
     margin-bottom: var(--s-5);
 }
 
-/* Premium Switch Toggle */
+/* Premium On/Off Switch Toggle */
 .hemn-switch {
     position: relative;
     display: inline-block;
-    width: 44px;
-    height: 24px;
+    width: 60px;
+    height: 30px;
 }
 
 .hemn-switch input {
@@ -2218,29 +2218,50 @@ input::placeholder {
     left: 0;
     right: 0;
     bottom: 0;
-    background-color: var(--border);
+    background-color: #e0e0e0;
     transition: .4s;
-    border-radius: 24px;
-    border: 1px solid rgba(255,255,255,0.05);
+    border-radius: 34px;
+    box-shadow: inset 2px 2px 5px #bcbcbc, inset -2px -2px 5px #ffffff;
 }
 
 .hemn-slider:before {
     position: absolute;
     content: "";
-    height: 16px;
-    width: 16px;
-    left: 3px;
-    bottom: 3px;
+    height: 22px;
+    width: 22px;
+    left: 4px;
+    bottom: 4px;
     background-color: white;
     transition: .4s;
     border-radius: 50%;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    box-shadow: 2px 2px 5px #bcbcbc;
+    z-index: 2;
+}
+
+.hemn-slider:after {
+    content: "OFF";
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 10px;
+    font-weight: bold;
+    color: #999;
+    transition: .4s;
 }
 
 input:checked + .hemn-slider {
-    background: linear-gradient(135deg, var(--accent) 0%, #0ea5e9 100%);
+    background-color: #4cd137;
+    box-shadow: inset 2px 2px 5px #3ba02a, inset -2px -2px 5px #5df145;
 }
 
 input:checked + .hemn-slider:before {
-    transform: translateX(20px);
+    transform: translateX(30px);
+}
+
+input:checked + .hemn-slider:after {
+    content: "ON";
+    left: 8px;
+    right: auto;
+    color: white;
 }
