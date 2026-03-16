@@ -2782,3 +2782,72 @@ input::placeholder {
         border-radius: 16px !important; /* Softer/Consistent inputs */
     }
 }
+
+/* Premium On/Off Switch Toggle */
+.hemn-switch {
+    position: relative;
+    display: inline-block;
+    width: 60px;
+    height: 30px;
+}
+
+.hemn-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.hemn-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #e0e0e0;
+    transition: .4s;
+    border-radius: 34px;
+    box-shadow: inset 2px 2px 5px #bcbcbc, inset -2px -2px 5px #ffffff;
+}
+
+.hemn-slider:before {
+    position: absolute;
+    content: "";
+    height: 22px;
+    width: 22px;
+    left: 4px;
+    bottom: 4px;
+    background-color: white;
+    transition: .4s;
+    border-radius: 50%;
+    box-shadow: 2px 2px 5px #bcbcbc;
+    z-index: 2;
+}
+
+.hemn-slider:after {
+    content: "OFF";
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 10px;
+    font-weight: bold;
+    color: #999;
+    transition: .4s;
+}
+
+input:checked + .hemn-slider {
+    background-color: #4cd137;
+    box-shadow: inset 2px 2px 5px #3ba02a, inset -2px -2px 5px #5df145;
+}
+
+input:checked + .hemn-slider:before {
+    transform: translateX(30px);
+}
+
+input:checked + .hemn-slider:after {
+    content: "ON";
+    left: 8px;
+    right: auto;
+    color: white;
+}

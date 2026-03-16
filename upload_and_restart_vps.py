@@ -32,10 +32,10 @@ def upload_and_restart():
     print(f"Uploading engine code to {remote_engine}...")
     sftp.put(local_engine, remote_engine)
     
-    print("Uploading index HTML to /var/www/hemn_cloud/static/index_vps.html...")
-    sftp.put(local_index, "/var/www/hemn_cloud/static/index_vps.html")
+    print("Uploading index HTML to /var/www/hemn_cloud/static/index.html...")
+    sftp.put(r"C:\Users\Junior T.I\.gemini\antigravity\scratch\data_analysis\static\index.html", "/var/www/hemn_cloud/static/index.html")
     
-    print("Uploading index HTML to /var/www/hemn_cloud/index_vps.html (Priority path)...")
+    print("Uploading index_vps HTML to /var/www/hemn_cloud/index_vps.html...")
     sftp.put(local_index, "/var/www/hemn_cloud/index_vps.html")
 
     print("Uploading CSS to /var/www/hemn_cloud/static/design-system.css...")
