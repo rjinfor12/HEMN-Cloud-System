@@ -792,7 +792,7 @@ class CloudEngine:
                 estab_conds.append("((length(estab_inner.telefone1) >= 8 AND substring(estab_inner.telefone1, 1, 1) IN ('2','3','4','5')) OR (length(estab_inner.telefone2) >= 8 AND substring(estab_inner.telefone2, 1, 1) IN ('2','3','4','5')))")
             elif tipo_req == "AMBOS":
                 estab_conds.append("((length(estab_inner.telefone1) >= 8 AND substring(estab_inner.telefone1, 1, 1) IN ('6','7','8','9') AND length(estab_inner.telefone2) >= 8 AND substring(estab_inner.telefone2, 1, 1) IN ('2','3','4','5')) OR (length(estab_inner.telefone1) >= 8 AND substring(estab_inner.telefone1, 1, 1) IN ('2','3','4','5') AND length(estab_inner.telefone2) >= 8 AND substring(estab_inner.telefone2, 1, 1) IN ('6','7','8','9')))")
-            else:
+            elif filters.get("somente_com_telefone"):
                 estab_conds.append("(estab_inner.telefone1 != '' OR estab_inner.telefone2 != '')")
 
             cep_file = filters.get("cep_file")

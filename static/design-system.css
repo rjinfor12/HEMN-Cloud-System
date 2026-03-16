@@ -2825,20 +2825,12 @@ input::placeholder {
 }
 
 .hemn-slider:after {
-    content: "OFF";
-    position: absolute;
-    right: 8px;
-    top: 50%;
-    transform: translateY(-50%);
-    font-size: 10px;
-    font-weight: bold;
-    color: #999;
-    transition: .4s;
+    display: none;
 }
 
 input:checked + .hemn-slider {
-    background-color: #4cd137;
-    box-shadow: inset 2px 2px 5px #3ba02a, inset -2px -2px 5px #5df145;
+    background-color: #3a7bd5;
+    box-shadow: inset 2px 2px 5px rgba(0,0,0,0.2), inset -2px -2px 5px rgba(255,255,255,0.1);
 }
 
 input:checked + .hemn-slider:before {
@@ -2846,8 +2838,5 @@ input:checked + .hemn-slider:before {
 }
 
 input:checked + .hemn-slider:after {
-    content: "ON";
-    left: 8px;
-    right: auto;
-    color: white;
+    display: none;
 }

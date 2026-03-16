@@ -1997,18 +1997,6 @@ input::placeholder {
     animation: fadeIn 0.8s ease-out;
 }
 
-@keyframes fadeIn {
-    from {
-        opacity: 0;
-        transform: translateY(20px);
-    }
-
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
 .action-card {
     background: var(--bg-card);
     border: 1px solid var(--border);
@@ -2025,13 +2013,6 @@ input::placeholder {
     justify-content: center;
 }
 
-.action-card:hover {
-    border-color: var(--border-focus);
-    transform: translateY(-8px);
-    background: var(--bg-hover);
-    box-shadow: var(--glass-shadow);
-}
-
 .action-card .icon-box {
     width: 60px;
     height: 60px;
@@ -2043,7 +2024,6 @@ input::placeholder {
     font-size: 28px;
     color: #3a7bd5;
     transition: all 0.3s ease;
-    margin-bottom: var(--s-2);
 }
 
 .action-card:hover .icon-box {
@@ -2197,12 +2177,12 @@ input::placeholder {
     margin-bottom: var(--s-5);
 }
 
-/* Premium On/Off Switch Toggle */
+/* Premium Blue Glass Switch Toggle */
 .hemn-switch {
     position: relative;
     display: inline-block;
-    width: 60px;
-    height: 30px;
+    width: 48px;
+    height: 26px;
 }
 
 .hemn-switch input {
@@ -2218,50 +2198,34 @@ input::placeholder {
     left: 0;
     right: 0;
     bottom: 0;
-    background-color: #e0e0e0;
+    background-color: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(4px);
     transition: .4s;
-    border-radius: 34px;
-    box-shadow: inset 2px 2px 5px #bcbcbc, inset -2px -2px 5px #ffffff;
+    border-radius: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.2);
 }
 
 .hemn-slider:before {
     position: absolute;
     content: "";
-    height: 22px;
-    width: 22px;
-    left: 4px;
-    bottom: 4px;
+    height: 20px;
+    width: 20px;
+    left: 3px;
+    bottom: 2px;
     background-color: white;
-    transition: .4s;
+    transition: .3s cubic-bezier(0.4, 0, 0.2, 1);
     border-radius: 50%;
-    box-shadow: 2px 2px 5px #bcbcbc;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.3);
     z-index: 2;
 }
 
-.hemn-slider:after {
-    content: "OFF";
-    position: absolute;
-    right: 8px;
-    top: 50%;
-    transform: translateY(-50%);
-    font-size: 10px;
-    font-weight: bold;
-    color: #999;
-    transition: .4s;
-}
-
 input:checked + .hemn-slider {
-    background-color: #4cd137;
-    box-shadow: inset 2px 2px 5px #3ba02a, inset -2px -2px 5px #5df145;
+    background: var(--g-primary);
+    border-color: rgba(0, 210, 255, 0.3);
+    box-shadow: 0 0 15px rgba(0, 210, 255, 0.4);
 }
 
 input:checked + .hemn-slider:before {
-    transform: translateX(30px);
-}
-
-input:checked + .hemn-slider:after {
-    content: "ON";
-    left: 8px;
-    right: auto;
-    color: white;
+    transform: translateX(21px);
 }

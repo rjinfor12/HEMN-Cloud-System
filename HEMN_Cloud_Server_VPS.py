@@ -113,6 +113,7 @@ class ExtractionFilter(BaseModel):
     tipo_tel: Optional[str] = "TODOS"
     situacao: Optional[str] = "02"
     somente_com_telefone: Optional[bool] = False
+    sem_governo: Optional[bool] = False
     cep_file: Optional[str] = None
 
 class UnifyRequest(BaseModel):
