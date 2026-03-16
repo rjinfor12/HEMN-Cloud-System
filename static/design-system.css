@@ -2720,3 +2720,10 @@ input::placeholder {
         margin-top: 5px !important;
     }
 }
+
+/* Responsive Header Icon Control */
+@media (min-width: 768px) {
+    .responsive-icon {
+        display: none !important;
+    }
+}
