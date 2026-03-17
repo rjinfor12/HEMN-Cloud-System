@@ -1,23 +1,25 @@
-import paramiko, os
+import clickhouse_connect
 
-host = '129.121.45.136'
-port = 22022
-user = 'root'
-key_path = os.path.expanduser('~/.ssh/id_rsa')
+def check_schema():
+    client = clickhouse_connect.get_client(host='localhost', port=8123, username='default', password='')
+    
+    print("--- SCHEMA: hemn.socios ---")
+    res = client.query("DESCRIBE TABLE hemn.socios")
+    for row in res.result_rows:
+        print(f"{row[0]}: {row[1]}")
+        
+    print("\n--- SCHEMA: hemn.estabelecimento ---")
+    res = client.query("DESCRIBE TABLE hemn.estabelecimento")
+    for row in res.result_rows:
+        print(f"{row[0]}: {row[1]}")
 
-client = paramiko.SSHClient()
-client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-client.connect(host, port=port, username=user, key_filename=key_path)
+    print("\n--- SCHEMA: hemn.empresas ---")
+    res = client.query("DESCRIBE TABLE hemn.empresas")
+    for row in res.result_rows:
+        print(f"{row[0]}: {row[1]}")
 
-def run(cmd):
-    stdin, stdout, stderr = client.exec_command(cmd)
-    stdout.channel.recv_exit_status()
-    return stdout.read().decode('utf-8', errors='replace') + stderr.read().decode('utf-8', errors='replace')
-
-print('=== SCHEMA DA TABELA ESTABELECIMENTO ===')
-print(run('clickhouse-client --query "DESCRIBE hemn.estabelecimento"'))
-
-print('\n=== SCHEMA DA TABELA EMPRESAS ===')
-print(run('clickhouse-client --query "DESCRIBE hemn.empresas"'))
-
-client.close()
+if __name__ == "__main__":
+    try:
+        check_schema()
+    except Exception as e:
+        print(f"Error: {e}")

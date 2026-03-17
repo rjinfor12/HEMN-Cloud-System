@@ -303,6 +303,32 @@ class CloudEngine:
             
         basics = list(set(basics))[:50]
         
+        # Filtro de impressão digital (Fingerprint): Nome + CPF se fornecidos
+        socio_filters = []
+        params = basics[:]
+        
+        if cpf:
+            cpf_clean = ''.join(filter(str.isdigit, str(cpf)))
+            if len(cpf_clean) >= 11:
+                cpf_mask = f"***{cpf_clean[3:9]}**"
+                socio_filters.append("s.cnpj_cpf_socio = %s")
+                params.append(cpf_mask)
+        
+        if name:
+            name_norm = normalize_name(name)
+            socio_filters.append("(s.nome_socio LIKE %s OR s.nome_socio LIKE %s)")
+            params.append(f"{name_norm}%")
+            params.append(f"%{name_norm}%")
+            
+        socio_match_sql = " AND ".join(socio_filters) if socio_filters else "1=1"
+        
+        # Filtro por nome de empresa (Cuidado: default 1=0 para evitar vazamentos por CPF)
+        company_name_match = "1=0"
+        if name:
+            company_name_match = "(e.razao_social LIKE %s OR e.razao_social LIKE %s)"
+            params.append(f"{name_norm}%")
+            params.append(f"%{name_norm}%")
+
         query = f"""
             SELECT e.razao_social, 
                    concat(est.cnpj_basico, est.cnpj_ordem, est.cnpj_dv) AS cnpj_completo,
@@ -310,18 +336,22 @@ class CloudEngine:
                    s.nome_socio, s.cnpj_cpf_socio,
                    est.correio_eletronico AS email_novo,
                    concat(est.logradouro, ', ', est.numero, ' - ', est.bairro, ' - ', coalesce(m.descricao, 'N/A'), '/', est.uf) AS endereco_completo,
-                   est.telefone1 AS telefone_novo,
+                   est.cnae_fiscal AS nome_socio, 
+                   multiIf(e.natureza_juridica = '2135', 'SIM', 'NÃO') AS cnpj_cpf_socio,
+                   multiIf(length(est.telefone1) = 8 AND substring(est.telefone1, 1, 1) IN ('6','7','8','9'), concat('9', est.telefone1), est.telefone1) AS telefone_novo,
                    est.ddd1 AS ddd_novo,
-                   'FIXO' AS tipo_telefone
+                   multiIf(length(est.telefone1) = 8 AND substring(est.telefone1, 1, 1) IN ('6','7','8','9'), 'CELULAR', 
+                           length(est.telefone1) = 9, 'CELULAR', 'FIXO') AS tipo_telefone
             FROM hemn.empresas e
             JOIN hemn.estabelecimento est ON e.cnpj_basico = est.cnpj_basico
-            LEFT JOIN hemn.socios s ON est.cnpj = s.cnpj
+            LEFT JOIN hemn.socios s ON e.cnpj_basico = s.cnpj_basico
             LEFT JOIN hemn.municipio m ON est.municipio = m.codigo
             WHERE e.cnpj_basico IN ({','.join(['%s' for _ in basics])})
+              AND ({socio_match_sql} OR {company_name_match})
             ORDER BY multiIf(est.situacao_cadastral = '02', 1, 2)
             LIMIT 50
         """
-        res = ch_local.query(query, basics)
+        res = ch_local.query(query, params)
         return pd.DataFrame(res.result_rows, columns=res.column_names)
 
 

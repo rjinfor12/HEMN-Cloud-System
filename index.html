@@ -507,11 +507,8 @@
                     <div class="page-header">
                         <div>
                             <h1 class="page-title">PESQUISA: Busca Unitária</h1>
-                            <p class="page-subtitle">Consulte o Big Data governamental em tempo real.</p>
+                            <p class="page-subtitle">Consulte a maior e mais completa base de dados em tempo real.</p>
                         </div>
-                        <button class="btn-icon" onclick="document.getElementById('manual-results').style.display='none'" style="background:rgba(255,255,255,0.05); border:1px solid var(--border); width:40px; height:40px; border-radius:12px; display:flex; align-items:center; justify-content:center; cursor:pointer; color:var(--text-3); transition:all 0.2s;">
-                            <i class="fas fa-times"></i>
-                        </button>
                     </div>
 
                     <div class="glass-card" style="margin-bottom: var(--s-6);">
@@ -683,7 +680,7 @@
                     <div class="page-header">
                         <div>
                             <h1 class="page-title">PESQUISA: Enriquecimento em Lote</h1>
-                            <p class="page-subtitle">Cruze sua lista de Nomes/CPFs com nossa base de 40GB.</p>
+                            <p class="page-subtitle">Cruze sua lista de Nomes/CPFs com nossa inteligência estratégica de dados.</p>
                         </div>
                     </div>
                     <div class="glass-card">
@@ -2969,9 +2966,6 @@
                         let html = `
                             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:var(--s-4)">
                                 <div class="nav-label" style="margin:0">PESQUISA: Resultados da Inteligência (${data.length})</div>
-                                <button onclick="document.getElementById('manual-results').style.display='none'" style="background:none; border:none; color:var(--text-3); cursor:pointer; font-size:18px">
-                                    <i class="fas fa-times"></i>
-                                </button>
                             </div>
                         `;
                         data.forEach((item, i) => {
@@ -2984,17 +2978,17 @@
                                 
                                 <div class="form-grid" style="margin-bottom:20px">
                                     <div><label class="nav-label" style="padding:0">CNPJ Principal</label><div class="emp-name">${item.cnpj_completo || 'N/A'}</div></div>
-                                    <div><label class="nav-label" style="padding:0">Sócio/Vínculo</label><div class="emp-name">${item.nome_socio || 'N/A'}</div></div>
-                                    <div><label class="nav-label" style="padding:0">CPF / Identificador</label><div class="emp-name">${item.cnpj_cpf_socio || 'N/A'}</div></div>
+                                    <div><label class="nav-label" style="padding:0">CNAE</label><div class="emp-name">${item.nome_socio || 'N/A'}</div></div>
+                                    <div><label class="nav-label" style="padding:0">MEI (SIM/NÃO)</label><div class="emp-name">${item.cnpj_cpf_socio || 'N/A'}</div></div>
                                     <div><label class="nav-label" style="padding:0">E-mail Corporativo</label><div class="emp-name" style="color:var(--accent)">${item.email_novo || 'N/A'}</div></div>
                                 </div>
 
                                 <div style="display:grid; grid-template-columns: 2fr 1fr; gap:var(--s-4); align-items: center">
-                                    <div style="background:var(--bg-hover); padding:15px; border-radius:var(--r-md)">
+                                    <div style="background:var(--bg-hover); padding:15px; border-radius:var(--r-md); text-align: center;">
                                         <div class="stat-label">📍 LOCALIZAÇÃO</div>
                                         <div class="emp-name" style="font-size:13px">${item.endereco_completo || 'N/A'}</div>
                                     </div>
-                                    <div style="background:var(--g-primary); padding:15px; border-radius:var(--r-md); color:#fff">
+                                    <div style="background:var(--g-primary); padding:15px; border-radius:var(--r-md); color:#fff; text-align: center;">
                                         <div class="stat-label" style="color:rgba(255,255,255,0.7)">📞 CONTATO DIRETO</div>
                                         <div class="stat-value" style="font-size:18px">${item.telefone_novo ? '(' + item.ddd_novo + ') ' + item.telefone_novo : '--'}</div>
                                         <div style="font-size:10px; font-weight:700; text-transform:uppercase">${item.tipo_telefone || ''}</div>
