@@ -388,6 +388,10 @@ class CloudEngine:
                 res = ch_local.query("SELECT cnpj_basico FROM hemn.socios WHERE cnpj_cpf_socio IN (%(c1)s, %(c2)s) LIMIT 50", 
                                           {'c1': cpf_clean, 'c2': cpf_mask})
                 basics.extend([r[0] for r in res.result_rows])
+                # Add check for MEIs where Razão Social contains the CPF
+                res = ch_local.query("SELECT cnpj_basico FROM hemn.empresas WHERE razao_social LIKE %(c)s LIMIT 50",
+                                          {'c': f"%{cpf_clean}%"})
+                basics.extend([r[0] for r in res.result_rows])
         
         if name:
             name_clean = remove_accents(str(name).strip().upper())
@@ -398,39 +402,44 @@ class CloudEngine:
             res = ch_local.query("SELECT cnpj_basico FROM hemn.empresas WHERE razao_social LIKE %(n)s OR razao_social LIKE %(nc)s LIMIT 50", 
                                       {'n': f'{name_clean}%', 'nc': f'%{name_clean}%'})
             basics.extend([r[0] for r in res.result_rows])
-            res = ch_local.query("SELECT cnpj_basico FROM hemn.socios WHERE nome_socio LIKE %(n)s OR nome_socio LIKE %(nc)s LIMIT 50", 
-                                      {'n': f'{name_clean}%', 'nc': f'%{name_clean}%'})
-            basics.extend([r[0] for r in res.result_rows])
             
         if not basics:
             return pd.DataFrame()
             
-        basics = list(set(basics))[:50]
+        basics = list(set(basics))
         # Filtro de impressão digital (Fingerprint): Nome + CPF se fornecidos
         socio_filters = []
-        params = basics[:]
+        empresa_filters = []
+        
+        params_socio = []
+        params_empresa = []
         
         if cpf:
             cpf_clean = ''.join(filter(str.isdigit, str(cpf)))
             if len(cpf_clean) >= 11:
                 cpf_mask = f"***{cpf_clean[3:9]}**"
-                socio_filters.append("s.cnpj_cpf_socio = %s")
-                params.append(cpf_mask)
+                socio_filters.append("s.cnpj_cpf_socio IN (%s, %s)")
+                params_socio.extend([cpf_clean, cpf_mask])
+                
+                # Permite que MEIs anonimizados pela RFB (que começam com o próprio CNPJ no nome) passem pelo filtro de CPF restrito, 
+                # desde que eles passem pelo filtro do NOME EXATO que adicionamos abaixo.
+                empresa_filters.append("(e.razao_social LIKE %s OR (e.natureza_juridica = '2135' AND startsWith(e.razao_social, concat(substring(e.cnpj_basico, 1, 2), '.', substring(e.cnpj_basico, 3, 3), '.', substring(e.cnpj_basico, 6, 3)))))")
+                params_empresa.append(f"%{cpf_clean}%")
         
         if name:
             name_norm = normalize_name(name)
             socio_filters.append("(s.nome_socio LIKE %s OR s.nome_socio LIKE %s)")
-            params.append(f"{name_norm}%")
-            params.append(f"%{name_norm}%")
+            params_socio.extend([f"{name_norm}%", f"%{name_norm}%"])
+            
+            empresa_filters.append("(e.razao_social LIKE %s OR e.razao_social LIKE %s)")
+            params_empresa.extend([f"{name_norm}%", f"%{name_norm}%"])
             
         socio_match_sql = " AND ".join(socio_filters) if socio_filters else "1=1"
+        company_name_match = " AND ".join(empresa_filters) if empresa_filters else "1=0"
         
-        # Filtro por nome de empresa (Cuidado: default 1=0 para evitar vazamentos por CPF)
-        company_name_match = "1=0"
-        if name:
-            company_name_match = "(e.razao_social LIKE %s OR e.razao_social LIKE %s)"
-            params.append(f"{name_norm}%")
-            params.append(f"%{name_norm}%")
+        # Combine the params strictly in the order they appear in the query string:
+        # WHERE ... IN (basics) AND ( socio_match_sql OR company_name_match )
+        params = basics[:] + params_socio + params_empresa
 
         query = f"""
             SELECT e.razao_social, 
