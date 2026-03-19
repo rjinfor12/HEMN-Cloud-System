@@ -3482,7 +3482,8 @@
                 this.startTask('/tasks/extract', body, 'extract');
             },
             async downloadTask(tid, cost) {
-                const ok = await this.confirm("Confirmar Download", `Deseja baixar o resultado? Isso consumirá ${cost.toLocaleString()} créditos do seu saldo.`, {
+                const msgText = (this.user && this.user.role === 'MAYK') ? "Deseja baixar os resultados processados agora?" : `Deseja baixar o resultado? Isso consumirá ${cost.toLocaleString()} créditos do seu saldo.`;
+                const ok = await this.confirm("Confirmar Download", msgText, {
                     type: 'info',
                     confirmText: 'Sim, Baixar',
                     cancelText: 'Agora não'
