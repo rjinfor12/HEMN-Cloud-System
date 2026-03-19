@@ -467,12 +467,32 @@ def get_monitor_stats(user: dict = Depends(get_current_user)):
 @app.put("/admin/users/{username}")
 def update_user(username: str, data: dict, user: dict = Depends(get_current_user)):
     if user["role"] != "ADMIN": raise HTTPException(status_code=403)
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=30)
+    conn.execute("PRAGMA journal_mode=WAL")
     conn.row_factory = sqlite3.Row
     old_user = conn.execute("SELECT * FROM users WHERE username = ? COLLATE NOCASE", (username,)).fetchone()
     
-    for k, v in data.items():
-        conn.execute(f"UPDATE users SET {k} = ? WHERE username = ? COLLATE NOCASE", (v, username))
+    if not old_user:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Usuário não encontrado")
+    
+    if data:
+        fields = []
+        values = []
+        for k, v in data.items():
+            fields.append(f"{k} = ?")
+            values.append(v)
+        
+        values.append(username)
+        query = f"UPDATE users SET {', '.join(fields)} WHERE username = ? COLLATE NOCASE"
+        
+        try:
+            conn.execute(query, values)
+            conn.commit()
+        except Exception as e:
+            conn.rollback()
+            conn.close()
+            raise HTTPException(status_code=500, detail=f"Erro ao atualizar banco: {e}")
     
     # Se o limite aumentou, logar como crédito/recarga
     if "total_limit" in data and old_user:

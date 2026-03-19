@@ -171,16 +171,17 @@
                 <div class="nav-label">Plataforma</div>
                 <a href="#" class="nav-link" id="nav-inicio" onclick="app.showModule('inicio', this)">
                     <i class="icon fas fa-home"></i>
-                    <span>Início</span>
+                    <span translate="no">Início</span>
                 </a>
                 <div class="nav-label" id="label-intelligence">Inteligência</div>
                 <a href="#" class="nav-link" id="nav-manual" onclick="app.showModule('manual', this)">
                     <i class="icon fas fa-search"></i>
-                    <span>Busca Unitária</span>
+                    <span translate="no">Busca Unitária</span>
                 </a>
                 <a href="#" class="nav-link" id="nav-enrich" onclick="app.showModule('enrich', this)">
                     <i class="icon fas fa-database"></i>
-                    <span>Enriquecer Lote</span>
+                    <span style="flex: 1; white-space: nowrap !important;">Enriquecer Lote</span>
+                    <span class="badge-premium" style="font-size: 7px; padding: 1px 4px; font-weight: 700; background: rgba(0, 210, 255, 0.12); color: #0088cc; border: 1px solid rgba(0, 210, 255, 0.2); border-radius: 3px; text-transform: uppercase; letter-spacing: 0.4px; white-space: nowrap; margin-left: 8px; display: inline-flex; align-items: center; vertical-align: middle;">Em breve</span>
                 </a>
                 <a href="#" class="nav-link" id="nav-clinicas" onclick="app.showModule('clinicas', this)">
                     <i class="icon fas fa-user-check"></i>
@@ -439,7 +440,7 @@
                         <div class="action-card" id="enrich-card"
                             onclick="app.showModule('enrich', document.getElementById('nav-enrich'))">
                             <div class="icon-box"><i class="fas fa-database"></i></div>
-                            <h3>Enriquecer Lote</h3>
+                            <h3 style="white-space: nowrap !important;">Enriquecer Lote <span class="badge-premium" style="font-size: 7px; padding: 1px 4px; font-weight: 700; background: rgba(0, 210, 255, 0.12); color: #0088cc; border: 1px solid rgba(0, 210, 255, 0.2); border-radius: 3px; text-transform: uppercase; letter-spacing: 0.4px; white-space: nowrap; margin-left: 8px; display: inline-flex; align-items: center; vertical-align: middle;">Em breve</span></h3>
                             <p>Processe arquivos grandes para higienização e enriquecimento de dados.</p>
                             <i class="fas fa-chevron-right arrow"></i>
                         </div>
@@ -700,6 +701,29 @@
                             style="width: 100%; justify-content: center;">Iniciar Enriquecimento</button>
                         <h3 id="title-enrich" style="display:none; margin-top: 25px; margin-bottom: 10px; font-size: 14px; font-weight: 700; color: var(--text-1); border-left: 3px solid var(--accent); padding-left: 10px;">Pesquisas:</h3>
                         <div id="tasks-enrich" style="margin-top: var(--s-2);"></div>
+                    </div>
+                </section>
+
+                <!-- MODULE: ENRICH PLACEHOLDER (COMING SOON for users) -->
+                <section id="module-enrich-placeholder" class="module-view" style="display:none;">
+                    <div class="page-header">
+                        <div>
+                            <h1 class="page-title">PESQUISA: Enriquecimento em Lote</h1>
+                            <p class="page-subtitle">Página em desenvolvimento e otimização.</p>
+                        </div>
+                    </div>
+                    <div class="glass-card" style="text-align: center; padding: 60px 40px; border-top: 3px solid var(--accent);">
+                        <div style="width: 80px; height: 80px; background: rgba(0, 210, 255, 0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 30px;">
+                            <i class="fas fa-tools" style="font-size: 36px; color: var(--accent);"></i>
+                        </div>
+                        <h2 style="font-family: var(--font-heading); font-size: 24px; margin-bottom: 15px; color: var(--text-1);">Módulo em Construção! 🚀</h2>
+                        <p style="color: var(--text-2); max-width: 400px; margin: 0 auto 30px; line-height: 1.6; font-size: 15px;">
+                            Estamos trabalhando para liberar o **Enriquecimento em Lote** com a máxima performance e precisão para seu perfil. Em breve, esta funcionalidade estará totalmente disponível para você.
+                        </p>
+                        <div style="display: inline-flex; align-items: center; gap: 10px; padding: 8px 20px; background: var(--bg-surface); border-radius: 30px; border: 1px solid var(--border);">
+                            <div class="status-dot live-indicator" style="width: 8px; height: 8px;"></div>
+                            <span style="font-size: 12px; font-weight: 700; color: var(--text-3); text-transform: uppercase; letter-spacing: 1px;">Disponível em breve</span>
+                        </div>
                     </div>
                 </section>
 
@@ -2061,7 +2085,7 @@
                         if (roleEl) {
                             if (user.role === 'ADMIN') roleEl.innerText = 'Administrador';
                             else if (user.role === 'CLINICAS') roleEl.innerText = 'Perfil Clínicas';
-                            else roleEl.innerText = 'Usuário Bronze';
+                            else roleEl.innerText = 'Usuário Comum';
                         }
                     } else {
                         this.logout();
@@ -2072,6 +2096,17 @@
             },
 
             showModule(mid, element) {
+                // RESTRIÇÃO ENRIQUECIMENTO EM LOTE (Somente ADMIN)
+                if (mid === 'enrich') {
+                    const isAdmin = (this.user && this.user.role === 'ADMIN') || 
+                                    (document.getElementById('admin-menu') && document.getElementById('admin-menu').style.display === 'block');
+                    
+                    if (!isAdmin) {
+                        mid = 'enrich-placeholder';
+                        console.log("[RBAC] User restricted from direct enrichment view. Showing placeholder.");
+                    }
+                }
+
                 this.currentModule = mid;
                 // Persist the current module so F5 restores it
                 localStorage.setItem('hemn_last_module', mid);

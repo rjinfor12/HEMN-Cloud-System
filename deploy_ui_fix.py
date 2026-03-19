@@ -1,7 +1,7 @@
 import paramiko
 import os
 
-def deploy_ui():
+def deploy_fix():
     host = '129.121.45.136'
     port = 22022
     user = 'root'
@@ -14,15 +14,23 @@ def deploy_ui():
         client.connect(host, port=port, username=user, key_filename=key_path)
         sftp = client.open_sftp()
         
-        local_index_vps = r'c:\Users\Junior T.I\.gemini\antigravity\scratch\data_analysis\index_vps.html'
+        # Uploading to multiple potential locations used by the server
+        files_to_upload = [
+            (r'index_vps.html', '/var/www/hemn_cloud/index.html'),
+            (r'index_vps.html', '/var/www/hemn_cloud/static/index.html'),
+            (r'index_vps.html', '/var/www/hemn_cloud/index_vps.html'),
+            (r'index_vps.html', '/var/www/hemn_cloud/static/index_vps.html'),
+            (r'static/design-system.css', '/var/www/hemn_cloud/static/design-system.css'),
+            (r'HEMN_Cloud_Server.py', '/var/www/hemn_cloud/HEMN_Cloud_Server.py')
+        ]
         
-        # Upload to both names for safety
-        print("Uploading index_vps.html to /var/www/hemn_cloud/index.html...")
-        sftp.put(local_index_vps, '/var/www/hemn_cloud/index.html')
-        
-        print("Uploading index_vps.html to /var/www/hemn_cloud/index_vps.html...")
-        sftp.put(local_index_vps, '/var/www/hemn_cloud/index_vps.html')
-            
+        for local, remote in files_to_upload:
+            if os.path.exists(local):
+                print(f"Uploading {local} to {remote}...")
+                sftp.put(local, remote)
+            else:
+                print(f"Local file not found: {local}")
+                
         sftp.close()
         
         print("--- Restarting hemn_cloud.service ---")
@@ -31,7 +39,7 @@ def deploy_ui():
         print("Done.")
         client.close()
     except Exception as e:
-        print(f"Error: {e}")
+        print(f"Error during deployment: {e}")
 
 if __name__ == "__main__":
-    deploy_ui()
+    deploy_fix()

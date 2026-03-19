@@ -4,6 +4,8 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel, Field
 import requests
+import httpx
+import asyncio
 import sys
 import sqlite3
 import os
@@ -693,34 +695,63 @@ async def change_password(req: PasswordChangeRequest, user: dict = Depends(get_c
 @app.get("/me")
 @router.get("/me")
 async def get_me(user: dict = Depends(get_current_user)):
-    # Sincronização automática de pagamentos pendentes
+    # Sincronização automática de pagamentos pendentes (Otimizada e Segura)
     try:
+        # 1. Coletar pendentes sem travar o banco
         conn = sqlite3.connect(DB_PATH, timeout=30)
         conn.execute("PRAGMA journal_mode=WAL")
         conn.row_factory = sqlite3.Row
-        pendings = conn.execute("SELECT * FROM asaas_payments WHERE username = ? COLLATE NOCASE AND status = 'PENDING'", (user["username"],)).fetchall()
+        pendings = conn.execute(
+            "SELECT id, credits FROM asaas_payments WHERE username = ? COLLATE NOCASE AND status = 'PENDING' LIMIT 5", 
+            (user["username"],)
+        ).fetchall()
+        conn.close()
         
         if pendings:
             h = {"access_token": ASAAS_API_KEY}
-            for p in pendings:
-                res = requests.get(f"{ASAAS_URL}/payments/{p['id']}", headers=h).json()
-                status = res.get("status")
-                if status in ["RECEIVED", "CONFIRMED", "RECEIVED_IN_CASH"]:
-                    credits = p["credits"]
-                    conn.execute("UPDATE users SET total_limit = total_limit + ? WHERE username = ? COLLATE NOCASE", (credits, user["username"]))
-                    conn.execute("UPDATE asaas_payments SET status = 'RECEIVED', confirmed_at = ? WHERE id = ?", (datetime.now().isoformat(), p['id']))
-                    now_br = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-                    conn.execute(
-                        "INSERT INTO credit_transactions (username, type, amount, module, description, timestamp) VALUES (?, ?, ?, ?, ?, ?)",
-                        (user["username"], "CREDIT", credits, "SYNC", f"Sincronização: Recarga confirmada", now_br)
-                    )
-            conn.commit()
-            # Atualizar dados do usuário no retorno
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                for p in pendings:
+                    try:
+                        # Chamada assíncrona para não travar o loop do servidor
+                        res_asaas = await client.get(f"{ASAAS_URL}/payments/{p['id']}", headers=h)
+                        if res_asaas.status_code == 200:
+                            res_json = res_asaas.json()
+                            status = res_json.get("status")
+                            
+                            if status in ["RECEIVED", "CONFIRMED", "RECEIVED_IN_CASH"]:
+                                credits = p["credits"]
+                                now_br = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                                
+                                # 2. Atualizar banco em transação única e curta
+                                conn_up = sqlite3.connect(DB_PATH, timeout=30)
+                                conn_up.execute("PRAGMA journal_mode=WAL")
+                                try:
+                                    conn_up.execute("BEGIN TRANSACTION")
+                                    conn_up.execute("UPDATE users SET total_limit = total_limit + ? WHERE username = ? COLLATE NOCASE", (credits, user["username"]))
+                                    conn_up.execute("UPDATE asaas_payments SET status = 'RECEIVED', confirmed_at = ? WHERE id = ?", (datetime.now().isoformat(), p['id']))
+                                    conn_up.execute(
+                                        "INSERT INTO credit_transactions (username, type, amount, module, description, timestamp) VALUES (?, ?, ?, ?, ?, ?)",
+                                        (user["username"], "CREDIT", credits, "SYNC", f"Sincronização: Recarga confirmada", now_br)
+                                    )
+                                    conn_up.commit()
+                                except Exception as te:
+                                    conn_up.rollback()
+                                    raise te
+                                finally:
+                                    conn_up.close()
+                    except Exception as asaas_err:
+                        print(f"[ASAAS SYNC SINGLE ERROR] {asaas_err}")
+            
+            # Recarregar dados atualizados do usuário caso tenha havido sincronismo
+            conn = sqlite3.connect(DB_PATH, timeout=30)
+            conn.execute("PRAGMA journal_mode=WAL")
+            conn.row_factory = sqlite3.Row
             user = conn.execute("SELECT * FROM users WHERE username = ? COLLATE NOCASE", (user["username"],)).fetchone()
             user = dict(user)
-        conn.close()
+            conn.close()
     except Exception as e:
-        print(f"[RECHARGE SYNC ERROR] {e}")
+        print(f"[RECHARGE SYNC GLOBAL ERROR] {e}")
+        traceback.print_exc()
         
     return user
 
@@ -794,8 +825,28 @@ def update_user(username: str, data: dict, user: dict = Depends(get_current_user
     conn.row_factory = sqlite3.Row
     old_user = conn.execute("SELECT * FROM users WHERE username = ? COLLATE NOCASE", (username,)).fetchone()
     
-    for k, v in data.items():
-        conn.execute(f"UPDATE users SET {k} = ? WHERE username = ? COLLATE NOCASE", (v, username))
+    if not old_user:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Usuário não encontrado")
+    
+    # 1. Construir QUERY única para evitar múltiplos locks
+    if data:
+        fields = []
+        values = []
+        for k, v in data.items():
+            fields.append(f"{k} = ?")
+            values.append(v)
+        
+        values.append(username)
+        query = f"UPDATE users SET {', '.join(fields)} WHERE username = ? COLLATE NOCASE"
+        
+        try:
+            conn.execute(query, values)
+            conn.commit()
+        except Exception as e:
+            conn.rollback()
+            conn.close()
+            raise HTTPException(status_code=500, detail=f"Erro ao atualizar banco: {e}")
     
     # Se o limite aumentou, logar como cr├®dito/recarga
     if "total_limit" in data and old_user:

@@ -176,7 +176,8 @@
                 </a>
                 <a href="#" class="nav-link" id="nav-enrich" onclick="app.showModule('enrich', this)">
                     <i class="icon fas fa-database"></i>
-                    <span>Enriquecer Lote</span>
+                    <span style="flex: 1; white-space: nowrap !important;">Enriquecer Lote</span>
+                    <span class="badge-premium" style="font-size: 7px; padding: 1px 4px; font-weight: 700; background: rgba(0, 210, 255, 0.12); color: #0088cc; border: 1px solid rgba(0, 210, 255, 0.2); border-radius: 3px; text-transform: uppercase; letter-spacing: 0.4px; white-space: nowrap; margin-left: 8px; display: inline-flex; align-items: center; vertical-align: middle;">Em breve</span>
                 </a>
                 <a href="#" class="nav-link" id="nav-clinicas" onclick="app.showModule('clinicas', this)">
                     <i class="icon fas fa-user-check"></i>
@@ -435,7 +436,7 @@
                         <div class="action-card" id="enrich-card"
                             onclick="app.showModule('enrich', document.getElementById('nav-enrich'))">
                             <div class="icon-box"><i class="fas fa-database"></i></div>
-                            <h3>Enriquecer Lote</h3>
+                            <h3 style="white-space: nowrap !important;">Enriquecer Lote <span class="badge-premium" style="font-size: 7px; padding: 1px 4px; font-weight: 700; background: rgba(0, 210, 255, 0.12); color: #0088cc; border: 1px solid rgba(0, 210, 255, 0.2); border-radius: 3px; text-transform: uppercase; letter-spacing: 0.4px; white-space: nowrap; margin-left: 8px; display: inline-flex; align-items: center; vertical-align: middle;">Em breve</span></h3>
                             <p>Processe arquivos grandes para higienização e enriquecimento de dados.</p>
                             <i class="fas fa-chevron-right arrow"></i>
                         </div>
@@ -2059,7 +2060,7 @@
                         if (roleEl) {
                             if (user.role === 'ADMIN') roleEl.innerText = 'Administrador';
                             else if (user.role === 'CLINICAS') roleEl.innerText = 'Perfil Clínicas';
-                            else roleEl.innerText = 'Usuário Bronze';
+                            else roleEl.innerText = 'Usuário Comum';
                         }
                     } else {
                         this.logout();
