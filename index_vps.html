@@ -2743,6 +2743,15 @@
             },
 
             async startTask(endpoint, body, mid) {
+                // Bloqueio de Multi-tarefas para perfis comuns (Exceto Busca Unitária e Operadora que são rápidas)
+                if (this.user && this.user.role !== 'ADMIN' && mid !== 'manual' && mid !== 'carrier') {
+                    const activeTasks = this.tasks.filter(t => !t.done);
+                    if (activeTasks.length > 0) {
+                        this.alert("Processo em Andamento", "Seu perfil permite apenas **uma pesquisa massiva ativa** por vez. Por favor, aguarde o término do processo atual para iniciar um novo.", { type: 'warning' });
+                        return null;
+                    }
+                }
+
                 try {
                     const res = await fetch(`${API}${endpoint}`, {
                         method: 'POST',
