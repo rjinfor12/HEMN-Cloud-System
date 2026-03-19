@@ -214,8 +214,8 @@ async def download_result(task_id: str, user: dict = Depends(get_current_user)):
     conn.close()
 
     if not already_paid:
-        # Descontar créditos se não for limit >= 9 Mi
-        if user["total_limit"] < 9000000:
+        # Descontar créditos se não for limit >= 9 Mi ou perfil MAYK
+        if user["total_limit"] < 9000000 and user["role"] != "MAYK":
             available = user["total_limit"] - user["current_usage"]
             if available < count:
                 raise HTTPException(status_code=403, detail=f"Saldo insuficiente. Necessário: {count:,} Cr | Disponível: {available:,.0f} Cr")
@@ -309,8 +309,8 @@ def start_enrich(req: EnrichRequest, user: dict = Depends(get_current_user)):
         cpf_clean = ''.join(filter(str.isdigit, str(req.cpf or "")))
         res = engine.deep_search(req.name, cpf_clean)
         
-        # Débito de Consulta Manual se não for ilimitado
-        if user["total_limit"] < 9000000:
+        # Débito de Consulta Manual se não for ilimitado ou MAYK
+        if user["total_limit"] < 9000000 and user["role"] != "MAYK":
             conn = sqlite3.connect(DB_PATH, timeout=30)
             conn.execute("PRAGMA journal_mode=WAL")
             conn.execute("UPDATE users SET current_usage = current_usage + 0.5 WHERE username = ?", (user["username"],))
@@ -351,8 +351,8 @@ def start_carrier(req: CarrierRequest, user: dict = Depends(get_current_user)):
 
 @app.get("/tasks/carrier/single")
 def get_single_carrier(phone: str, user: dict = Depends(get_current_user)):
-    # Débito de Consulta de Operadora se não for ilimitado
-    if user["total_limit"] < 9000000:
+    # Débito de Consulta de Operadora se não for ilimitado ou MAYK
+    if user["total_limit"] < 9000000 and user["role"] != "MAYK":
         conn = sqlite3.connect(DB_PATH, timeout=30)
         conn.execute("PRAGMA journal_mode=WAL")
         conn.execute("UPDATE users SET current_usage = current_usage + 0.1 WHERE username = ?", (user["username"],))

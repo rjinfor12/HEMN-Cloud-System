@@ -1266,6 +1266,7 @@
                                     <option value="USER">USUÁRIO COMUM</option>
                                     <option value="ADMIN">ADMINISTRADOR</option>
                                     <option value="CLINICAS">PERFIL CLÍNICAS</option>
+                                    <option value="MAYK">PRO PRIORITÁRIO (MAYK)</option>
                                 </select>
                             </div>
                         </div>
@@ -2056,6 +2057,34 @@
                             
                             console.log("[DEBUG] Strict RBAC applied for CLINICAS");
 
+                        } else if (user.role === 'MAYK') {
+                            // MAYK: Same as user but without credits, recharge, and dashboard
+                            if (clinNav) clinNav.style.display = 'none';
+                            if (clinCard) clinCard.style.display = 'none';
+                            
+                            // Hide Dashboard/Statement
+                            dashboardEls.forEach(el => { if (el) el.style.display = 'none'; });
+                            
+                            // Hide credit/recharge elements
+                            const balanceWrap = document.getElementById('status-balance');
+                            if (balanceWrap && balanceWrap.closest('.status-summary-card')) {
+                                balanceWrap.closest('.status-summary-card').style.display = 'none';
+                            }
+                            document.querySelectorAll('button[onclick="app.openRechargeModal()"]').forEach(btn => btn.style.display = 'none');
+                            if (document.getElementById('credits-display')) document.getElementById('credits-display').parentElement.style.display = 'none';
+                            
+                            // Remove costs from buttons visually
+                            const btnRealizar = document.querySelector('#module-manual .btn-primary');
+                            if (btnRealizar) btnRealizar.innerHTML = '<i class="fas fa-bolt"></i> Realizar Consulta';
+                            const btnExtract = document.querySelector('#module-extract .btn-primary');
+                            if (btnExtract) btnExtract.innerHTML = '<i class="fas fa-rocket"></i> Iniciar Processamento Massivo';
+
+                            [...manualEls, ...enrichEls, ...extractEls, ...unifyEls, ...splitEls, ...carrierEls].forEach(el => {
+                                if (el) el.style.display = el.classList.contains('action-card') ? 'flex' : 'flex';
+                            });
+                            if (processingLabel) processingLabel.style.display = 'block';
+                            if (intelligenceLabel) intelligenceLabel.style.display = 'block';
+
                         } else {
                             // Standard USER (Bronze)
                             if (clinNav) clinNav.style.display = 'none';
@@ -2085,6 +2114,7 @@
                         if (roleEl) {
                             if (user.role === 'ADMIN') roleEl.innerText = 'Administrador';
                             else if (user.role === 'CLINICAS') roleEl.innerText = 'Perfil Clínicas';
+                            else if (user.role === 'MAYK') roleEl.innerText = 'Prioritário (MAYK)';
                             else roleEl.innerText = 'Usuário Comum';
                         }
                     } else {
@@ -2949,7 +2979,7 @@
                 if (savedData && (savedData.status === 'COMPLETED' || savedData.status === 'SUCCESS' || savedData.result_file)) {
                     const count = savedData.record_count || 0;
                     const isSplit = mid === 'split';
-                    const btnText = isSplit ? "Baixar Arquivos Divididos" : `Baixar e Consumir Créditos (${count.toLocaleString()} Cr)`;
+                    const btnText = isSplit ? "Baixar Arquivos Divididos" : (this.user && this.user.role === 'MAYK' ? "Baixar Arquivos Processados" : `Baixar e Consumir Créditos (${count.toLocaleString()} Cr)`);
                     const btnIcon = isSplit ? "fa-file-archive" : "fa-download";
                     
                     const downloadHtml = `
@@ -3183,7 +3213,7 @@
                                         this.showToast(`Concluído: ${count.toLocaleString()} registros!`, "success");
                                         const card = document.getElementById(`task-${t.id}`);
                                         const isSplit = t.mid === 'split';
-                                        const btnText = isSplit ? "Baixar Arquivos Divididos" : `Baixar e Consumir Créditos (${count.toLocaleString()} Cr)`;
+                                        const btnText = isSplit ? "Baixar Arquivos Divididos" : (this.user && this.user.role === 'MAYK' ? "Baixar Arquivos Processados" : `Baixar e Consumir Créditos (${count.toLocaleString()} Cr)`);
                                         const btnIcon = isSplit ? "fa-file-archive" : "fa-download";
 
                                         const downloadHtml = `
@@ -3400,7 +3430,8 @@
                         `;
                         await this.refreshUser();
                         let saldoAtual = this.user ? Math.max(0, this.user.total_limit - this.user.current_usage).toFixed(1) : '--';
-                        this.addNotification("Consulta Operadora", `Número ${phone} é da ${data.operadora || 'NÃO ID.'}. Gastou: 0.1 Cr | Saldo Atual: ${saldoAtual} Cr`, "success");
+                        let msgText = this.user && this.user.role === 'MAYK' ? `Número ${phone} é da ${data.operadora || 'NÃO ID.'}.` : `Número ${phone} é da ${data.operadora || 'NÃO ID.'}. Gastou: 0.1 Cr | Saldo Atual: ${saldoAtual} Cr`;
+                        this.addNotification("Consulta Operadora", msgText, "success");
                     } else {
                         this.showToast(data.detail || "Erro na consulta", "error");
                     }
@@ -3497,7 +3528,8 @@
                         await this.refreshUser();
                         let saldoAtual = this.user ? Math.max(0, this.user.total_limit - this.user.current_usage).toFixed(1) : '--';
                         this.showToast("Iniciando Download...", "success");
-                        this.addNotification("Download Iniciado", `O arquivo está sendo baixado diretamente pelo navegador. Gastou: ${cost.toLocaleString()} Cr | Saldo Atual: ${saldoAtual} Cr`, "success");
+                        let msgText = this.user && this.user.role === 'MAYK' ? `O arquivo está sendo baixado diretamente pelo navegador.` : `O arquivo está sendo baixado diretamente pelo navegador. Gastou: ${cost.toLocaleString()} Cr | Saldo Atual: ${saldoAtual} Cr`;
+                        this.addNotification("Download Iniciado", msgText, "success");
                     } else this.alert("Erro no Download", "Ocorreu um problema ao baixar o arquivo.", { type: 'error' });
                 } catch (e) { console.error(e); }
             },

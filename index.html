@@ -159,6 +159,9 @@
 
         <!-- Sidebar Navigation -->
         <aside class="sidebar" id="sidebar">
+            <button class="sidebar-close" onclick="app.toggleSidebar()">
+                <i class="fas fa-times"></i>
+            </button>
             <div class="logo-container">
                 <img src="/static/logo.png" class="logo logo-3d logo-reveal" alt="HEMN WEB Logo">
                 <div class="brand-name">HEMN WEB <small style="font-size: 10px; opacity: 0.5;">v2.1</small></div>
@@ -168,12 +171,12 @@
                 <div class="nav-label">Plataforma</div>
                 <a href="#" class="nav-link" id="nav-inicio" onclick="app.showModule('inicio', this)">
                     <i class="icon fas fa-home"></i>
-                    <span>Início</span>
+                    <span translate="no">Início</span>
                 </a>
                 <div class="nav-label" id="label-intelligence">Inteligência</div>
                 <a href="#" class="nav-link" id="nav-manual" onclick="app.showModule('manual', this)">
                     <i class="icon fas fa-search"></i>
-                    <span>Busca Unitária</span>
+                    <span translate="no">Busca Unitária</span>
                 </a>
                 <a href="#" class="nav-link" id="nav-enrich" onclick="app.showModule('enrich', this)">
                     <i class="icon fas fa-database"></i>
@@ -297,7 +300,7 @@
                         <div class="aurora-blob blob-3"></div>
                     </div>
                     <div class="glass-card"
-                        style="width: 100%; max-width: 400px; padding: var(--s-6); text-align: center;">
+                        style="width: 100%; max-width: 400px; text-align: center;">
                         <div class="logo-reveal">
                             <img src="/static/logo.png" class="logo-3d logo-float"
                                 style="width: 80px; height: 80px; margin-bottom: var(--s-4);">
@@ -341,7 +344,7 @@
 
                 <!-- PASSWORD MODAL -->
                 <div id="password-modal" class="modal-overlay" style="display:none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 9000; align-items: center; justify-content: center; backdrop-filter: blur(10px); padding: 15px;">
-                    <div class="glass-card" style="width: 100%; max-width: 420px; padding: 25px; position: relative; border: 1px solid var(--border-focus);">
+                    <div class="glass-card" style="width: 100%; max-width: 420px; position: relative; border: 1px solid var(--border-focus);">
                         <div style="text-align: center; margin-bottom: 25px;">
                             <div style="width: 60px; height: 60px; background: var(--g-primary); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 15px; box-shadow: 0 10px 20px rgba(0,0,0,0.3);">
                                 <i class="fas fa-key" style="font-size: 24px; color: #fff;"></i>
@@ -616,7 +619,7 @@
                             </div>
                         </div>
 
-                        <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; margin-bottom: var(--s-5); flex-wrap: nowrap; gap: 25px;">
+                        <div class="extract-filters-row">
                             <!-- Extreme Left: Switch + Texto -->
                             <label class="switch-group" style="display: flex; align-items: center; gap: 12px; cursor: pointer; flex-shrink: 0;">
                                 <div class="hemn-switch">
@@ -628,11 +631,11 @@
 
                             <!-- Extreme Right: Texto + Switch -->
                             <label class="switch-group" style="display: flex; align-items: center; gap: 12px; cursor: pointer; flex-shrink: 0;">
-                                <span style="font-size: 12px; color: var(--text-2); font-weight: 700; text-transform: uppercase; white-space: nowrap; letter-spacing: 0.3px;">REMOVER ÓRGÃOS GOV</span>
                                 <div class="hemn-switch">
                                     <input type="checkbox" id="extract-sem-governo">
                                     <span class="hemn-slider"></span>
                                 </div>
+                                <span style="font-size: 12px; color: var(--text-2); font-weight: 700; text-transform: uppercase; white-space: nowrap; letter-spacing: 0.3px;">REMOVER ÓRGÃOS GOV</span>
                             </label>
                         </div>
 
@@ -698,6 +701,29 @@
                             style="width: 100%; justify-content: center;">Iniciar Enriquecimento</button>
                         <h3 id="title-enrich" style="display:none; margin-top: 25px; margin-bottom: 10px; font-size: 14px; font-weight: 700; color: var(--text-1); border-left: 3px solid var(--accent); padding-left: 10px;">Pesquisas:</h3>
                         <div id="tasks-enrich" style="margin-top: var(--s-2);"></div>
+                    </div>
+                </section>
+
+                <!-- MODULE: ENRICH PLACEHOLDER (COMING SOON for users) -->
+                <section id="module-enrich-placeholder" class="module-view" style="display:none;">
+                    <div class="page-header">
+                        <div>
+                            <h1 class="page-title">PESQUISA: Enriquecimento em Lote</h1>
+                            <p class="page-subtitle">Página em desenvolvimento e otimização.</p>
+                        </div>
+                    </div>
+                    <div class="glass-card" style="text-align: center; padding: 60px 40px; border-top: 3px solid var(--accent);">
+                        <div style="width: 80px; height: 80px; background: rgba(0, 210, 255, 0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 30px;">
+                            <i class="fas fa-tools" style="font-size: 36px; color: var(--accent);"></i>
+                        </div>
+                        <h2 style="font-family: var(--font-heading); font-size: 24px; margin-bottom: 15px; color: var(--text-1);">Módulo em Construção! 🚀</h2>
+                        <p style="color: var(--text-2); max-width: 400px; margin: 0 auto 30px; line-height: 1.6; font-size: 15px;">
+                            Estamos trabalhando para liberar o **Enriquecimento em Lote** com a máxima performance e precisão para seu perfil. Em breve, esta funcionalidade estará totalmente disponível para você.
+                        </p>
+                        <div style="display: inline-flex; align-items: center; gap: 10px; padding: 8px 20px; background: var(--bg-surface); border-radius: 30px; border: 1px solid var(--border);">
+                            <div class="status-dot live-indicator" style="width: 8px; height: 8px;"></div>
+                            <span style="font-size: 12px; font-weight: 700; color: var(--text-3); text-transform: uppercase; letter-spacing: 1px;">Disponível em breve</span>
+                        </div>
                     </div>
                 </section>
 
@@ -772,7 +798,7 @@
                     <div class="page-header">
                         <div>
                             <h1 class="page-title">Encontre <span style="color:var(--accent)">PF</span></h1>
-                            <p class="page-subtitle">Busca unitária em base regionalizada Titanium.</p>
+                            <p class="page-subtitle">Busca unitária em base regionalizada HEMN SYSTEM.</p>
                         </div>
                         <button class="btn-icon" onclick="document.getElementById('clinicas-results-container').style.display='none'" style="background:rgba(255,255,255,0.05); border:1px solid var(--border); width:40px; height:40px; border-radius:12px; display:flex; align-items:center; justify-content:center; cursor:pointer; color:var(--text-3); transition:all 0.2s;">
                             <i class="fas fa-times"></i>
@@ -864,6 +890,7 @@
                                         <th>CPF</th>
                                         <th>NOME COMPLETO</th>
                                         <th>DATA NASC.</th>
+                                        <th>IDADE</th>
                                         <th>UF</th>
                                         <th>REGIÃO</th>
                                     </tr>
@@ -1239,6 +1266,7 @@
                                     <option value="USER">USUÁRIO COMUM</option>
                                     <option value="ADMIN">ADMINISTRADOR</option>
                                     <option value="CLINICAS">PERFIL CLÍNICAS</option>
+                                    <option value="MAYK">PRO PRIORITÁRIO (MAYK)</option>
                                 </select>
                             </div>
                         </div>
@@ -2029,6 +2057,34 @@
                             
                             console.log("[DEBUG] Strict RBAC applied for CLINICAS");
 
+                        } else if (user.role === 'MAYK') {
+                            // MAYK: Same as user but without credits, recharge, and dashboard
+                            if (clinNav) clinNav.style.display = 'none';
+                            if (clinCard) clinCard.style.display = 'none';
+                            
+                            // Hide Dashboard/Statement
+                            dashboardEls.forEach(el => { if (el) el.style.display = 'none'; });
+                            
+                            // Hide credit/recharge elements
+                            const balanceWrap = document.getElementById('status-balance');
+                            if (balanceWrap && balanceWrap.closest('.status-summary-card')) {
+                                balanceWrap.closest('.status-summary-card').style.display = 'none';
+                            }
+                            document.querySelectorAll('button[onclick="app.openRechargeModal()"]').forEach(btn => btn.style.display = 'none');
+                            if (document.getElementById('credits-display')) document.getElementById('credits-display').parentElement.style.display = 'none';
+                            
+                            // Remove costs from buttons visually
+                            const btnRealizar = document.querySelector('#module-manual .btn-primary');
+                            if (btnRealizar) btnRealizar.innerHTML = '<i class="fas fa-bolt"></i> Realizar Consulta';
+                            const btnExtract = document.querySelector('#module-extract .btn-primary');
+                            if (btnExtract) btnExtract.innerHTML = '<i class="fas fa-rocket"></i> Iniciar Processamento Massivo';
+
+                            [...manualEls, ...enrichEls, ...extractEls, ...unifyEls, ...splitEls, ...carrierEls].forEach(el => {
+                                if (el) el.style.display = el.classList.contains('action-card') ? 'flex' : 'flex';
+                            });
+                            if (processingLabel) processingLabel.style.display = 'block';
+                            if (intelligenceLabel) intelligenceLabel.style.display = 'block';
+
                         } else {
                             // Standard USER (Bronze)
                             if (clinNav) clinNav.style.display = 'none';
@@ -2058,6 +2114,7 @@
                         if (roleEl) {
                             if (user.role === 'ADMIN') roleEl.innerText = 'Administrador';
                             else if (user.role === 'CLINICAS') roleEl.innerText = 'Perfil Clínicas';
+                            else if (user.role === 'MAYK') roleEl.innerText = 'Prioritário (MAYK)';
                             else roleEl.innerText = 'Usuário Comum';
                         }
                     } else {
@@ -2069,6 +2126,17 @@
             },
 
             showModule(mid, element) {
+                // RESTRIÇÃO ENRIQUECIMENTO EM LOTE (Somente ADMIN)
+                if (mid === 'enrich') {
+                    const isAdmin = (this.user && this.user.role === 'ADMIN') || 
+                                    (document.getElementById('admin-menu') && document.getElementById('admin-menu').style.display === 'block');
+                    
+                    if (!isAdmin) {
+                        mid = 'enrich-placeholder';
+                        console.log("[RBAC] User restricted from direct enrichment view. Showing placeholder.");
+                    }
+                }
+
                 this.currentModule = mid;
                 // Persist the current module so F5 restores it
                 localStorage.setItem('hemn_last_module', mid);
@@ -2105,6 +2173,14 @@
                         this.initMonitorChart();
                         this.updateMonitorStats();
                         this.monInterval = setInterval(() => this.updateMonitorStats(), 3000);
+                    }
+                }
+
+                // Mobile auto-close sidebar when navigating
+                if (window.innerWidth <= 768) {
+                    const sidebar = document.getElementById('sidebar');
+                    if (sidebar && sidebar.classList.contains('active')) {
+                        this.toggleSidebar();
                     }
                 }
             },
@@ -2903,7 +2979,7 @@
                 if (savedData && (savedData.status === 'COMPLETED' || savedData.status === 'SUCCESS' || savedData.result_file)) {
                     const count = savedData.record_count || 0;
                     const isSplit = mid === 'split';
-                    const btnText = isSplit ? "Baixar Arquivos Divididos" : `Baixar e Consumir Créditos (${count.toLocaleString()} Cr)`;
+                    const btnText = isSplit ? "Baixar Arquivos Divididos" : (this.user && this.user.role === 'MAYK' ? "Baixar Arquivos Processados" : `Baixar e Consumir Créditos (${count.toLocaleString()} Cr)`);
                     const btnIcon = isSplit ? "fa-file-archive" : "fa-download";
                     
                     const downloadHtml = `
@@ -3137,7 +3213,7 @@
                                         this.showToast(`Concluído: ${count.toLocaleString()} registros!`, "success");
                                         const card = document.getElementById(`task-${t.id}`);
                                         const isSplit = t.mid === 'split';
-                                        const btnText = isSplit ? "Baixar Arquivos Divididos" : `Baixar e Consumir Créditos (${count.toLocaleString()} Cr)`;
+                                        const btnText = isSplit ? "Baixar Arquivos Divididos" : (this.user && this.user.role === 'MAYK' ? "Baixar Arquivos Processados" : `Baixar e Consumir Créditos (${count.toLocaleString()} Cr)`);
                                         const btnIcon = isSplit ? "fa-file-archive" : "fa-download";
 
                                         const downloadHtml = `
@@ -3238,8 +3314,12 @@
                 btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Pesquisando na Base ClickHouse...';
 
                 try {
-                    const body = { type, term, scope };
-                    if (scope === 'regiao') body.region = document.getElementById('clinicas-val-region').value;
+                    const body = { 
+                        search_type: type, 
+                        search_term: term, 
+                        scope: scope.toUpperCase() 
+                    };
+                    if (scope === 'regiao') body.regiao_nome = document.getElementById('clinicas-val-region').value;
                     if (scope === 'estado') body.uf = document.getElementById('clinicas-val-uf').value;
 
                     const res = await fetch(`${API}/leads/search`, {
@@ -3271,16 +3351,17 @@
                 tbody.innerHTML = '';
 
                 if (!leads || leads.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding: 40px;">Nenhum lead encontrado com estes critérios.</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding: 40px;">Nenhum lead encontrado com estes critérios.</td></tr>';
                 } else {
                     leads.forEach(l => {
                         const tr = document.createElement('tr');
                         tr.innerHTML = `
-                            <td>${l.cpf}</td>
-                            <td style="font-weight: 700;">${l.nome}</td>
-                            <td>${l.dt_nascimento}</td>
-                            <td><span class="badge badge-blue">${l.uf}</span></td>
-                            <td><span class="badge badge-purple">${l.regiao}</span></td>
+                            <td style="font-family: monospace; letter-spacing: 1px; color: var(--text-1);">${l.cpf}</td>
+                            <td style="font-weight: 800; color: var(--text-1); text-transform: uppercase; letter-spacing: 0.5px;">${l.nome}</td>
+                            <td style="font-size: 13px; color: var(--text-2);">${l.dt_nascimento}</td>
+                            <td><span class="badge badge-warm" style="width: 42px !important; height: 22px !important;">${l.idade}</span></td>
+                            <td><span class="badge badge-blue" style="width: 38px !important; height: 22px !important;">${l.uf}</span></td>
+                            <td><span class="badge badge-purple" style="padding: 2px 12px; height: 22px !important;">${l.regiao}</span></td>
                         `;
                         tbody.appendChild(tr);
                     });
@@ -3349,7 +3430,8 @@
                         `;
                         await this.refreshUser();
                         let saldoAtual = this.user ? Math.max(0, this.user.total_limit - this.user.current_usage).toFixed(1) : '--';
-                        this.addNotification("Consulta Operadora", `Número ${phone} é da ${data.operadora || 'NÃO ID.'}. Gastou: 0.1 Cr | Saldo Atual: ${saldoAtual} Cr`, "success");
+                        let msgText = this.user && this.user.role === 'MAYK' ? `Número ${phone} é da ${data.operadora || 'NÃO ID.'}.` : `Número ${phone} é da ${data.operadora || 'NÃO ID.'}. Gastou: 0.1 Cr | Saldo Atual: ${saldoAtual} Cr`;
+                        this.addNotification("Consulta Operadora", msgText, "success");
                     } else {
                         this.showToast(data.detail || "Erro na consulta", "error");
                     }
@@ -3446,7 +3528,8 @@
                         await this.refreshUser();
                         let saldoAtual = this.user ? Math.max(0, this.user.total_limit - this.user.current_usage).toFixed(1) : '--';
                         this.showToast("Iniciando Download...", "success");
-                        this.addNotification("Download Iniciado", `O arquivo está sendo baixado diretamente pelo navegador. Gastou: ${cost.toLocaleString()} Cr | Saldo Atual: ${saldoAtual} Cr`, "success");
+                        let msgText = this.user && this.user.role === 'MAYK' ? `O arquivo está sendo baixado diretamente pelo navegador.` : `O arquivo está sendo baixado diretamente pelo navegador. Gastou: ${cost.toLocaleString()} Cr | Saldo Atual: ${saldoAtual} Cr`;
+                        this.addNotification("Download Iniciado", msgText, "success");
                     } else this.alert("Erro no Download", "Ocorreu um problema ao baixar o arquivo.", { type: 'error' });
                 } catch (e) { console.error(e); }
             },
