@@ -1339,7 +1339,7 @@
                     </div>
 
                     <div class="premium-status-container">
-                        <div class="premium-status-card">
+                        <div class="premium-status-card" id="current-plan-status-card" onclick="app.showCurrentPlanDetails()" style="cursor: pointer; position: relative; overflow: hidden;">
                             <div class="status-icon-big">
                                 <i class="fas fa-crown" id="assinatura-plan-icon"></i>
                             </div>
@@ -3001,6 +3001,11 @@
                 card.style.animation = 'fadeInDetails 0.6s cubic-bezier(0.16, 1, 0.3, 1)';
             },
 
+            showCurrentPlanDetails() {
+                const name = document.getElementById('assinatura-plan-name')?.innerText || 'Essential';
+                this.updatePlanDetailsCard(name);
+            },
+
             async refreshDashboard() {
                 try {
                     // Admin: check if viewing another user
@@ -3092,6 +3097,13 @@
 
                         const asPlanIcon = document.getElementById('assinatura-plan-icon');
                         if(asPlanIcon) asPlanIcon.className = 'fas ' + planIcon;
+
+                        // Hide the current plan card from the selection grid
+                        const allPlanCards = ['essential', 'plus', 'premium', 'platinum'];
+                        allPlanCards.forEach(id => {
+                            const el = document.getElementById('plan-card-' + id);
+                            if (el) el.style.display = (id === planName.toLowerCase()) ? 'none' : 'flex';
+                        });
 
                         // Initial Plan Details
                         if(planName !== "Carregando...") {
