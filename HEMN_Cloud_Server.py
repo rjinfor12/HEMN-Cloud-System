@@ -44,6 +44,14 @@ class PasswordChangeRequest(BaseModel):
     new_password: str
     confirm_password: str
 
+# Planos de Crédito Oficiais do Sistema
+PLANS_CONFIG = {
+    "essential": {"name": "Essential", "credits": 500000, "price": 899.00, "days": 30},
+    "plus": {"name": "Plus", "credits": 1000000, "price": 1399.00, "days": 30},
+    "premium": {"name": "Premium", "credits": 2500000, "price": 2499.00, "days": 30},
+    "platinum": {"name": "Platinum", "credits": 5000000, "price": 3799.00, "days": 30}
+}
+
 # ASAAS Config
 ASAAS_API_KEY = "$aact_prod_000MzkwODA2MWY2OGM3MWRlMDU2NWM3MzJlNzZmNGZhZGY6OjEzMDJlNTFjLTgwODgtNGRmNi1iZTA3LWVkYmE0YzI5Y2UwYzo6JGFhY2hfODExNDEyNmEtZWI2Yy00OGFlLWI4OTktZjYyZjljMDdkNmIw"
 ASAAS_URL = "https://www.asaas.com/api/v3"
@@ -195,11 +203,46 @@ class CardHolderModel(BaseModel):
     phone: str
 
 class PaymentCreateRequest(BaseModel):
-    amount: float
+    plan_id: Optional[str] = None
+    amount: float = 0.0
     billingType: str  # 'PIX' ou 'CREDIT_CARD'
     cpfCnpj: Optional[str] = None
     creditCard: Optional[CreditCardModel] = None
     creditCardHolder: Optional[CardHolderModel] = None
+
+# --- PLAN HELPERS ---
+
+# Maps total_limit to plan tier: essential, plus, premium, platinum, unlimited
+def get_user_plan(total_limit: float) -> str:
+    if total_limit >= 9000000:
+        return "unlimited"
+    elif total_limit >= 5000000:
+        return "platinum"
+    elif total_limit >= 2500000:
+        return "premium"
+    elif total_limit >= 1000000:
+        return "plus"
+    else:
+        return "essential"
+
+# Busca Unitária credit cost per plan
+PLAN_UNIT_SEARCH_COST = {
+    "essential": 1.0,
+    "plus": 0.5,
+    "premium": 0.0,
+    "platinum": 0.0,
+    "unlimited": 0.0,
+}
+
+# Whether a plan can use /tasks/carrier (single unitário)
+PLAN_CARRIER_SINGLE_ALLOWED = {"plus", "premium", "platinum", "unlimited"}
+
+# Whether a plan can use /tasks/carrier (batch em massa)
+PLAN_CARRIER_BATCH_ALLOWED = {"premium", "platinum", "unlimited"}
+
+@router.get("/plans")
+def get_available_plans():
+    return PLANS_CONFIG
 
 
 # --- AUTH HELPERS ---
@@ -253,14 +296,26 @@ def log_transaction(username: str, type: str, amount: float, module: str, descri
 # --- ASAAS ENDPOINTS ---
 @router.post("/payments/create")
 async def create_payment_endpoint(req: PaymentCreateRequest, user: dict = Depends(get_current_user)):
+    final_amount = req.amount
+    final_credits = req.amount * 100 # fallback baseline
+    plan_name = "Recarga Avulsa"
+
+    if req.plan_id and req.plan_id.lower() in PLANS_CONFIG:
+        plan = PLANS_CONFIG[req.plan_id.lower()]
+        final_amount = plan["price"]
+        final_credits = plan["credits"]
+        plan_name = plan["name"]
+    elif req.amount <= 0:
+        raise HTTPException(status_code=400, detail="Plano ou valor inválido.")
+
     h = {"access_token": ASAAS_API_KEY, "Content-Type": "application/json"}
     
     payload = {
         "customer": None, # Will find or create
         "billingType": req.billingType,
-        "value": req.amount,
+        "value": final_amount,
         "dueDate": (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d"),
-        "description": f"Recarga de créditos - {user['username']}",
+        "description": f"Plano {plan_name} - {user['username']}",
         "externalReference": user["username"]
     }
 
@@ -309,7 +364,7 @@ async def create_payment_endpoint(req: PaymentCreateRequest, user: dict = Depend
     conn.execute("""
         INSERT INTO asaas_payments (id, username, amount, credits, status, pix_payload, pix_image_base64)
         VALUES (?, ?, ?, ?, ?, ?, ?)
-    """, (pay_id, user["username"], req.amount, req.amount * 100, "PENDING", pix_data["pix_payload"], pix_data["pix_image_base64"]))
+    """, (pay_id, user["username"], final_amount, final_credits, "PENDING", pix_data["pix_payload"], pix_data["pix_image_base64"]))
     conn.commit()
     conn.close()
 
@@ -341,15 +396,21 @@ async def asaas_webhook(request: Request):
             username = local_pay["username"]
             credits = local_pay["credits"]
             
-            # Update user balance
-            conn.execute("UPDATE users SET total_limit = total_limit + ? WHERE username = ? COLLATE NOCASE", (credits, username))
+            # Update user balance & set expiration 30 days
+            exp_date = (datetime.now() + timedelta(days=30)).strftime('%Y-%m-%d %H:%M:%S')
+            try:
+                conn.execute("UPDATE users SET total_limit = total_limit + ?, expiration = ? WHERE username = ? COLLATE NOCASE", (credits, exp_date, username))
+            except sqlite3.OperationalError:
+                conn.execute("ALTER TABLE users ADD COLUMN expiration TEXT")
+                conn.execute("UPDATE users SET total_limit = total_limit + ?, expiration = ? WHERE username = ? COLLATE NOCASE", (credits, exp_date, username))
+                
             conn.execute("UPDATE asaas_payments SET status = 'RECEIVED', confirmed_at = ? WHERE id = ?", (datetime.now().isoformat(), pay_id))
             
             # Log transaction
             now_br = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             conn.execute(
                 "INSERT INTO credit_transactions (username, type, amount, module, description, timestamp) VALUES (?, ?, ?, ?, ?, ?)",
-                (username, "CREDIT", credits, "ASAAS", f"Recarga confirmada via {payment.get('billingType')}", now_br)
+                (username, "CREDIT", credits, "ASAAS", f"Recarga confirmada ({credits} Cr) via {payment.get('billingType')}", now_br)
             )
             conn.commit()
             print(f"[ASAAS] Pagamento {pay_id} processado com sucesso para {username}")
@@ -532,16 +593,19 @@ def start_enrich(req: EnrichRequest, user: dict = Depends(get_current_user)):
         cpf_clean = ''.join(filter(str.isdigit, str(req.cpf or "")))
         res = engine.deep_search(req.name, cpf_clean)
         
-        # Débito de Consulta Manual se não for ilimitado
-        if user["total_limit"] < 9000000:
+        # Débito de Consulta Manual conforme plano do usuário
+        plan = get_user_plan(user["total_limit"])
+        unit_cost = PLAN_UNIT_SEARCH_COST[plan]
+        
+        if unit_cost > 0 and user["total_limit"] < 9000000:
             conn = sqlite3.connect(DB_PATH, timeout=30)
             conn.execute("PRAGMA journal_mode=WAL")
-            conn.execute("UPDATE users SET current_usage = current_usage + 0.5 WHERE username = ?", (user["username"],))
+            conn.execute("UPDATE users SET current_usage = current_usage + ? WHERE username = ?", (unit_cost, user["username"]))
             conn.commit()
             conn.close()
         
         # Logar transação SEMPRE
-        log_transaction(user["username"], "DEBIT", 0.5, "MANUAL", f"Busca Unitária: {req.name or req.cpf}")
+        log_transaction(user["username"], "DEBIT", unit_cost, "MANUAL", f"Busca Unitária: {req.name or req.cpf}")
             
         return res.to_dict(orient="records")
     
@@ -583,6 +647,15 @@ def start_extract(filters: ExtractionFilter, user: dict = Depends(get_current_us
 @app.post("/tasks/carrier")
 @router.post("/tasks/carrier")
 def start_carrier(req: CarrierRequest, user: dict = Depends(get_current_user)):
+    plan = get_user_plan(user["total_limit"])
+
+    # Verificar se o plano permite Consulta Operadora em Lote
+    if plan not in PLAN_CARRIER_BATCH_ALLOWED:
+        if plan == "plus":
+            raise HTTPException(status_code=403, detail="Seu plano (Plus) não inclui Consulta de Operadora em lote. Faça upgrade para Premium ou Platinum.")
+        else:
+            raise HTTPException(status_code=403, detail="Seu plano (Essential) não inclui o módulo Consulta Operadora. Faça upgrade para Plus ou superior.")
+
     path = os.path.join(UPLOAD_DIR, req.file_id)
     tid = engine.batch_carrier(path, RESULT_DIR, req.phone_col, username=user["username"])
     # Logar início de processamento
@@ -592,7 +665,13 @@ def start_carrier(req: CarrierRequest, user: dict = Depends(get_current_user)):
 @app.get("/tasks/carrier/single")
 @router.get("/tasks/carrier/single")
 def get_single_carrier(phone: str, user: dict = Depends(get_current_user)):
-    # Débito de Consulta de Operadora se não for ilimitado
+    plan = get_user_plan(user["total_limit"])
+    
+    # Verificar se o plano permite Consulta Operadora Unitária
+    if plan not in PLAN_CARRIER_SINGLE_ALLOWED:
+        raise HTTPException(status_code=403, detail="Seu plano (Essential) não inclui a Consulta Operadora. Faça upgrade para o plano Plus ou superior.")
+
+    # Cobrar crédito apenas para planos pagos que cobram
     if user["total_limit"] < 9000000:
         conn = sqlite3.connect(DB_PATH, timeout=30)
         conn.execute("PRAGMA journal_mode=WAL")
@@ -665,8 +744,10 @@ async def login(request: Request):
         token = create_token(u)
         conn.execute("UPDATE users SET last_login = ? WHERE username = ? COLLATE NOCASE", (datetime.now().isoformat(), u))
         conn.commit()
+        # Check if force_password_change is set
+        force_change = int(user["force_password_change"]) if "force_password_change" in user.keys() else 0
         conn.close()
-        return {"access_token": token, "token_type": "bearer"}
+        return {"access_token": token, "token_type": "bearer", "force_password_change": bool(force_change)}
     conn.close()
     raise HTTPException(status_code=401, detail="Usuário ou senha incorretos.")
 
@@ -686,8 +767,8 @@ async def change_password(req: PasswordChangeRequest, user: dict = Depends(get_c
         conn.close()
         raise HTTPException(status_code=401, detail="Senha atual incorreta.")
     
-    # Update password
-    conn.execute("UPDATE users SET password = ? WHERE username = ? COLLATE NOCASE", (req.new_password, user["username"]))
+    # Update password and clear force_password_change flag
+    conn.execute("UPDATE users SET password = ?, force_password_change = 0 WHERE username = ? COLLATE NOCASE", (req.new_password, user["username"]))
     conn.commit()
     conn.close()
     return {"status": "success", "message": "Senha alterada com sucesso."}
@@ -727,11 +808,17 @@ async def get_me(user: dict = Depends(get_current_user)):
                                 conn_up.execute("PRAGMA journal_mode=WAL")
                                 try:
                                     conn_up.execute("BEGIN TRANSACTION")
-                                    conn_up.execute("UPDATE users SET total_limit = total_limit + ? WHERE username = ? COLLATE NOCASE", (credits, user["username"]))
+                                    exp_date = (datetime.now() + timedelta(days=30)).strftime('%Y-%m-%d %H:%M:%S')
+                                    try:
+                                        conn_up.execute("UPDATE users SET total_limit = total_limit + ?, expiration = ? WHERE username = ? COLLATE NOCASE", (credits, exp_date, user["username"]))
+                                    except sqlite3.OperationalError:
+                                        conn_up.execute("ALTER TABLE users ADD COLUMN expiration TEXT")
+                                        conn_up.execute("UPDATE users SET total_limit = total_limit + ?, expiration = ? WHERE username = ? COLLATE NOCASE", (credits, exp_date, user["username"]))
+
                                     conn_up.execute("UPDATE asaas_payments SET status = 'RECEIVED', confirmed_at = ? WHERE id = ?", (datetime.now().isoformat(), p['id']))
                                     conn_up.execute(
                                         "INSERT INTO credit_transactions (username, type, amount, module, description, timestamp) VALUES (?, ?, ?, ?, ?, ?)",
-                                        (user["username"], "CREDIT", credits, "SYNC", f"Sincronização: Recarga confirmada", now_br)
+                                        (user["username"], "CREDIT", credits, "SYNC", f"Sincronização: Plano confirmado", now_br)
                                     )
                                     conn_up.commit()
                                 except Exception as te:
@@ -941,6 +1028,8 @@ def get_user_stats(target_username: str, user: dict = Depends(get_current_user))
         "spent_month": spent_month,
         "chart": chart_data,
         "balance": target_user["total_limit"] - target_user["current_usage"],
+        "total_limit": target_user["total_limit"],
+        "expiration": target_user.get("expiration", "Sem vencimento"),
         "viewing_user": target_username
     }
 
@@ -980,24 +1069,117 @@ def get_stats(user: dict = Depends(get_current_user)):
         "spent_today": spent_today,
         "spent_month": spent_month,
         "chart": chart_data,
-        "balance": user["total_limit"] - user["current_usage"]
+        "balance": user["total_limit"] - user["current_usage"],
+        "total_limit": user["total_limit"],
+        "expiration": user.get("expiration", "Sem vencimento")
     }
 
 @app.post("/admin/users")
 @router.post("/admin/users")
 def create_user(data: dict, user: dict = Depends(get_current_user)):
     if user["role"] != "ADMIN": raise HTTPException(status_code=403)
+    
+    # Migrate DB to ensure new columns exist (idempotent)
     conn = sqlite3.connect(DB_PATH)
+    conn.execute("PRAGMA journal_mode=WAL")
+    for col_sql in [
+        "ALTER TABLE users ADD COLUMN document TEXT",
+        "ALTER TABLE users ADD COLUMN plan_type TEXT DEFAULT 'essential'",
+        "ALTER TABLE users ADD COLUMN vencimento_dia INTEGER DEFAULT 10",
+        "ALTER TABLE users ADD COLUMN force_password_change INTEGER DEFAULT 0",
+    ]:
+        try: conn.execute(col_sql)
+        except: pass
+    conn.commit()
+
+    # Derive total_limit from plan_type (override any frontend value)
+    PLAN_LIMITS = {
+        "essential": 500000,
+        "plus": 1000000,
+        "premium": 2500000,
+        "platinum": 5000000,
+    }
+    plan_type = data.get("plan_type", "essential").lower()
+    
+    # Role: ADMIN, MAYK and CLINICAS get "unlimited" (900M+) regardless of plan
+    role = data.get("role", "USER").upper()
+    if role in ["ADMIN", "MAYK", "CLINICAS"]:
+        total_limit = 999999999
+    else:
+        total_limit = PLAN_LIMITS.get(plan_type, 500000)
+
+    # Expiration logic
+    if role in ["ADMIN", "MAYK"]:
+        exp_date = None
+    else:
+        vday = data.get("vencimento_dia")
+        if vday:
+            # Calculate next occurrence of vday
+            now = datetime.now()
+            try:
+                # Try this month
+                exp_dt = now.replace(day=int(vday), hour=23, minute=59, second=59)
+                if exp_dt <= now:
+                    # Move to next month
+                    if now.month == 12:
+                        exp_dt = exp_dt.replace(year=now.year + 1, month=1)
+                    else:
+                        exp_dt = exp_dt.replace(month=now.month + 1)
+                exp_date = exp_dt.strftime('%Y-%m-%d %H:%M:%S')
+            except ValueError:
+                # Handlers for day 30 on Feb, etc
+                exp_date = (now + timedelta(days=30)).strftime('%Y-%m-%d %H:%M:%S')
+        else:
+            exp_date = (datetime.now() + timedelta(days=30)).strftime('%Y-%m-%d %H:%M:%S')
+
+    insert_data = {
+        "full_name": data.get("full_name", ""),
+        "username": data.get("username", "").lower(),
+        "password": "hemn123",
+        "document": data.get("document", ""),
+        "plan_type": plan_type,
+        "vencimento_dia": data.get("vencimento_dia", 10),
+        "role": role,
+        "total_limit": total_limit,
+        "current_usage": 0,
+        "expiration": exp_date,
+        "status": "ACTIVE",
+        "force_password_change": 1,
+    }
+    
     try:
-        cols = ", ".join(data.keys())
-        placeholders = ", ".join(["?"] * len(data))
-        conn.execute(f"INSERT INTO users ({cols}) VALUES ({placeholders})", list(data.values()))
+        cols = ", ".join(insert_data.keys())
+        placeholders = ", ".join(["?"] * len(insert_data))
+        conn.execute(f"INSERT INTO users ({cols}) VALUES ({placeholders})", list(insert_data.values()))
         conn.commit()
     except Exception as e:
         conn.close()
         raise HTTPException(status_code=400, detail=str(e))
     conn.close()
     return {"status": "ok"}
+
+@app.post("/admin/users/{username}/reset-password")
+@router.post("/admin/users/{username}/reset-password")
+def reset_user_password(username: str, user: dict = Depends(get_current_user)):
+    if user["role"] != "ADMIN":
+        raise HTTPException(status_code=403, detail="Acesso restrito.")
+    conn = sqlite3.connect(DB_PATH, timeout=30)
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.row_factory = sqlite3.Row
+    target = conn.execute("SELECT * FROM users WHERE username = ? COLLATE NOCASE", (username,)).fetchone()
+    if not target:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Usuário não encontrado.")
+    # Ensure force_password_change column exists
+    try: conn.execute("ALTER TABLE users ADD COLUMN force_password_change INTEGER DEFAULT 0")
+    except: pass
+    conn.execute(
+        "UPDATE users SET password = 'hemn123', force_password_change = 1 WHERE username = ? COLLATE NOCASE",
+        (username,)
+    )
+    conn.commit()
+    conn.close()
+    return {"status": "ok", "message": f"Senha de {username} redefinida para hemn123."}
 
 app.include_router(router)
 
