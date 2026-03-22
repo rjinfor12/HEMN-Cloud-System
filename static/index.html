@@ -1316,7 +1316,7 @@
                         <!-- Sidebar: Summary -->
                         <aside class="checkout-summary-card">
                             <div class="summary-header theme-essential" id="checkout-theme-area">
-                                <div class="summary-plan-icon">
+                                <div class="summary-plan-icon" id="checkout-plan-icon-wrapper">
                                     <i id="checkout-icon" class="fas fa-paper-plane"></i>
                                 </div>
                                 <h2 class="summary-title" id="checkout-title">Plano Essential</h2>
@@ -1345,27 +1345,21 @@
                                     </div>
                                 </div>
 
-                                <div class="summary-total-box">
+                                <div class="summary-total-box" id="checkout-total-container">
                                     <div class="summary-total-label">TOTAL A PAGAR</div>
                                     <div class="summary-total-value" id="checkout-price-display">R$ 0,00</div>
                                 </div>
 
-                                <div class="trust-signals-container">
-                                    <div class="trust-signal-item">
-                                        <i class="fas fa-shield-alt"></i>
-                                        <span>Pagamento 100% Seguro</span>
-                                    </div>
-                                    <div class="trust-signal-item">
-                                        <i class="fas fa-bolt"></i>
-                                        <span>Liberação Imediata</span>
-                                    </div>
+                                <div class="trust-signals-container" style="margin-top: 25px; border-top: 1px solid rgba(0,0,0,0.05); padding-top: 20px;">
+                                    <div class="trust-signal-item"><i class="fas fa-shield-alt"></i> Pagamento 100% Seguro</div>
+                                    <div class="trust-signal-item"><i class="fas fa-bolt"></i> Liberação Imediata</div>
                                 </div>
                             </div>
                         </aside>
 
                         <!-- Main Content: Payment -->
-                        <main class="checkout-main-content" style="flex: 1;">
-                            <div class="payment-method-card">
+                        <main class="checkout-main-content">
+                            <div class="payment-method-card" id="checkout-payment-card">
                                 <div class="payment-header">
                                     <div class="payment-title-group">
                                         <h3 style="display: flex; align-items: center; gap: 12px;"><i class="fas fa-qrcode" style="color: #32bcad;"></i> Pagamento via PIX</h3>
@@ -1381,21 +1375,21 @@
                                         <label>CPF OU CNPJ PARA EMISSÃO DE NOTA FISCAL</label>
                                         <div class="input-wrapper">
                                             <i class="fas fa-id-card"></i>
-                                            <input type="text" id="checkout-cpf" placeholder="000.000.000-00">
+                                            <input type="text" id="checkout-cpf" placeholder="000.000.000-00" oninput="app.maskCPF?app.maskCPF(this):null">
                                         </div>
                                     </div>
 
-                                    <button class="btn-primary" id="btn-gerar-checkout-pix" onclick="app.generateCheckoutPix()" style="width: 100%; height: 60px; font-size: 18px; border-radius: 16px; box-shadow: 0 10px 20px rgba(0,136,204,0.2);">
+                                    <button class="btn-primary" id="btn-gerar-checkout-pix" onclick="app.generateCheckoutPix()" style="width: 100%; height: 60px; font-size: 18px; border-radius: 16px;">
                                         <i class="fas fa-bolt"></i> GERAR QR CODE PIX
                                     </button>
                                     
-                                    <p style="text-align: center; margin-top: 20px; font-size: 13px; color: var(--text-3);">
+                                    <p style="text-align: center; margin-top: 20px; font-size: 12px; color: var(--text-3);">
                                         <i class="fas fa-lock"></i> Seus dados estão protegidos por criptografia de ponta a ponta.
                                     </p>
                                 </div>
 
                                 <div id="checkout-pix-step-2" style="display:none; text-align: center;">
-                                    <div class="qr-code-premium-frame">
+                                    <div class="qr-code-premium-frame" style="background: white; padding: 20px; border-radius: 20px; display: inline-block; margin-bottom: 20px;">
                                         <img id="checkout-qrcode-img" src="" style="width: 220px; height: 220px; display: none;">
                                         <div id="checkout-qrcode-loading" style="width: 220px; height: 220px; display: flex; align-items: center; justify-content: center;">
                                             <i class="fas fa-circle-notch fa-spin" style="font-size: 40px; color: var(--accent-color);"></i>
@@ -1403,21 +1397,38 @@
                                     </div>
 
                                     <div style="max-width: 400px; margin: 0 auto;">
-                                        <p style="font-size: 14px; color: var(--text-2); margin-bottom: 20px;">
-                                            Escaneie o código acima com o app do seu banco ou copie o código abaixo:
+                                        <p style="font-size: 14px; color: var(--text-2); margin-bottom: 20px; font-weight: 700;">
+                                            Escaneie o código acima com seu banco ou copie:
                                         </p>
 
                                         <div class="pix-copy-premium">
-                                            <code id="checkout-pix-code-text">0002010102122610...</code>
-                                            <button class="pix-copy-btn" onclick="app.copyCheckoutPix()">Copiar</button>
+                                            <code id="checkout-pix-code-text">---</code>
+                                            <button class="pix-copy-btn" onclick="app.copyCheckoutPix()">Copiar Código</button>
                                         </div>
 
-                                        <div style="margin-top: 30px; padding: 20px; background: rgba(var(--status-green-rgb), 0.05); border-radius: 12px; border: 1px solid rgba(var(--status-green-rgb), 0.2);">
+                                        <div style="margin-top: 30px; padding: 20px; background: rgba(var(--status-green-rgb, 16, 185, 129), 0.05); border-radius: 12px; border: 1px solid rgba(var(--status-green-rgb, 16, 185, 129), 0.2);">
                                             <div style="display: flex; align-items: center; gap: 12px; color: var(--status-green);">
                                                 <i class="fas fa-sync fa-spin"></i>
-                                                <span style="font-weight: 700; font-size: 14px;">Aguardando confirmação...</span>
+                                                <span style="font-weight: 700; font-size: 14px;" id="checkout-payment-status">Aguardando confirmação...</span>
                                             </div>
                                         </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="checkout-info-grid">
+                                <div class="info-help-card">
+                                    <i class="fas fa-headset"></i>
+                                    <div class="info-help-text">
+                                        <h4>Precisa de ajuda?</h4>
+                                        <p>Suporte prioritário via WhatsApp.</p>
+                                    </div>
+                                </div>
+                                <div class="info-help-card">
+                                    <i class="fas fa-file-invoice"></i>
+                                    <div class="info-help-text">
+                                        <h4>Nota Fiscal</h4>
+                                        <p>Enviada automaticamente após o pagamento.</p>
                                     </div>
                                 </div>
                             </div>
@@ -4283,10 +4294,30 @@
             },
             
             copyCheckoutPix() {
-                if (!this.currentPixPayload) return;
-                navigator.clipboard.writeText(this.currentPixPayload).then(() => {
+                const codeText = document.getElementById('checkout-pix-code-text');
+                const payload = codeText ? codeText.innerText : (this.currentPixPayload || '');
+                if (!payload || payload === '---') return;
+                
+                navigator.clipboard.writeText(payload).then(() => {
                     this.showToast("Código PIX copiado!", "success");
                 });
+            },
+
+            maskCPF(i) {
+                let v = i.value;
+                if (!v) return;
+                v = v.replace(/\D/g, "");
+                if (v.length <= 11) {
+                    v = v.replace(/(\极d{3})(\极d)/, "$1.$2");
+                    v = v.replace(/(\极d{3})(\极d)/, "$1.$2");
+                    v = v.replace(/(\极d{3})(\极d{1,2})$/, "$1-$2");
+                } else {
+                    v = v.replace(/^(\极d{2})(\极d)/, "$1.$2");
+                    v = v.replace(/^(\极d{2})\.(\极d{3})(\极d)/, "$1.$2.$3");
+                    v = v.replace(/\.(\极d{3})(\极d)/, ".$1/$2");
+                    v = v.replace(/(\极d{4})(\极d)/, "$1-$2");
+                }
+                i.value = v;
             },
 
             openRechargeModal(type = null, initialAmount = 50) {

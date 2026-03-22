@@ -297,7 +297,7 @@ def log_transaction(username: str, type: str, amount: float, module: str, descri
 @router.post("/payments/create")
 async def create_payment_endpoint(req: PaymentCreateRequest, user: dict = Depends(get_current_user)):
     final_amount = req.amount
-    final_credits = req.amount * 100 # fallback baseline
+    final_credits = req.amount * 500 # fallback baseline (R$ 0,002 / CR)
     plan_name = "Recarga Avulsa"
 
     if req.plan_id and req.plan_id.lower() in PLANS_CONFIG:
@@ -320,22 +320,26 @@ async def create_payment_endpoint(req: PaymentCreateRequest, user: dict = Depend
     }
 
     # Procura cliente pelo CPF/CNPJ ou Email
-    cpf = req.cpfCnpj or (req.creditCardHolder.cpfCnpj if req.creditCardHolder else None)
+    cpf_raw = req.cpfCnpj or (req.creditCardHolder.cpfCnpj if req.creditCardHolder else None)
+    cpf = ''.join(filter(str.isdigit, str(cpf_raw or "")))
     email = req.creditCardHolder.email if req.creditCardHolder else f"{user['username']}@hemn.com.br"
     
+    print(f"[ASAAS] Procurando cliente: CPF={cpf}")
     cust_res = requests.get(f"{ASAAS_URL}/customers?cpfCnpj={cpf}", headers=h).json()
     if cust_res.get("data"):
         customer_id = cust_res["data"][0]["id"]
     else:
-        new_cust = requests.post(f"{ASAAS_URL}/customers", headers=h, json={
+        print(f"[ASAAS] Criando novo cliente: {user['username']}")
+        new_cust_res = requests.post(f"{ASAAS_URL}/customers", headers=h, json={
             "name": user["username"],
             "cpfCnpj": cpf,
             "email": email
-        }).json()
+        })
+        new_cust = new_cust_res.json()
         customer_id = new_cust.get("id")
-    
-    if not customer_id:
-        raise HTTPException(status_code=400, detail="Erro ao processar cliente no ASAAS")
+        if not customer_id:
+            print(f"[ASAAS] FALHA AO CRIAR CLIENTE: {new_cust}")
+            raise HTTPException(status_code=400, detail=f"Erro ao processar cliente no ASAAS: {new_cust.get('errors', 'Dados inválidos')}")
         
     payload["customer"] = customer_id
     
@@ -910,13 +914,50 @@ def update_user(username: str, data: dict, user: dict = Depends(get_current_user
     conn = sqlite3.connect(DB_PATH, timeout=30)
     conn.execute("PRAGMA journal_mode=WAL")
     conn.row_factory = sqlite3.Row
-    old_user = conn.execute("SELECT * FROM users WHERE username = ? COLLATE NOCASE", (username,)).fetchone()
+    old_user_row = conn.execute("SELECT * FROM users WHERE username = ? COLLATE NOCASE", (username,)).fetchone()
     
-    if not old_user:
+    if not old_user_row:
         conn.close()
         raise HTTPException(status_code=404, detail="Usuário não encontrado")
     
-    # 1. Construir QUERY única para evitar múltiplos locks
+    old_user = dict(old_user_row)
+    
+    # Lógica de Sincronização Automática de Plano e Limites
+    if any(k in data for k in ["plan_type", "role", "vencimento_dia"]):
+        role = data.get("role", old_user.get("role", "USER")).upper()
+        plan_type = data.get("plan_type", old_user.get("plan_type", "essential")).lower()
+        vday = data.get("vencimento_dia", old_user.get("vencimento_dia", 10))
+        
+        # 1. Recalcular total_limit
+        if role in ["ADMIN", "MAYK", "CLINICAS"]:
+            new_limit = 999999999
+            new_exp = None
+        else:
+            # Pegar do PLANS_CONFIG ou fallback
+            plan_info = PLANS_CONFIG.get(plan_type, {"credits": 500000})
+            new_limit = plan_info["credits"]
+            
+            # 2. Recalcular expiration baseado no vday
+            now = datetime.now()
+            try:
+                exp_dt = now.replace(day=int(vday), hour=23, minute=59, second=59)
+                if exp_dt <= now:
+                    if now.month == 12:
+                        exp_dt = exp_dt.replace(year=now.year + 1, month=1)
+                    else:
+                        exp_dt = exp_dt.replace(month=now.month + 1)
+                new_exp = exp_dt.strftime('%Y-%m-%d %H:%M:%S')
+            except ValueError:
+                new_exp = (now + timedelta(days=30)).strftime('%Y-%m-%d %H:%M:%S')
+        
+        data["total_limit"] = new_limit
+        data["expiration"] = new_exp
+        
+        # Resetar consumo se o plano mudou (conceder novos créditos integralmente)
+        if "plan_type" in data and data["plan_type"] != old_user.get("plan_type"):
+            data["current_usage"] = 0
+
+    # 3. Construir QUERY única para evitar múltiplos locks
     if data:
         fields = []
         values = []
@@ -935,14 +976,40 @@ def update_user(username: str, data: dict, user: dict = Depends(get_current_user
             conn.close()
             raise HTTPException(status_code=500, detail=f"Erro ao atualizar banco: {e}")
     
-    # Se o limite aumentou, logar como cr├®dito/recarga
-    if "total_limit" in data and old_user:
+    # Se o limite aumentou, logar como crédito/recarga no histórico
+    if "total_limit" in data:
         diff = float(data["total_limit"]) - float(old_user["total_limit"])
         if diff > 0:
-            log_transaction(username, "CREDIT", diff, "ADMIN", f"Recarga de créditos via Administrador")
+            log_transaction(username, "CREDIT", diff, "ADMIN", f"MUDANÇA DE PLANO: {data.get('plan_type', 'Upgrade')} via Administrador")
             
     conn.commit()
     conn.close()
+    return {"status": "ok"}
+
+@app.delete("/admin/users/{username}")
+@router.delete("/admin/users/{username}")
+def delete_user(username: str, user: dict = Depends(get_current_user)):
+    if user["role"] != "ADMIN": raise HTTPException(status_code=403)
+    conn = sqlite3.connect(DB_PATH, timeout=30)
+    conn.execute("PRAGMA journal_mode=WAL")
+    try:
+        # Remover dados vinculados para manter integridade
+        conn.execute("DELETE FROM credit_transactions WHERE username = ? COLLATE NOCASE", (username,))
+        conn.execute("DELETE FROM asaas_payments WHERE username = ? COLLATE NOCASE", (username,))
+        conn.execute("DELETE FROM background_tasks WHERE username = ? COLLATE NOCASE", (username,))
+        
+        # Remover o usuário
+        res = conn.execute("DELETE FROM users WHERE username = ? COLLATE NOCASE", (username,))
+        if res.rowcount == 0:
+            raise HTTPException(status_code=404, detail="Usuário não encontrado")
+            
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        if isinstance(e, HTTPException): raise e
+        raise HTTPException(status_code=500, detail=f"Erro ao excluir: {e}")
+    finally:
+        conn.close()
     return {"status": "ok"}
 
 @router.get("/credits/statement")
