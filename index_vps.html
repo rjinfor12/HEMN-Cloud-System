@@ -627,18 +627,63 @@
             z-index: 5000 !important;
             transition: all 0.3s ease;
         }
-
         .greeting-container {
             flex: 1;
+            display: flex;
+            align-items: center;
+        }
+
+        .premium-greeting {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 4px 0;
+        }
+
+        .pg-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            background: rgba(var(--accent-rgb), 0.08);
+            border: 1px solid rgba(var(--accent-rgb), 0.15);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--accent);
+            font-size: 16px;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 10px rgba(var(--accent-rgb), 0.05);
+        }
+
+        [data-theme="dark"] .pg-icon {
+            background: rgba(var(--accent-rgb), 0.15);
+            border-color: rgba(var(--accent-rgb), 0.25);
+        }
+
+        .pg-text {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .pg-subtitle {
+            font-size: 10px;
+            font-weight: 700;
+            color: var(--text-3);
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            margin-bottom: 2px;
+            line-height: 1;
         }
 
         .greeting-text {
-            font-size: 15px !important;
-            font-weight: 500 !important;
+            font-size: 16px !important;
+            font-weight: 600 !important;
             color: var(--text-2) !important;
             letter-spacing: -0.2px;
             margin: 0;
             font-family: var(--font-body);
+            line-height: 1.1;
         }
 
         .header-tools {
@@ -1068,7 +1113,15 @@
                     <i class="fas fa-bars"></i>
                 </button>
                 <div class="greeting-container">
-                    <h2 class="greeting-text" id="main-greeting">Bem-vindo ao HEMN SYSTEM</h2>
+                    <div class="premium-greeting">
+                        <div class="pg-icon">
+                            <i class="fas fa-sun" id="pg-dynamic-icon"></i>
+                        </div>
+                        <div class="pg-text">
+                            <span class="pg-subtitle">Workspace</span>
+                            <h2 class="greeting-text" id="main-greeting">Bem-vindo ao HEMN...</h2>
+                        </div>
+                    </div>
                 </div>
                 <div class="header-tools">
                     <div class="notification-wrapper" id="notification-wrapper">
@@ -3105,11 +3158,15 @@
                         // Update Greeting
                         const hour = new Date().getHours();
                         let greet = "Boa noite";
-                        if (hour < 5) greet = "Boa madrugada";
-                        else if (hour < 12) greet = "Bom dia";
-                        else if (hour < 18) greet = "Boa tarde";
+                        let icon = "fa-moon";
+                        if (hour < 5) { greet = "Boa madrugada"; icon = "fa-star"; }
+                        else if (hour < 12) { greet = "Bom dia"; icon = "fa-sun"; }
+                        else if (hour < 18) { greet = "Boa tarde"; icon = "fa-cloud-sun"; }
                         const userDisplayName = (user.full_name || 'Admin').split(' ')[0];
-                        document.getElementById('main-greeting').innerHTML = `${greet}, <span style="color: var(--text-1); font-weight: 700;">${userDisplayName}</span>!`;
+                        document.getElementById('main-greeting').innerHTML = `${greet}, <span style="background: var(--g-primary); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: 800;">${userDisplayName}</span>!`;
+                        
+                        const iconEl = document.getElementById('pg-dynamic-icon');
+                        if (iconEl) iconEl.className = `fas ${icon}`;
 
                         // Populate Real-Time Balance (Header & Dropdown) - NOW IN CREDITS (Cr)
                         const isUnlimited = (user.total_limit >= 900000000);
