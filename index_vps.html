@@ -619,10 +619,10 @@
             height: var(--header-h) !important;
             min-height: var(--header-h) !important;
             background: var(--header-bg) !important;
-            backdrop-filter: none !important;
-            -webkit-backdrop-filter: none !important;
+            backdrop-filter: blur(10px) !important;
+            -webkit-backdrop-filter: blur(10px) !important;
             border-bottom: 1px solid var(--header-border) !important;
-            box-shadow: var(--header-shadow) !important;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.02) !important;
             padding: 0 30px !important;
             z-index: 5000 !important;
             transition: all 0.3s ease;
@@ -633,40 +633,57 @@
         }
 
         .greeting-text {
-            font-size: 16px !important;
-            font-weight: 700 !important;
-            color: var(--text-1) !important;
+            font-size: 15px !important;
+            font-weight: 500 !important;
+            color: var(--text-2) !important;
             letter-spacing: -0.2px;
             margin: 0;
-            opacity: 0.9;
+            font-family: var(--font-body);
         }
 
         .header-tools {
             display: flex;
             align-items: center;
-            gap: 16px !important;
+            gap: 12px !important;
         }
 
         /* Notification Icon Tool */
         #btn-notifications {
-            width: 42px !important;
-            height: 42px !important;
-            border-radius: 12px !important;
-            background: rgba(var(--accent-rgb), 0.05) !important;
-            border: 1px solid rgba(var(--accent-rgb), 0.1) !important;
+            width: 40px !important;
+            height: 40px !important;
+            border-radius: 50% !important;
+            background: transparent !important;
+            border: 1px solid var(--border) !important;
             color: var(--text-2) !important;
             display: flex;
             align-items: center;
             justify-content: center;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+            transition: all 0.2s ease !important;
             margin: 0 !important;
+            position: relative;
         }
 
         #btn-notifications:hover {
-            background: rgba(var(--accent-rgb), 0.12) !important;
-            transform: translateY(-2px);
-            color: var(--accent) !important;
-            box-shadow: 0 4px 15px rgba(var(--accent-rgb), 0.2);
+            background: var(--bg-hover) !important;
+            color: var(--text-1) !important;
+        }
+        
+        #notification-badge {
+            position: absolute;
+            top: -2px;
+            right: -2px;
+            background: #ef4444;
+            color: white;
+            font-size: 10px;
+            font-weight: 800;
+            height: 16px;
+            min-width: 16px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0 4px;
+            border: 2px solid var(--header-bg);
         }
 
         /* Balance Menu (Wallet) - PILL DESIGN */
@@ -675,44 +692,40 @@
         }
 
         .balance-menu-trigger {
-            height: 42px !important;
-            background: rgba(255, 255, 255, 0.8) !important;
-            border: 1px solid rgba(0, 0, 0, 0.05) !important;
-            border-radius: 14px !important;
+            height: 40px !important;
+            background: transparent !important;
+            border: 1px solid var(--border) !important;
+            border-radius: 20px !important;
             padding: 0 16px !important;
             display: flex;
             align-items: center;
-            gap: 10px !important;
+            gap: 8px !important;
             cursor: pointer;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+            transition: all 0.2s ease;
         }
 
         [data-theme="dark"] .balance-menu-trigger {
-            background: rgba(255, 255, 255, 0.03) !important;
-            border-color: rgba(255, 255, 255, 0.08) !important;
+            background: transparent !important;
+            border-color: rgba(255, 255, 255, 0.1) !important;
         }
 
         .balance-menu-trigger:hover {
-            transform: translateY(-2px);
-            background: #fff !important;
-            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
-            border-color: var(--accent) !important;
+            background: var(--bg-hover) !important;
+            border-color: var(--border-focus) !important;
         }
         
         [data-theme="dark"] .balance-menu-trigger:hover {
-            background: rgba(255, 255, 255, 0.06) !important;
+            background: rgba(255, 255, 255, 0.05) !important;
         }
 
         .balance-menu-trigger i {
-            font-size: 16px;
-            color: #3b82f6; /* Modern Blue */
-            filter: drop-shadow(0 2px 4px rgba(59, 130, 246, 0.3));
+            font-size: 15px;
+            color: var(--text-2);
         }
 
         #header-balance-amount {
-            font-weight: 800 !important;
-            font-size: 14px !important;
+            font-weight: 700 !important;
+            font-size: 13.5px !important;
             color: var(--text-1) !important;
             font-family: var(--font-heading);
         }
@@ -723,22 +736,20 @@
         }
 
         .user-menu-trigger {
-            height: 42px !important;
-            background: var(--accent) !important;
-            border-radius: 14px !important;
-            padding: 0 10px 0 14px !important;
+            height: 40px !important;
+            background: transparent !important;
+            border-radius: 20px !important;
+            padding: 4px 14px 4px 4px !important;
             display: flex;
             align-items: center;
-            gap: 12px !important;
+            gap: 10px !important;
             cursor: pointer;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            border: none;
-            box-shadow: 0 10px 25px rgba(var(--accent-rgb), 0.3);
-            color: #ffffff !important;
+            transition: all 0.2s ease;
+            border: 1px solid var(--border) !important;
         }
         .user-menu-name {
-            color: #ffffff !important;
-            font-weight: 700 !important;
+            color: var(--text-1) !important;
+            font-weight: 600 !important;
             font-size: 13px !important;
             max-width: 140px;
             overflow: hidden;
@@ -747,32 +758,27 @@
         }
 
         .user-menu-trigger:hover {
-            transform: translateY(-2px) scale(1.02);
-            filter: brightness(1.1);
-            box-shadow: 0 15px 35px rgba(var(--accent-rgb), 0.4);
+            background: var(--bg-hover) !important;
+            border-color: var(--border-focus) !important;
         }
 
         .user-menu-avatar {
-            width: 32px !important;
-            height: 32px !important;
-            background: rgba(255, 255, 255, 0.2) !important;
-            border: 1px solid rgba(255, 255, 255, 0.4) !important;
-            border-radius: 10px !important;
+            width: 30px !important;
+            height: 30px !important;
+            background: var(--g-primary) !important;
+            border-radius: 50% !important;
             display: flex !important;
             align-items: center;
             justify-content: center;
-            font-weight: 900 !important;
-            font-size: 14px !important;
+            font-weight: 800 !important;
+            font-size: 13px !important;
             color: white !important;
-            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
         }
 
-        /* PREVIOUS BLOCK MOVED UP */
-
         .user-menu-caret {
-            font-size: 12px;
-            opacity: 0.8;
-            margin-right: 4px;
+            font-size: 10px;
+            color: var(--text-3) !important;
+            margin-left: 2px;
         }
 
         /* Dropdowns - SOLID DESIGN */
@@ -3103,7 +3109,7 @@
                         else if (hour < 12) greet = "Bom dia";
                         else if (hour < 18) greet = "Boa tarde";
                         const userDisplayName = (user.full_name || 'Admin').split(' ')[0];
-                        document.getElementById('main-greeting').innerText = `${greet}, ${userDisplayName}!`;
+                        document.getElementById('main-greeting').innerHTML = `${greet}, <span style="color: var(--text-1); font-weight: 700;">${userDisplayName}</span>!`;
 
                         // Populate Real-Time Balance (Header & Dropdown) - NOW IN CREDITS (Cr)
                         const isUnlimited = (user.total_limit >= 900000000);
