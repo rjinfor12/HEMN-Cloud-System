@@ -2142,15 +2142,11 @@ input::placeholder {
 }
 
 .greeting-text {
-    font-family: var(--font-heading);
-    font-size: 18px;
-    font-weight: 700;
+    font-family: var(--font-body);
+    font-size: 15px;
+    font-weight: 500;
     color: var(--text-1);
-    letter-spacing: -0.5px;
-    background: var(--g-primary);
-    background-clip: text;
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
+    letter-spacing: -0.2px;
 }
 
 /* ─────────────────────────────────────────────
