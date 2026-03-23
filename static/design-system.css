@@ -3598,77 +3598,77 @@ html[data-theme="dark"] .info-help-card {
     }
 }
 
-/* ── Menu Toggle — integrado na top-bar (SEM position:fixed) ── */
+/* ── Menu Toggle & Top Bar Mobile (v1.5.9 Premium Reset) ── */
 @media (max-width: 1024px) {
-    /* O menu-toggle vive DENTRO da top-bar */
+    .top-bar {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+        padding: 0 16px !important;
+        height: 64px !important;
+        background: rgba(255, 255, 255, 0.8) !important;
+        -webkit-backdrop-filter: blur(16px) saturate(180%) !important;
+        backdrop-filter: blur(16px) saturate(180%) !important;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.06) !important;
+    }
+
     .menu-toggle {
         display: flex !important;
         align-items: center;
         justify-content: center;
         width: 40px;
         height: 40px;
-        min-width: 40px;
-        flex-shrink: 0;
-        background: var(--bg-input);
-        border: 1px solid var(--border);
-        border-radius: 10px;
-        cursor: pointer;
+        background: transparent !important;
+        border: none !important;
         color: var(--text-1);
-        font-size: 16px;
-        transition: all 0.2s;
-        /* SEM position:fixed — fica no fluxo normal da top-bar */
+        font-size: 20px;
+        cursor: pointer;
     }
 
-    .menu-toggle:active {
-        transform: scale(0.92);
-        background: var(--bg-hover);
-    }
-
-    /* Logo no centro do cabeçalho mobile */
     .mobile-brand {
         display: flex !important;
         align-items: center;
-        justify-content: center;
-        position: absolute;
-        left: 50%;
-        transform: translateX(-50%);
-        pointer-events: none;
-        z-index: 10;
+        gap: 8px;
+        pointer-events: auto;
+        margin-right: auto;
+        padding-left: 8px;
     }
 
     .mobile-logo-img {
-        height: 26px;
+        height: 24px !important;
         width: auto;
-        object-fit: contain;
-        filter: drop-shadow(0 2px 4px rgba(0,0,0,0.05));
+        filter: none !important;
     }
 
-    /* Top-bar em mobile: items alinhados na linha, padding normal */
-    .top-bar {
-        display: flex !important;
-        align-items: center !important;
-        gap: 8px !important;
-        padding: 0 12px !important;
-        justify-content: flex-start !important;
-    }
-
-    /* O greeting some em mobile para dar espaço aos ícones */
+    /* O greeting some em mobile */
     .greeting-container {
         display: none !important;
     }
 
-    /* Header-tools fica à direita (margin-left auto empurra) */
     .header-tools {
-        margin-left: auto !important;
         display: flex !important;
         align-items: center !important;
-        gap: 6px !important;
-        flex-shrink: 0;
+        gap: 4px !important;
     }
 
-    /* Qualquer drawer-toggle legado também fica no fluxo */
-    .drawer-toggle {
-        display: none !important;
+    /* Ícones limpos e profissionais */
+    .header-tools .icon-btn, 
+    .header-tools .user-profile-trigger,
+    .notification-wrapper button {
+        background: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
+        width: 40px !important;
+        height: 40px !important;
+        padding: 0 !important;
+        display: flex !important;
+        align-items: center;
+        justify-content: center;
+        color: var(--text-2) !important;
+    }
+
+    .header-tools .icon-btn i {
+        font-size: 18px;
     }
 }
 
