@@ -861,16 +861,20 @@ class CloudEngine:
                 try:
                     if cep_file.lower().endswith('.csv'):
                         try:
-                            cep_df = pd.read_csv(cep_file, sep=';', dtype=str, on_bad_lines='skip')
-                            if len(cep_df.columns) == 1 and ',' in str(cep_df.columns[0]):
-                                cep_df = pd.read_csv(cep_file, sep=',', dtype=str, on_bad_lines='skip')
+                            # Tenta com utf-8-sig para ignorar BOM
+                            cep_df = pd.read_csv(cep_file, sep=';', dtype=str, on_bad_lines='skip', encoding='utf-8-sig')
+                            if len(cep_df.columns) <= 1:
+                                cep_df = pd.read_csv(cep_file, sep=',', dtype=str, on_bad_lines='skip', encoding='utf-8-sig')
                         except Exception:
-                            cep_df = pd.read_csv(cep_file, sep=None, engine='python', dtype=str, on_bad_lines='skip')
+                            cep_df = pd.read_csv(cep_file, sep=None, engine='python', dtype=str, on_bad_lines='skip', encoding='utf-8-sig')
                     else:
                         cep_df = pd.read_excel(cep_file, dtype=str)
                         
+                    print(f"[DEBUG] [_run_extraction] CEP file loaded. Columns: {list(cep_df.columns)}")
+                    
                     cep_col = next((c for c in cep_df.columns if "CEP" in str(c).upper()), None)
                     num_col = next((c for c in cep_df.columns if "NUMERO" in str(c).upper().replace('Ú', 'U')), None)
+                    print(f"[DEBUG] [_run_extraction] Detected: cep_col='{cep_col}', num_col='{num_col}'")
                     
                     if cep_col:
                         local_df = cep_df.dropna(subset=[cep_col]).copy()
@@ -943,7 +947,7 @@ class CloudEngine:
             # Caso especial: Otimização CEP + Número
             if cep_df is not None and num_col and '_match_num' in cep_df.columns:
                 self._update_task(tid, progress=15, message="Otimizando consulta CEP+Número...")
-                pairs = cep_df[['_match_cep', '_match_num']].drop_duplicates().values.tolist()
+                pairs = [tuple(x) for x in cep_df[['_match_cep', '_match_num']].drop_duplicates().values]
                 batch_size_sql = 10000
                 total_batches = (len(pairs) + batch_size_sql - 1) // batch_size_sql
                 

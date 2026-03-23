@@ -683,7 +683,7 @@ def start_extract(filters: ExtractionFilter, user: dict = Depends(get_current_us
     # Logar início de extração
     log_transaction(user["username"], "CREDIT", 0, "EXTRACT", f"Iniciada extração de dados: {filters.uf} - {filters.cidade}")
     
-    # Garantir mapeamento explícito
+    # Garantir mapeamento explícito e resolver caminhos
     f_dict = {
         "uf": filters.uf,
         "cidade": filters.cidade,
@@ -691,7 +691,7 @@ def start_extract(filters: ExtractionFilter, user: dict = Depends(get_current_us
         "tipo_tel": filters.tipo_tel,
         "situacao": filters.situacao,
         "somente_com_telefone": filters.somente_com_telefone,
-        "cep_file": filters.cep_file,
+        "cep_file": os.path.join(UPLOAD_DIR, filters.cep_file) if filters.cep_file else None,
         "operadora_inc": filters.operadora_inc,
         "operadora_exc": filters.operadora_exc,
         "perfil": filters.perfil,

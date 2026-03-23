@@ -338,7 +338,12 @@ def start_extract(filters: ExtractionFilter, user: dict = Depends(get_current_us
     # Logar início de extração
     log_transaction(user["username"], "CREDIT", 0, "EXTRACT", f"Iniciada extração de dados: {filters.uf} - {filters.cidade}")
     
-    tid = engine.start_extraction(filters.dict(), RESULT_DIR, username=user["username"])
+    f_dict = filters.dict()
+    if f_dict.get("cep_file"):
+        f_dict["cep_file"] = os.path.join(UPLOAD_DIR, f_dict["cep_file"])
+        print(f"[DEBUG] start_extract: resolved cep_file to {f_dict['cep_file']}")
+        
+    tid = engine.start_extraction(f_dict, RESULT_DIR, username=user["username"])
     return {"task_id": tid}
 
 @app.post("/tasks/carrier")
