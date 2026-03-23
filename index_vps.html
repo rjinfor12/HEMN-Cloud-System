@@ -9,7 +9,10 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <title>HEMN SYSTEM</title>
-    <link rel="icon" type="image/png" href="/static/logo.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="format-detection" content="telephone=no">
+    <link rel="icon" type="image/png" href="/areadocliente/static/logo.png">
     <script>
         // BLOQUEIO ULTRA-RÁPIDO (PRIMEIRA LINHA)
         (function () {
@@ -264,6 +267,11 @@
         .premium-status-card.theme-platinum .status-info-main h4 { color: rgba(255,255,255,0.5); text-shadow: 0 1px 2px rgba(0,0,0,0.5); }
         .premium-status-card.theme-platinum .status-detail-item { color: rgba(255,255,255,0.85); background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.08); }
         .premium-status-card.theme-platinum .status-detail-item i { color: #A8B8D0; }
+
+        /* THEME: Clínicas (Blue Base) */
+        .premium-status-card.theme-clinicas .status-icon-big { background: linear-gradient(135deg, #3b82f6, #2563eb); color: #fff; box-shadow: 0 5px 20px rgba(59, 130, 246, 0.3); }
+        .premium-status-card.theme-clinicas .pague-fatura-btn { background: linear-gradient(135deg, #3b82f6, #2563eb); color: #fff; box-shadow: 0 8px 20px rgba(59, 130, 246, 0.3); }
+
 
         /* Premium Golden Theme (Solid Gold) */
         .plan-card.premium-gold {
@@ -1011,7 +1019,7 @@
     <!-- Icons and Fonts -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- Premium Design System -->
-    <link rel="stylesheet" href="/static/design-system.css?v=1.4.5">
+    <link rel="stylesheet" href="/areadocliente/static/design-system.css?v=1.4.6">
     <!-- Charts -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
@@ -1028,7 +1036,7 @@
                 <i class="fas fa-times"></i>
             </button>
             <div class="logo-container">
-                <img src="/static/logo.png" class="logo logo-3d logo-reveal" alt="HEMN WEB Logo">
+                <img src="/areadocliente/static/logo.png" class="logo logo-3d logo-reveal" alt="HEMN WEB Logo">
                 <div class="brand-name">HEMN WEB <small style="font-size: 10px; opacity: 0.5;">v2.1</small></div>
             </div>
 
@@ -1206,7 +1214,7 @@
                     <div class="glass-card"
                         style="width: 100%; max-width: 400px; text-align: center;">
                         <div class="logo-reveal">
-                            <img src="/static/logo.png" class="logo-3d logo-float"
+                            <img src="/areadocliente/static/logo.png" class="logo-3d logo-float"
                                 style="width: 80px; height: 80px; margin-bottom: var(--s-4);">
                         </div>
                         <h2 style="margin-bottom: var(--s-5); font-family: var(--font-heading);">Acesso HEMN SYSTEM <span class="responsive-icon" style="font-size: 0.8em; vertical-align: middle;">💠</span></h2>
@@ -1246,36 +1254,6 @@
                     </div>
                 </div>
 
-                <!-- PASSWORD MODAL -->
-                <div id="password-modal" class="modal-overlay" style="display:none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 9000; align-items: center; justify-content: center; backdrop-filter: blur(10px); padding: 15px;">
-                    <div class="glass-card" style="width: 100%; max-width: 420px; position: relative; border: 1px solid var(--border-focus);">
-                        <div style="text-align: center; margin-bottom: 25px;">
-                            <div style="width: 60px; height: 60px; background: var(--g-primary); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 15px; box-shadow: 0 10px 20px rgba(0,0,0,0.3);">
-                                <i class="fas fa-key" style="font-size: 24px; color: #fff;"></i>
-                            </div>
-                            <h2 style="font-size: 20px; font-weight: 700;">Alterar Senha</h2>
-                            <p style="font-size: 13px; color: var(--text-3); margin-top: 5px;">Mantenha sua conta segura</p>
-                        </div>
-
-                        <div class="form-group" style="margin-bottom: 15px; text-align: left;">
-                            <label style="display: block; font-size: 11px; font-weight: 600; text-transform: uppercase; margin-bottom: 8px; color: var(--text-2); letter-spacing: 0.5px;">Senha Atual</label>
-                            <input type="password" id="current-pass" class="form-control" placeholder="••••••••" style="width:100%">
-                        </div>
-                        <div class="form-group" style="margin-bottom: 15px; text-align: left;">
-                            <label style="display: block; font-size: 11px; font-weight: 600; text-transform: uppercase; margin-bottom: 8px; color: var(--text-2); letter-spacing: 0.5px;">Nova Senha</label>
-                            <input type="password" id="new-pass" class="form-control" placeholder="Mínimo 4 caracteres" style="width:100%">
-                        </div>
-                        <div class="form-group" style="margin-bottom: 25px; text-align: left;">
-                            <label style="display: block; font-size: 11px; font-weight: 600; text-transform: uppercase; margin-bottom: 8px; color: var(--text-2); letter-spacing: 0.5px;">Confirmar Nova Senha</label>
-                            <input type="password" id="confirm-pass" class="form-control" placeholder="Repita a nova senha" style="width:100%">
-                        </div>
-
-                        <div style="display: flex; gap: 10px;">
-                            <button class="btn-cancel" onclick="app.closePasswordModal()" style="flex: 1; padding: 12px; border-radius: var(--r-md); border: 1px solid var(--border); background: transparent; color: var(--text-2); font-weight: 600; cursor: pointer;">Cancelar</button>
-                            <button class="btn-primary" onclick="app.submitPasswordChange()" style="flex: 1; justify-content: center; color: #fff; font-weight: 700;">Salvar</button>
-                        </div>
-                    </div>
-                </div>
 
                 <!-- MODULE: INÍCIO (Home) -->
                 <section id="module-inicio" class="module-view" style="display:none;">
@@ -2059,6 +2037,7 @@
                             <div class="plan-price"><span class="currency">R$</span> 3.799,00</div>
                             <div class="plan-validity">Validade: 30 Dias</div>
                         </div>
+
                     </div>
 
 
@@ -2403,90 +2382,137 @@
                     </div>
                 </section>
 
-                <!-- USER MODAL (NEW / EDIT) -->
-                <div id="user-modal" class="module-view"
-                    style="display:none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 3000; align-items: center; justify-content: center; backdrop-filter: blur(8px);">
-                    <div class="glass-card" style="width: 100%; max-width: 560px; padding: var(--s-7);">
-                        <h2 id="modal-title" style="margin-bottom: var(--s-5); font-family: var(--font-heading);">Novo Usuário</h2>
-                        <input type="hidden" id="edit-username-orig">
-
-                        <div style="display: flex; flex-direction: column; gap: var(--s-4);">
-                            <!-- Nome Completo -->
-                            <div class="form-group">
-                                <label>NOME COMPLETO</label>
-                                <input type="text" id="modal-full-name" placeholder="Ex: João Silva">
-                            </div>
-
-                            <!-- Usuário / Documento -->
-                            <div class="form-grid" style="grid-template-columns: 1fr 1fr; gap: var(--s-4);">
-                                <div class="form-group">
-                                    <label>USUÁRIO (LOGIN)</label>
-                                    <input type="text" id="modal-username" placeholder="joao.silva">
-                                </div>
-                                <div class="form-group">
-                                    <label>CPF / CNPJ</label>
-                                    <input type="text" id="modal-document" placeholder="000.000.000-00 ou CNPJ">
-                                </div>
-                            </div>
-
-                            <!-- Plano / Vencimento -->
-                            <div class="form-grid" style="grid-template-columns: 1fr 1fr; gap: var(--s-4);">
-                                <div class="form-group">
-                                    <label>PLANO CONTRATADO</label>
-                                    <select id="modal-plan" onchange="app.onPlanChange()">
-                                        <option value="essential">Essential — 500mil Cr (R$899)</option>
-                                        <option value="plus">Plus — 1 Milhão Cr (R$1.399)</option>
-                                        <option value="premium">Premium — 2.5Mi Cr (R$2.499)</option>
-                                        <option value="platinum">Platinum — 5Mi Cr (R$3.799)</option>
-                                    </select>
-                                </div>
-                                <div class="form-group">
-                                    <label>DIA DE VENCIMENTO</label>
-                                    <select id="modal-vencimento">
-                                        <option value="1">Dia 01</option>
-                                        <option value="3">Dia 03</option>
-                                        <option value="5">Dia 05</option>
-                                        <option value="8">Dia 08</option>
-                                        <option value="10">Dia 10</option>
-                                        <option value="15">Dia 15</option>
-                                        <option value="18">Dia 18</option>
-                                        <option value="30">Dia 30</option>
-                                    </select>
-                                </div>
-                            </div>
-
-                            <!-- Limite preview (readonly) -->
-                            <div style="padding: 10px 14px; background: rgba(255,255,255,0.04); border: 1px solid var(--border); border-radius: 8px; font-size: 12px; color: var(--text-3);">
-                                <span style="font-weight: 700; color: var(--accent);" id="modal-plan-preview">500.000 créditos</span> serão concedidos — validade: <strong>30 dias</strong> a partir da ativação.
-                                <br/>Senha padrão: <code style="color: var(--g-primary);">hemn123</code> — o usuário será obrigado a alterá-la no primeiro acesso.
-                            </div>
-
-                            <!-- Flags: Admin / Mayk / Clínicas -->
-                            <div style="display: flex; gap: 20px; flex-wrap: wrap;">
-                                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; font-weight: 700;">
-                                    <input type="checkbox" id="modal-is-admin" style="width: 16px; height: 16px; cursor: pointer;" onchange="app.onRoleFlagChange('admin')">
-                                    <span style="color: var(--status-red);">ADMINISTRADOR</span>
-                                </label>
-                                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; font-weight: 700;">
-                                    <input type="checkbox" id="modal-is-mayk" style="width: 16px; height: 16px; cursor: pointer;" onchange="app.onRoleFlagChange('mayk')">
-                                    <span style="color: var(--accent);">PERFIL MAYK (Ilimitado)</span>
-                                </label>
-                                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; font-weight: 700;">
-                                    <input type="checkbox" id="modal-is-clinicas" style="width: 16px; height: 16px; cursor: pointer;" onchange="app.onRoleFlagChange('clinicas')">
-                                    <span style="color: #3b82f6;">PERFIL CLÍNICAS</span>
-                                </label>
-                            </div>
-                        </div>
-
-                        <div style="margin-top: var(--s-6); display: flex; gap: var(--s-4);">
-                            <button class="btn-outline" onclick="app.closeUserModal()" style="flex: 1; justify-content: center;">Cancelar</button>
-                            <button class="btn-primary" onclick="app.saveUser()" style="flex: 2; justify-content: center;">Salvar Usuário</button>
-                        </div>
-                    </div>
-                </div>
 
 
             </main>
+        </div>
+    </div>
+
+    <!-- GLOBAL MODALS (Relocated for proper stacking and blur) -->
+    <div id="password-modal" class="modal-overlay" style="display:none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 10000 !important; align-items: center; justify-content: center; backdrop-filter: blur(10px) !important; padding: 15px;">
+        <div class="glass-card" style="width: 100%; max-width: 420px; position: relative; border: 1px solid var(--border-focus);">
+            <div style="text-align: center; margin-bottom: 25px;">
+                <div style="width: 60px; height: 60px; background: var(--g-primary); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 15px; box-shadow: 0 10px 20px rgba(0,0,0,0.3);">
+                    <i class="fas fa-key" style="font-size: 24px; color: #fff;"></i>
+                </div>
+                <h2 style="font-size: 20px; font-weight: 700;">Alterar Senha</h2>
+                <p style="font-size: 13px; color: var(--text-3); margin-top: 5px;">Mantenha sua conta segura</p>
+            </div>
+
+            <div class="form-group" style="margin-bottom: 15px; text-align: left;">
+                <label style="display: block; font-size: 11px; font-weight: 600; text-transform: uppercase; margin-bottom: 8px; color: var(--text-2); letter-spacing: 0.5px;">Senha Atual</label>
+                <input type="password" id="current-pass" class="form-control" placeholder="••••••••" style="width:100%">
+            </div>
+            <div class="form-group" style="margin-bottom: 15px; text-align: left;">
+                <label style="display: block; font-size: 11px; font-weight: 600; text-transform: uppercase; margin-bottom: 8px; color: var(--text-2); letter-spacing: 0.5px;">Nova Senha</label>
+                <input type="password" id="new-pass" class="form-control" placeholder="Mínimo 4 caracteres" style="width:100%">
+            </div>
+            <div class="form-group" style="margin-bottom: 25px; text-align: left;">
+                <label style="display: block; font-size: 11px; font-weight: 600; text-transform: uppercase; margin-bottom: 8px; color: var(--text-2); letter-spacing: 0.5px;">Confirmar Nova Senha</label>
+                <input type="password" id="confirm-pass" class="form-control" placeholder="Repita a nova senha" style="width:100%">
+            </div>
+
+            <div style="display: flex; gap: 10px;">
+                <button class="btn-cancel" onclick="app.closePasswordModal()" style="flex: 1; padding: 12px; border-radius: var(--r-md); border: 1px solid var(--border); background: transparent; color: var(--text-2); font-weight: 600; cursor: pointer;">Cancelar</button>
+                <button class="btn-primary" onclick="app.submitPasswordChange()" style="flex: 1; justify-content: center; color: #fff; font-weight: 700;">Salvar</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="user-modal" class="modal-overlay"
+        style="display:none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 10000 !important; align-items: center; justify-content: center; backdrop-filter: blur(8px) !important;">
+        <div class="glass-card" style="width: 100%; max-width: 560px; padding: var(--s-7);">
+            <h2 id="modal-title" style="margin-bottom: var(--s-5); font-family: var(--font-heading);">Novo Usuário</h2>
+            <input type="hidden" id="edit-username-orig">
+
+            <div style="display: flex; flex-direction: column; gap: var(--s-4);">
+                <!-- Nome Completo -->
+                <div class="form-group">
+                    <label>NOME COMPLETO</label>
+                    <input type="text" id="modal-full-name" placeholder="Ex: João Silva">
+                </div>
+
+                <!-- Usuário / Documento -->
+                <div class="form-grid" style="grid-template-columns: 1fr 1fr; gap: var(--s-4);">
+                    <div class="form-group">
+                        <label>USUÁRIO (LOGIN)</label>
+                        <input type="text" id="modal-username" placeholder="joao.silva">
+                    </div>
+                    <div class="form-group">
+                        <label>CPF / CNPJ</label>
+                        <input type="text" id="modal-document" placeholder="000.000.000-00 ou CNPJ">
+                    </div>
+                </div>
+
+                <!-- Plano / Vencimento -->
+                <div class="form-grid" style="grid-template-columns: 1fr 1fr; gap: var(--s-4);">
+                    <div class="form-group">
+                        <label>PLANO CONTRATADO</label>
+                        <select id="modal-plan" onchange="app.onPlanChange()">
+                            <option value="essential">Essential — 500mil Cr (R$899)</option>
+                            <option value="plus">Plus — 1 Milhão Cr (R$1.399)</option>
+                            <option value="premium">Premium — 2.5Mi Cr (R$2.499)</option>
+                            <option value="platinum">Platinum — 5Mi Cr (R$3.799)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>DIA DE PAGAMENTO</label>
+                        <select id="modal-vencimento">
+                            <option value="1">Dia 01</option>
+                            <option value="3">Dia 03</option>
+                            <option value="5">Dia 05</option>
+                            <option value="8">Dia 08</option>
+                            <option value="10" selected>Dia 10</option>
+                            <option value="15">Dia 15</option>
+                            <option value="18">Dia 18</option>
+                            <option value="30">Dia 30</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group" id="group-valor-mensal" style="display:none">
+                    <label>VALOR MENSAL (R$)</label>
+                    <input type="number" id="modal-valor-mensal" placeholder="1099.00" step="0.01">
+                </div>
+
+                <!-- Limite preview (readonly) -->
+                <div style="padding: 10px 14px; background: rgba(255,255,255,0.04); border: 1px solid var(--border); border-radius: 8px; font-size: 12px; color: var(--text-3);">
+                    <span style="font-weight: 700; color: var(--accent);" id="modal-plan-preview">500.000 créditos</span> serão concedidos — validade: <strong>30 dias</strong> a partir da ativação.
+                    <br/>Senha padrão: <code style="color: var(--g-primary);">hemn123</code> — o usuário será obrigado a alterá-la no primeiro acesso.
+                </div>
+
+                <!-- Flags: Admin / Mayk / Clínicas -->
+                <div style="display: flex; gap: 20px; flex-wrap: wrap;">
+                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; font-weight: 700;">
+                        <input type="checkbox" id="modal-is-admin" style="width: 16px; height: 16px; cursor: pointer;" onchange="app.onRoleFlagChange('admin')">
+                        <span style="color: var(--status-red);">ADMINISTRADOR</span>
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; font-weight: 700;">
+                        <input type="checkbox" id="modal-is-mayk" style="width: 16px; height: 16px; cursor: pointer;" onchange="app.onRoleFlagChange('mayk')">
+                        <span style="color: var(--accent);">PERFIL MAYK (Ilimitado)</span>
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; font-weight: 700;">
+                        <input type="checkbox" id="modal-is-clinicas" style="width: 16px; height: 16px; cursor: pointer;" onchange="app.onRoleFlagChange('clinicas')">
+                        <span style="color: #3b82f6;">PERFIL CLÍNICAS</span>
+                    </label>
+                </div>
+            </div>
+
+            <div id="modal-footer-actions" style="margin-top: var(--s-6); display: flex; gap: var(--s-4); align-items: center; justify-content: space-between;">
+                <!-- Danger Zone (Editar apenas) -->
+                <div id="modal-danger-actions" style="display: none; align-items: center; gap: 8px;">
+                    <button onclick="app.resetPasswordFromModal()" title="Resetar Senha" style="width: 38px; height: 38px; border-radius: 10px; border: none; background: #f59e0b; color: white; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s;">
+                        <i class="fas fa-key" style="font-size: 15px;"></i>
+                    </button>
+                    <button onclick="app.deleteUserFromModal()" title="EXCLUIR USUÁRIO" style="width: 38px; height: 38px; border-radius: 10px; border: none; background: #ef4444; color: white; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s;">
+                        <i class="fas fa-trash" style="font-size: 15px;"></i>
+                    </button>
+                </div>
+
+                <div style="display: flex; gap: var(--s-4); flex: 1; justify-content: flex-end;">
+                    <button class="btn-outline" onclick="app.closeUserModal()" style="min-width: 100px; justify-content: center;">Cancelar</button>
+                    <button class="btn-primary" id="modal-save-btn" onclick="app.saveUser()" style="min-width: 140px; justify-content: center;">Salvar Usuário</button>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -2552,6 +2578,9 @@
         }
 
         /* Notifications Styles */
+        .notification-container {
+            z-index: 30000 !important;
+        }
         .notif-item {
             padding: 12px;
             border-radius: var(--r-md);
@@ -2618,7 +2647,7 @@
     </style>
 
     <!-- Premium Titanium Modal -->
-    <div id="premium-modal" class="modal" style="display: none; z-index: 9999;">
+    <div id="premium-modal" class="modal" style="display: none; z-index: 20000;">
         <div class="modal-content"
             style="max-width: 420px; text-align: center; border: 1px solid var(--border-focus); background: var(--bg-card); backdrop-filter: var(--glass-blur); box-shadow: var(--glass-shadow); color: var(--text-1);">
             <div id="modal-icon-container"
@@ -3040,10 +3069,42 @@
             },
 
             logout() {
+                if (this.taskInterval) clearInterval(this.taskInterval);
+                if (this.monInterval) clearInterval(this.monInterval);
+                if (this.rechargeInterval) clearInterval(this.rechargeInterval);
+                if (this.pollInterval1) clearInterval(this.pollInterval1);
+                if (this.pollInterval2) clearInterval(this.pollInterval2);
+
                 localStorage.removeItem("hemn_token");
+                localStorage.removeItem("hemn_force_pw_change");
+                localStorage.removeItem("hemn_active_tasks");
+                localStorage.removeItem("hemn_last_module");
+                // Instant UI Reset
+                document.documentElement.classList.remove('is-logged-in');
+                
                 const header = document.getElementById('main-header');
+                const loginOverlay = document.getElementById('login-overlay');
+                
                 if (header) header.style.setProperty('display', 'none', 'important');
-                location.reload();
+                if (loginOverlay) loginOverlay.style.display = 'flex';
+                
+                // Hide all modules to simulate fresh load
+                document.querySelectorAll('.module-view').forEach(mod => mod.classList.remove('module-active'));
+                
+                this.closeAllDropdowns && this.closeAllDropdowns();
+                
+                // Clear any sensitive data in memory
+                this.user = null;
+                this.tasks = [];
+                this.adminUsers = [];
+                this.token = null;
+                this.initialized = false;
+                
+                // Reset inputs
+                const userInp = document.getElementById('user-login');
+                const passInp = document.getElementById('pass-login');
+                if (userInp) userInp.value = '';
+                if (passInp) passInp.value = '';
             },
 
             openPasswordModal() {
@@ -3496,21 +3557,15 @@
                             <div style="font-size:10px; color:var(--text-dim)">${usagePct}% consumido</div>
                         </td>
                         <td>
-                            <div style="display:flex; gap:6px; flex-wrap: nowrap; justify-content: flex-end;">
-                                <button onclick="app.viewUserDashboard('${u.username}')" title="Ver Extrato" style="width: 32px; height: 32px; border-radius: 50%; border: none; background: #3b82f6; color: white; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: transform 0.2s;">
-                                    <i class="fas fa-file-invoice-dollar" style="font-size: 14px;"></i>
+                            <div style="display:flex; gap:8px; flex-wrap: nowrap; justify-content: flex-end; align-items: center;">
+                                <button onclick="app.viewUserDashboard('${u.username}')" title="Ver Extrato" style="display:flex; align-items:center; gap:6px; padding: 7px 14px; border-radius: 20px; border: none; background: #3b82f6; color: white; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s; white-space: nowrap;" onmouseover="this.style.filter='brightness(1.15)'" onmouseout="this.style.filter='brightness(1)'">
+                                    <i class="fas fa-file-invoice-dollar" style="font-size: 12px;"></i> Extrato
                                 </button>
-                                <button onclick="app.toggleUserStatus('${u.username}', '${u.status}')" title="${u.status === 'ACTIVE' ? 'Bloquear Usuário' : 'Ativar Usuário'}" style="width: 32px; height: 32px; border-radius: 50%; border: none; background: ${u.status === 'ACTIVE' ? '#4b5563' : '#10b981'}; color: white; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: transform 0.2s;">
-                                    <i class="fas ${u.status === 'ACTIVE' ? 'fa-user-slash' : 'fa-user-check'}" style="font-size: 13px;"></i>
+                                <button onclick="app.toggleUserStatus('${u.username}', '${u.status}')" title="${u.status === 'ACTIVE' ? 'Bloquear Usuário' : 'Ativar Usuário'}" style="display:flex; align-items:center; gap:6px; padding: 7px 14px; border-radius: 20px; border: none; background: ${u.status === 'ACTIVE' ? '#4b5563' : '#10b981'}; color: white; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s; white-space: nowrap;" onmouseover="this.style.filter='brightness(1.15)'" onmouseout="this.style.filter='brightness(1)'">
+                                    <i class="fas ${u.status === 'ACTIVE' ? 'fa-user-slash' : 'fa-user-check'}" style="font-size: 12px;"></i> ${u.status === 'ACTIVE' ? 'Bloquear' : 'Ativar'}
                                 </button>
-                                <button onclick="app.openUserModal('${u.username}')" title="Editar Dados" style="width: 32px; height: 32px; border-radius: 50%; border: none; background: #6366f1; color: white; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: transform 0.2s;">
-                                    <i class="fas fa-edit" style="font-size: 14px;"></i>
-                                </button>
-                                <button onclick="app.resetUserPassword('${u.username}')" title="Resetar Senha" style="width: 32px; height: 32px; border-radius: 50%; border: none; background: #f59e0b; color: white; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: transform 0.2s;">
-                                    <i class="fas fa-key" style="font-size: 14px;"></i>
-                                </button>
-                                <button onclick="app.deleteUser('${u.username}')" title="EXCLUIR USUÁRIO" style="width: 32px; height: 32px; border-radius: 50%; border: none; background: #ef4444; color: white; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: transform 0.2s;">
-                                    <i class="fas fa-trash" style="font-size: 14px;"></i>
+                                <button onclick="app.openUserModal('${u.username}')" title="Editar Usuário" style="display:flex; align-items:center; gap:6px; padding: 7px 14px; border-radius: 20px; border: none; background: #6366f1; color: white; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s; white-space: nowrap;" onmouseover="this.style.filter='brightness(1.15)'" onmouseout="this.style.filter='brightness(1)'">
+                                    <i class="fas fa-edit" style="font-size: 12px;"></i> Editar
                                 </button>
                             </div>
                         </td>
@@ -3582,6 +3637,7 @@
                 const planSelect = document.getElementById('modal-plan');
                 const vencimentoSelect = document.getElementById('modal-vencimento');
                 const previewDiv = document.getElementById('modal-plan-preview').parentElement;
+                const valorMensalGroup = document.getElementById('group-valor-mensal');
 
                 if (isAdmin || isMayk) {
                     // Admin & Mayk: No Plan, No Expiration
@@ -3591,14 +3647,20 @@
                     vencimentoSelect.style.opacity = '0.5';
                     previewDiv.style.opacity = '0';
                     previewDiv.style.pointerEvents = 'none';
+                    if (valorMensalGroup) valorMensalGroup.style.display = 'none';
                 } else if (isClinicas) {
-                    // Clínicas: No Plan, but YES Expiration
+                    // Clínicas: No Plan, but YES Expiration AND Valor Mensal
                     planSelect.disabled = true;
                     vencimentoSelect.disabled = false;
                     planSelect.style.opacity = '0.5';
                     vencimentoSelect.style.opacity = '1';
                     previewDiv.style.opacity = '0';
                     previewDiv.style.pointerEvents = 'none';
+                    if (valorMensalGroup) {
+                        valorMensalGroup.style.display = 'block';
+                        const valInp = document.getElementById('modal-valor-mensal');
+                        if (!valInp.value) valInp.value = "1099.00";
+                    }
                 } else {
                     // Standard User: Everything enabled
                     planSelect.disabled = false;
@@ -3607,6 +3669,7 @@
                     vencimentoSelect.style.opacity = '1';
                     previewDiv.style.opacity = '1';
                     previewDiv.style.pointerEvents = 'auto';
+                    if (valorMensalGroup) valorMensalGroup.style.display = 'none';
                 }
             },
 
@@ -3652,6 +3715,7 @@
             openUserModal(userDataOrUsername = null) {
                 const modal = document.getElementById('user-modal');
                 const title = document.getElementById('modal-title');
+                const dangerActions = document.getElementById('modal-danger-actions');
                 let user = null;
                 if (typeof userDataOrUsername === 'string') {
                     user = this.adminUsers.find(u => u.username === userDataOrUsername);
@@ -3671,6 +3735,8 @@
                     document.getElementById('modal-is-admin').checked = (user.role === 'ADMIN');
                     document.getElementById('modal-is-mayk').checked = (user.role === 'MAYK');
                     document.getElementById('modal-is-clinicas').checked = (user.role === 'CLINICAS');
+                    document.getElementById('modal-valor-mensal').value = user.valor_mensal || '';
+                    if (dangerActions) dangerActions.style.display = 'flex';
                 } else {
                     title.innerText = 'Novo Usuário';
                     document.getElementById('edit-username-orig').value = '';
@@ -3680,9 +3746,11 @@
                     document.getElementById('modal-plan').value = 'essential';
                     this.onPlanChange();
                     document.getElementById('modal-vencimento').value = '10';
+                    document.getElementById('modal-valor-mensal').value = '';
                     document.getElementById('modal-is-admin').checked = false;
                     document.getElementById('modal-is-mayk').checked = false;
                     document.getElementById('modal-is-clinicas').checked = false;
+                    if (dangerActions) dangerActions.style.display = 'none';
                 }
                 this.updateModalFieldStates();
                 modal.style.display = 'flex';
@@ -3690,6 +3758,16 @@
 
             closeUserModal() {
                 document.getElementById('user-modal').style.display = 'none';
+            },
+
+            resetPasswordFromModal() {
+                const username = document.getElementById('edit-username-orig').value;
+                if (username) this.resetUserPassword(username);
+            },
+
+            deleteUserFromModal() {
+                const username = document.getElementById('edit-username-orig').value;
+                if (username) this.deleteUser(username);
             },
 
             async saveUser() {
@@ -3705,6 +3783,7 @@
                     document: document.getElementById('modal-document').value,
                     plan_type: (isAdmin || isMayk || isClinicas) ? null : document.getElementById('modal-plan').value,
                     vencimento_dia: (isAdmin || isMayk) ? null : parseInt(document.getElementById('modal-vencimento').value),
+                    valor_mensal: isClinicas ? parseFloat(document.getElementById('modal-valor-mensal').value) || 1099.0 : null,
                     role: role
                 };
 
@@ -3776,6 +3855,16 @@
                         { cat: 'Capacidade', items: ['<b>5.000.000</b> Créditos inclusos', '<b>Módulos Ilimitados</b>', 'Acesso Antecipado a Betas'] },
                         { cat: 'Busca Unitária', items: ['Consultas Ilimitadas e Isentas', 'API de Integração Direta', 'Dados de Negócios (B2B Full)'] },
                         { cat: 'Enriquecimento', items: ['Processamento Instantâneo', 'Suporte Platinum 24/7', 'Consultoria de Dados'] }
+                    ]
+                },
+                'clinicas': {
+                    name: 'Clínicas',
+                    icon: 'fa-hospital-user',
+                    desc: 'Plano exclusivo para clínicas com consultas ilimitadas e base regionalizada.',
+                    features: [
+                        { cat: 'Capacidade', items: ['<b>Créditos ILIMITADOS</b>', 'Acesso à Base Regionalizada', 'Suporte Prioritário'] },
+                        { cat: 'Busca Unitária', items: ['<b>Consultas Ilimitadas</b>', 'Filtro de Telefone Especializado', 'Dados Médicos/Saúde'] },
+                        { cat: 'Gestão', items: ['Painel de Médicos', 'Histórico de Pacientes', 'Exportação Simplificada'] }
                     ]
                 },
                 'personalizado': {
@@ -3931,12 +4020,28 @@
                     if (resStats.ok) {
                         document.getElementById('dash-spent-today').innerText = stats.spent_today.toFixed(1);
                         document.getElementById('dash-spent-month').innerText = stats.spent_month.toFixed(1);
-                        document.getElementById('dash-balance').innerText = stats.balance.toFixed(1);
+                        
+                        // Mostrar Ilimitado se saldo for muito alto ou papel for CLINICAS/MAYK/ADMIN
+                        const isClinicasUser = (stats.role === 'CLINICAS') || (this.user && this.user.role === 'CLINICAS');
+                        const isAdminUser = ['ADMIN', 'MAYK'].includes(stats.role) || (this.user && ['ADMIN', 'MAYK'].includes(this.user.role));
+
+                        if (isClinicasUser || isAdminUser || stats.balance >= 900000000) {
+                            document.getElementById('dash-balance').innerText = "ILIMITADO";
+                        } else {
+                            document.getElementById('dash-balance').innerText = stats.balance.toLocaleString('pt-BR');
+                        }
                         
                         // Atualizar Card Meu Plano
                         let planName = "Personalizado";
                         let planIcon = "fa-star";
-                        if (stats.total_limit === 500000) { planName = "Essential"; planIcon = "fa-paper-plane"; }
+                        
+                        if (isAdminUser) {
+                            planName = "Acesso Administrador";
+                            planIcon = "fa-shield-alt";
+                        } else if (isClinicasUser) {
+                            planName = "Plano Clínicas";
+                            planIcon = "fa-hospital-user";
+                        } else if (stats.total_limit === 500000) { planName = "Essential"; planIcon = "fa-paper-plane"; }
                         else if (stats.total_limit === 1000000) { planName = "Plus"; planIcon = "fa-bolt"; }
                         else if (stats.total_limit === 2500000) { planName = "Premium"; planIcon = "fa-crown"; }
                         else if (stats.total_limit === 5000000) { planName = "Platinum"; planIcon = "fa-gem"; }
@@ -3946,7 +4051,14 @@
                         if (elPlanName) elPlanName.innerText = planName;
                         
                         const elPlanCredits = document.getElementById('dash-plan-credits');
-                        if (elPlanCredits) elPlanCredits.innerText = (stats.total_limit || 0).toLocaleString('pt-BR') + " Créditos";
+                        if (elPlanCredits) {
+                            if (isClinicasUser) {
+                                const val = stats.valor_mensal || 1099.0;
+                                elPlanCredits.innerText = `R$ ${val.toLocaleString('pt-BR', {minimumFractionDigits:2})} / mês`;
+                            } else {
+                                elPlanCredits.innerText = (stats.total_limit || 0).toLocaleString('pt-BR') + " Créditos";
+                            }
+                        }
                         
                         let expDate = stats.expiration;
                         let badgeHtml = "";
@@ -3968,8 +4080,16 @@
                                 badgeHtml = `<span style="color: var(--status-green);"><i class="fas fa-check-circle"></i> ${daysLeft} dias restantes</span>`;
                             }
                         } else {
-                            if (elExp) elExp.innerHTML = `<i class="far fa-calendar-alt"></i> Sem vencimento`;
-                            badgeHtml = `<span style="color: var(--text-2);"><i class="fas fa-infinity"></i> Sem limite de tempo</span>`;
+                            if (elExp) {
+                                if (isClinicasUser) {
+                                    elExp.innerHTML = `<i class="far fa-calendar-check"></i> Pagamento: Todo dia ${stats.vencimento_dia || 10}`;
+                                } else {
+                                    elExp.innerHTML = `<i class="far fa-calendar-alt"></i> Sem vencimento`;
+                                }
+                            }
+                            badgeHtml = isClinicasUser 
+                                ? `<span style="color: var(--status-green);"><i class="fas fa-check-circle"></i> Assinatura Ativa</span>`
+                                : `<span style="color: var(--text-2);"><i class="fas fa-infinity"></i> Sem limite de tempo</span>`;
                         }
                         
                         const elBadge = document.getElementById('dash-expiration-badge');
@@ -3978,12 +4098,24 @@
                         // Also update the Assinatura module
                         const asPlanName = document.getElementById('assinatura-plan-name');
                         if(asPlanName) asPlanName.innerText = planName;
+                        
                         const asPlanCredits = document.getElementById('assinatura-plan-credits');
-                        if(asPlanCredits) asPlanCredits.innerText = (stats.total_limit || 0).toLocaleString('pt-BR') + ' Créditos';
-                        const asExp = document.getElementById('assinatura-plan-expiration');
-                        if(asExp && elExp) asExp.innerHTML = elExp.innerHTML;
+                        if(asPlanCredits) {
+                            asPlanCredits.innerText = isClinicasUser ? 'Créditos ILIMITADOS' : ((stats.total_limit || 0).toLocaleString('pt-BR') + ' Créditos');
+                        }
+                        
                         const asBadge = document.getElementById('assinatura-expiration-badge');
-                        if(asBadge) asBadge.innerHTML = badgeHtml;
+                        if(asBadge) {
+                            if (isClinicasUser) {
+                                asBadge.innerHTML = `<i class="far fa-calendar-check"></i> Vencimento: todo dia ${stats.vencimento_dia || 10}`;
+                                asBadge.className = 'status-detail-item'; // Give it same style as credits
+                                asBadge.style.color = 'var(--text-1)';
+                            } else {
+                                asBadge.innerHTML = badgeHtml;
+                                asBadge.className = '';
+                                asBadge.style.color = '';
+                            }
+                        }
 
                         const asPlanIcon = document.getElementById('assinatura-plan-icon');
                         if(asPlanIcon) asPlanIcon.className = 'fas ' + planIcon;
@@ -3991,7 +4123,10 @@
                         // Theme application
                         const asPlanCard = document.getElementById('current-plan-status-card');
                         if(asPlanCard) {
-                            asPlanCard.className = 'premium-status-card theme-' + planName.toLowerCase() + (planName === 'Carregando...' ? ' theme-essential' : '');
+                            let themeSuffix = planName.toLowerCase().replace(/\s+/g, '-');
+                            if (isClinicasUser) themeSuffix = 'clinicas';
+                            if (isAdminUser) themeSuffix = 'admin'; // Future proof
+                            asPlanCard.className = 'premium-status-card theme-' + themeSuffix + (planName === 'Carregando...' ? ' theme-essential' : '');
                         }
 
                         // Hide the current plan card from the selection grid
@@ -4374,20 +4509,22 @@
                     const res = await fetch(`${API}/tasks/active`, { headers: { 'Authorization': `Bearer ${this.token}` } });
                     if (!res.ok) return;
                     const activeTasks = await res.json();
-                    activeTasks.forEach(task => {
-                        if (!this.tasks.find(t => t.id === task.id)) {
-                            const mid = task.module.toLowerCase();
-                            const taskInfo = {
-                                id: task.id,
-                                mid: mid,
-                                startTime: new Date(task.created_at).getTime(),
-                                done: task.status === 'COMPLETED' || task.status === 'FAILED' || task.status === 'CANCELLED'
-                            };
-                            this.tasks.push(taskInfo);
-                            this.renderTaskCard(task.id, mid, task);
-                            this.renderGlobalTaskCard(task.id, mid, task);
-                        }
-                    });
+                    if (activeTasks && Array.isArray(activeTasks)) {
+                        activeTasks.forEach(task => {
+                            if (!this.tasks.find(t => t.id === task.id)) {
+                                const mid = task.module.toLowerCase();
+                                const taskInfo = {
+                                    id: task.id,
+                                    mid: mid,
+                                    startTime: new Date(task.created_at).getTime(),
+                                    done: task.status === 'COMPLETED' || task.status === 'FAILED' || task.status === 'CANCELLED'
+                                };
+                                this.tasks.push(taskInfo);
+                                this.renderTaskCard(task.id, mid, task);
+                                this.renderGlobalTaskCard(task.id, mid, task);
+                            }
+                        });
+                    }
                 } catch (e) {
                     console.error("Task recovery failed", e);
                 }
@@ -4663,7 +4800,8 @@
 
             async pollTasks() {
                 // Tique global para contagem regressiva em tempo real
-                setInterval(() => {
+                if (this.pollInterval1) clearInterval(this.pollInterval1);
+                this.pollInterval1 = setInterval(() => {
                     this.tasks.forEach(t => {
                         if (t.remaining > 0 && !t.done) {
                             t.remaining--;
@@ -4677,7 +4815,8 @@
                     });
                 }, 1000);
 
-                setInterval(async () => {
+                if (this.pollInterval2) clearInterval(this.pollInterval2);
+                this.pollInterval2 = setInterval(async () => {
                     if (this.tasks.length === 0) return;
                     for (let t of this.tasks) {
                         if (t.done) continue;
@@ -5118,16 +5257,30 @@
             checkoutState: { type: 'recharge', planId: null, price: 0 },
             
             openPlanInvoice() {
-                // Get current plan name from the summary card
+                // Prioritize user role for robust redirection
+                if (this.user && this.user.role === 'CLINICAS') {
+                    console.log("[DEBUG] openPlanInvoice: Redirection based on ROLE (CLINICAS)");
+                    this.openCheckout('plan', 'clinicas');
+                    return;
+                }
+
+                // Fallback: Get current plan name from the summary card
                 const el = document.getElementById('assinatura-plan-name');
-                const name = el ? el.innerText.split(' ')[0].toLowerCase() : 'essential';
+                let nameText = el ? el.innerText.toLowerCase() : '';
                 
+                // Normalização para ignorar acentos (ex: clínicas -> clinicas)
+                const normalizedText = nameText.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                console.log("[DEBUG] openPlanInvoice: nameText=" + nameText + ", normalized=" + normalizedText);
+
                 // If it's a fixed plan, open that plan's checkout
-                if (['essential', 'plus', 'premium', 'platinum'].includes(name)) {
-                    this.openCheckout('plan', name);
+                if (normalizedText.includes('clinica')) {
+                    this.openCheckout('plan', 'clinicas');
+                } else if (['essential', 'plus', 'premium', 'platinum'].some(p => normalizedText.includes(p))) {
+                    const planMatch = ['essential', 'plus', 'premium', 'platinum'].find(p => normalizedText.includes(p));
+                    this.openCheckout('plan', planMatch);
                 } else {
                     // Otherwise, show the plan selection grid
-                    this.showModule('pre-checkout');
+                    this.showModule('assinatura', document.getElementById('nav-assinatura'));
                 }
             },
 
@@ -5173,6 +5326,7 @@
                     if(planId.toLowerCase() === 'plus') { price = 1399; }
                     if(planId.toLowerCase() === 'premium') { price = 2499; }
                     if(planId.toLowerCase() === 'platinum') { price = 3799; }
+                    if(planId.toLowerCase() === 'clinicas') { price = 1099; }
                     this.checkoutState.price = price;
                     
                     themeArea.className = 'summary-header theme-' + planId.toLowerCase();

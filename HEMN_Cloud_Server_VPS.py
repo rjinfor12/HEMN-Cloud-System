@@ -583,6 +583,11 @@ def get_user_stats(target_username: str, user: dict = Depends(get_current_user))
         "spent_month": spent_month,
         "chart": chart_data,
         "balance": target_user["total_limit"] - target_user["current_usage"],
+        "total_limit": target_user["total_limit"],
+        "current_usage": target_user["current_usage"],
+        "vencimento_dia": target_user.get("vencimento_dia"),
+        "valor_mensal": target_user.get("valor_mensal"),
+        "role": target_user.get("role"),
         "viewing_user": target_username
     }
 
@@ -621,7 +626,11 @@ def get_stats(user: dict = Depends(get_current_user)):
         "spent_today": spent_today,
         "spent_month": spent_month,
         "chart": chart_data,
-        "balance": user["total_limit"] - user["current_usage"]
+        "balance": user["total_limit"] - user["current_usage"],
+        "total_limit": user["total_limit"],
+        "current_usage": user["current_usage"],
+        "vencimento_dia": user.get("vencimento_dia"),
+        "valor_mensal": user.get("valor_mensal")
     }
 
 @app.post("/admin/users")

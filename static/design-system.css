@@ -3280,6 +3280,7 @@ input:checked + .hemn-slider:before {
 .summary-header.theme-plus .summary-plan-icon { background: linear-gradient(135deg, #7928CA, #FF0080); box-shadow: 0 15px 35px rgba(121, 40, 202, 0.3); }
 .summary-header.theme-premium .summary-plan-icon { background: linear-gradient(135deg, #F9B233, #FFDF00); color: #1d1d1f; box-shadow: 0 15px 35px rgba(249, 178, 51, 0.3); }
 .summary-header.theme-platinum .summary-plan-icon { background: linear-gradient(135deg, #111111, #434343); box-shadow: 0 15px 35px rgba(0, 0, 0, 0.4); }
+.summary-header.theme-clinicas .summary-plan-icon { background: linear-gradient(135deg, #3b82f6, #2563eb); box-shadow: 0 15px 35px rgba(59, 130, 246, 0.3); }
 .summary-header.theme-recharge { background: rgba(16, 185, 129, 0.05); }
 .summary-header.theme-recharge .summary-plan-icon { background: linear-gradient(135deg, #10b981, #059669); box-shadow: 0 15px 35px rgba(16, 185, 129, 0.3); }
 
@@ -3334,6 +3335,206 @@ input:checked + .hemn-slider:before {
     border-radius: 0 0 0 100%;
 }
 
-/* Header theme text colors for better contrast */
-.summary-header.theme-platinum .summary-title { color: #111; }
-.summary-header.theme-platinum .summary-subtitle { color: #666; }
+/* ─────────────────────────────────────────────
+   21. MOBILE RESPONSIVENESS (COMPREHENSIVE)
+   ───────────────────────────────────────────── */
+
+/* --- Universal Breakpoints --- */
+
+/* Tablet & Large Mobile (≤ 1024px) */
+@media (max-width: 1024px) {
+    :root {
+        --sidebar-w: 280px;
+        --topbar-h: 70px;
+        --s-6: 28px;
+        --s-8: 48px;
+    }
+
+    #app {
+        grid-template-columns: 1fr;
+    }
+
+    .sidebar {
+        position: fixed;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: var(--sidebar-w);
+        transform: translateX(-100%);
+        box-shadow: 25px 0 60px rgba(0, 0, 0, 0.4);
+        visibility: hidden;
+        transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), visibility 0.4s;
+        z-index: 9999;
+    }
+
+    .sidebar.active {
+        transform: translateX(0);
+        visibility: visible;
+    }
+
+    .content-area {
+        grid-column: 1;
+    }
+
+    .top-bar {
+        padding: 0 var(--s-4) !important;
+        gap: var(--s-3) !important;
+    }
+
+    .menu-toggle {
+        display: flex !important;
+        margin-right: 10px;
+    }
+
+    /* Hide less important header elements on smaller screens */
+    .greeting-container {
+        display: none !important;
+    }
+
+    .header-tools {
+        gap: 8px !important;
+    }
+
+    /* Sidebar Role Label might be too long */
+    #sidebar-role-display {
+        max-width: 80px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+}
+
+/* Mobile (≤ 768px) */
+@media (max-width: 768px) {
+    :root {
+        --topbar-h: 65px;
+        --s-5: 20px;
+        --s-6: 24px;
+    }
+
+    .page-container {
+        padding: var(--s-4) !important;
+    }
+
+    /* Adjust cards for mobile */
+    .glass-card {
+        padding: var(--s-4) !important;
+    }
+
+    .welcome-hero {
+        padding: var(--s-6) var(--s-5) !important;
+        margin-bottom: var(--s-4) !important;
+    }
+
+    .welcome-hero h1 {
+        font-size: 28px !important;
+        letter-spacing: -1px !important;
+    }
+
+    .system-status-row {
+        grid-template-columns: 1fr !important;
+        gap: 12px !important;
+    }
+
+    .quick-actions-grid {
+        grid-template-columns: 1fr !important;
+        gap: 12px !important;
+    }
+
+    .action-card {
+        padding: var(--s-4) !important;
+        min-height: 160px !important;
+    }
+
+    /* Table Responsiveness */
+    .table-wrapper {
+        margin: 0 -15px !important;
+        border-radius: 0 !important;
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .data-table {
+        min-width: 600px; /* Force scroll */
+    }
+
+    /* Mobile Header Specifics */
+    .user-menu-name {
+        display: none !important; /* Hide name, show only avatar on mobile */
+    }
+
+    .user-menu-trigger {
+        padding: 4px !important;
+        border-radius: 50% !important;
+        width: 42px;
+        height: 42px;
+        justify-content: center;
+    }
+
+    .balance-menu-trigger {
+        padding: 0 10px !important;
+        font-size: 13px !important;
+    }
+
+    #header-balance-amount {
+        font-size: 12px !important;
+    }
+}
+
+/* Extra Small Devices (≤ 480px) */
+@media (max-width: 480px) {
+    .header-tools .icon-btn:not(#btn-notifications) {
+        display: none !important; /* Hide peripheral tools */
+    }
+
+    .balance-menu-trigger span {
+        display: none !important; /* Hide "Cr" or text */
+    }
+
+    .balance-menu-trigger {
+        width: 40px;
+        height: 40px;
+        padding: 0 !important;
+        border-radius: 50% !important;
+        justify-content: center;
+    }
+
+    .balance-menu-trigger i {
+        margin: 0 !important;
+    }
+
+    .premium-status-card {
+        min-width: 100% !important;
+        flex-direction: column !important;
+        gap: 20px !important;
+        padding: 20px !important;
+        align-items: flex-start !important;
+    }
+
+    .status-details-grid {
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        gap: 10px !important;
+    }
+
+    .details-grid {
+        grid-template-columns: 1fr !important;
+        gap: 20px !important;
+    }
+}
+
+/* Utilities */
+.table-scroll-indicator {
+    display: none;
+    text-align: center;
+    font-size: 11px;
+    color: var(--text-3);
+    margin-top: 8px;
+    font-weight: 600;
+}
+
+@media (max-width: 768px) {
+    .table-scroll-indicator {
+        display: block;
+    }
+}

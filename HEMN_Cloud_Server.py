@@ -49,7 +49,8 @@ PLANS_CONFIG = {
     "essential": {"name": "Essential", "credits": 500000, "price": 899.00, "days": 30},
     "plus": {"name": "Plus", "credits": 1000000, "price": 1399.00, "days": 30},
     "premium": {"name": "Premium", "credits": 2500000, "price": 2499.00, "days": 30},
-    "platinum": {"name": "Platinum", "credits": 5000000, "price": 3799.00, "days": 30}
+    "platinum": {"name": "Platinum", "credits": 5000000, "price": 3799.00, "days": 30},
+    "clinicas": {"name": "Clínicas", "credits": 999999999, "price": 1099.00, "days": 30}
 }
 
 # ASAAS Config
@@ -83,16 +84,41 @@ RESULT_DIR = os.path.join(APP_DIR, "storage", "results")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 os.makedirs(RESULT_DIR, exist_ok=True)
 
-app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+from fastapi.responses import FileResponse, JSONResponse, HTMLResponse
 
 @app.get("/")
 async def read_index():
-    return FileResponse(os.path.join(STATIC_DIR, "index.html"))
+    return HTMLResponse(content="""
+    <!DOCTYPE html>
+    <html lang="pt-BR">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>HEMN System</title>
+        <style>
+            :root { --bg: #0a0a0c; --text: #ffffff; --accent: #3b82f6; }
+            body { background: var(--bg); color: var(--text); font-family: 'Inter', system-ui, sans-serif; height: 100vh; margin: 0; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+            .container { text-align: center; animation: fadeIn 1.2s ease-out; }
+            h1 { font-size: 3.5rem; font-weight: 800; margin: 0; background: linear-gradient(to right, #fff, #666); -webkit-background-clip: text; -webkit-text-fill-color: transparent; letter-spacing: -1px; }
+            p { color: #666; font-size: 1.1rem; margin-top: 10px; font-weight: 400; }
+            .dot { width: 8px; height: 8px; background: var(--accent); border-radius: 50%; display: inline-block; margin-left: 10px; animation: pulse 2s infinite; }
+            @keyframes fadeIn { from { opacity: 0; transform: translateY(10); } to { opacity: 1; transform: translateY(0); } }
+            @keyframes pulse { 0% { opacity: 0.4; } 50% { opacity: 1; box-shadow: 0 0 15px var(--accent); } 100% { opacity: 0.4; } }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h1>HEMN SYSTEM<span class="dot"></span></h1>
+            <p>Em breve, novas funcionalidades e excelência em dados.</p>
+        </div>
+    </body>
+    </html>
+    """)
+
+app.mount("/areadocliente/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 @app.get("/areadocliente")
 @app.get("/areadocliente/")
-@app.get("/areadoclieente")      # Suporte ao erro de digitação comum
-@app.get("/areadoclieente/")     # Suporte ao erro de digitação comum
 async def read_index_prefixed():
     # Prioritize index_vps.html for production parity
     vps_path = os.path.join(APP_DIR, "index_vps.html")
@@ -113,6 +139,33 @@ app.add_middleware(
 )
 
 DB_PATH = os.path.join(APP_DIR, "hemn_cloud.db")
+
+# Migração de Banco de Dados na Inicialização
+def migrate_db():
+    conn = sqlite3.connect(DB_PATH, timeout=30)
+    conn.execute("PRAGMA journal_mode=WAL")
+    cursor = conn.cursor()
+    # Adicionar colunas se não existirem
+    columns_to_add = [
+        ("vencimento_dia", "INTEGER DEFAULT 10"),
+        ("valor_mensal", "REAL"),
+        ("document", "TEXT"),
+        ("plan_type", "TEXT DEFAULT 'essential'"),
+        ("force_password_change", "INTEGER DEFAULT 0")
+    ]
+    for col_name, col_type in columns_to_add:
+        try:
+            cursor.execute(f"ALTER TABLE users ADD COLUMN {col_name} {col_type}")
+            print(f"[DB] Coluna {col_name} adicionada com sucesso.")
+        except sqlite3.OperationalError:
+            pass # Coluna já existe
+    
+    # Atualizar usuários CLINICAS existentes com valor padrão
+    cursor.execute("UPDATE users SET valor_mensal = 1099.0 WHERE role = 'CLINICAS' AND valor_mensal IS NULL")
+    conn.commit()
+    conn.close()
+
+migrate_db()
 print(f"[DEBUG] DB_PATH: {DB_PATH}")
 SECRET_KEY = "HEMN_SECRET_SUPER_SAFE_123"
 ALGORITHM = "HS256"
@@ -714,7 +767,6 @@ def cancel_task(task_id: str, user: dict = Depends(get_current_user)):
 
 # --- AUTH & ADMIN (LEGACY COMPAT) ---
 
-@app.post("/login")
 @router.post("/login")
 async def login(request: Request):
     try:
@@ -777,7 +829,6 @@ async def change_password(req: PasswordChangeRequest, user: dict = Depends(get_c
     conn.close()
     return {"status": "success", "message": "Senha alterada com sucesso."}
 
-@app.get("/me")
 @router.get("/me")
 async def get_me(user: dict = Depends(get_current_user)):
     # Sincronização automática de pagamentos pendentes (Otimizada e Segura)
@@ -846,7 +897,6 @@ async def get_me(user: dict = Depends(get_current_user)):
         
     return user
 
-@app.get("/admin/users")
 @router.get("/admin/users")
 def list_users(user: dict = Depends(get_current_user)):
     if user["role"] != "ADMIN": 
@@ -858,7 +908,6 @@ def list_users(user: dict = Depends(get_current_user)):
     conn.close()
     return [dict(u) for u in users]
 
-@app.get("/admin/monitor/stats")
 @router.get("/admin/monitor/stats")
 def get_monitor_stats(user: dict = Depends(get_current_user)):
     if user["role"] != "ADMIN": 
@@ -907,7 +956,6 @@ def get_monitor_stats(user: dict = Depends(get_current_user)):
         "timestamp": datetime.now().isoformat()
     }
 
-@app.put("/admin/users/{username}")
 @router.put("/admin/users/{username}")
 def update_user(username: str, data: dict, user: dict = Depends(get_current_user)):
     if user["role"] != "ADMIN": raise HTTPException(status_code=403)
@@ -925,7 +973,8 @@ def update_user(username: str, data: dict, user: dict = Depends(get_current_user
     # Lógica de Sincronização Automática de Plano e Limites
     if any(k in data for k in ["plan_type", "role", "vencimento_dia"]):
         role = data.get("role", old_user.get("role", "USER")).upper()
-        plan_type = data.get("plan_type", old_user.get("plan_type", "essential")).lower()
+        raw_plan = data.get("plan_type", old_user.get("plan_type", "essential"))
+        plan_type = (raw_plan if raw_plan else "essential").lower()
         vday = data.get("vencimento_dia", old_user.get("vencimento_dia", 10))
         
         # 1. Recalcular total_limit
@@ -952,6 +1001,10 @@ def update_user(username: str, data: dict, user: dict = Depends(get_current_user
         
         data["total_limit"] = new_limit
         data["expiration"] = new_exp
+        
+        # Clínicas: Valor Mensal Fixo
+        if role == "CLINICAS" and "valor_mensal" not in data:
+            data["valor_mensal"] = 1099.0
         
         # Resetar consumo se o plano mudou (conceder novos créditos integralmente)
         if "plan_type" in data and data["plan_type"] != old_user.get("plan_type"):
@@ -1032,7 +1085,6 @@ def get_statement(days: Optional[int] = None, user: dict = Depends(get_current_u
     conn.close()
     return [dict(l) for l in logs]
 
-@app.get("/admin/statement/{target_username}")
 @router.get("/admin/statement/{target_username}")
 def get_user_statement(target_username: str, days: Optional[int] = None, user: dict = Depends(get_current_user), limit: int = 200):
     if user["role"] != "ADMIN":
@@ -1054,7 +1106,6 @@ def get_user_statement(target_username: str, days: Optional[int] = None, user: d
     conn.close()
     return [dict(l) for l in logs]
 
-@app.get("/admin/stats/{target_username}")
 @router.get("/admin/stats/{target_username}")
 def get_user_stats(target_username: str, user: dict = Depends(get_current_user)):
     if user["role"] != "ADMIN":
@@ -1097,10 +1148,12 @@ def get_user_stats(target_username: str, user: dict = Depends(get_current_user))
         "balance": target_user["total_limit"] - target_user["current_usage"],
         "total_limit": target_user["total_limit"],
         "expiration": target_user.get("expiration", "Sem vencimento"),
+        "valor_mensal": target_user.get("valor_mensal"),
+        "vencimento_dia": target_user.get("vencimento_dia"),
+        "role": target_user.get("role"),
         "viewing_user": target_username
     }
 
-@app.get("/credits/stats")
 @router.get("/credits/stats")
 def get_stats(user: dict = Depends(get_current_user)):
     conn = sqlite3.connect(DB_PATH)
@@ -1138,10 +1191,12 @@ def get_stats(user: dict = Depends(get_current_user)):
         "chart": chart_data,
         "balance": user["total_limit"] - user["current_usage"],
         "total_limit": user["total_limit"],
-        "expiration": user.get("expiration", "Sem vencimento")
+        "valor_mensal": user.get("valor_mensal"),
+        "vencimento_dia": user.get("vencimento_dia"),
+        "expiration": user.get("expiration", "Sem vencimento"),
+        "role": user.get("role")
     }
 
-@app.post("/admin/users")
 @router.post("/admin/users")
 def create_user(data: dict, user: dict = Depends(get_current_user)):
     if user["role"] != "ADMIN": raise HTTPException(status_code=403)
@@ -1153,6 +1208,7 @@ def create_user(data: dict, user: dict = Depends(get_current_user)):
         "ALTER TABLE users ADD COLUMN document TEXT",
         "ALTER TABLE users ADD COLUMN plan_type TEXT DEFAULT 'essential'",
         "ALTER TABLE users ADD COLUMN vencimento_dia INTEGER DEFAULT 10",
+        "ALTER TABLE users ADD COLUMN valor_mensal REAL",
         "ALTER TABLE users ADD COLUMN force_password_change INTEGER DEFAULT 0",
     ]:
         try: conn.execute(col_sql)
@@ -1166,7 +1222,8 @@ def create_user(data: dict, user: dict = Depends(get_current_user)):
         "premium": 2500000,
         "platinum": 5000000,
     }
-    plan_type = data.get("plan_type", "essential").lower()
+    raw_plan = data.get("plan_type", "essential")
+    plan_type = (raw_plan if raw_plan else "essential").lower()
     
     # Role: ADMIN, MAYK and CLINICAS get "unlimited" (900M+) regardless of plan
     role = data.get("role", "USER").upper()
@@ -1206,6 +1263,7 @@ def create_user(data: dict, user: dict = Depends(get_current_user)):
         "document": data.get("document", ""),
         "plan_type": plan_type,
         "vencimento_dia": data.get("vencimento_dia", 10),
+        "valor_mensal": data.get("valor_mensal") if role != "CLINICAS" else (data.get("valor_mensal") or 1099.0),
         "role": role,
         "total_limit": total_limit,
         "current_usage": 0,
