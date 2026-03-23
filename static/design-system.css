@@ -2174,6 +2174,7 @@ input::placeholder {
         transform: translateX(-100%);
         box-shadow: 20px 0 50px rgba(0, 0, 0, 0.4);
         padding: var(--s-4);
+        z-index: 1600 !important;
     }
 
     .sidebar.active {
@@ -2624,7 +2625,7 @@ input::placeholder {
         background: rgba(0,0,0,0.6) !important;
         backdrop-filter: blur(12px) !important;
         -webkit-backdrop-filter: blur(12px) !important;
-        z-index: 4999 !important;
+        z-index: 1500 !important;
         display: none !important;
         animation: fadeIn 0.3s ease;
         visibility: hidden;
@@ -3610,6 +3611,7 @@ html[data-theme="dark"] .info-help-card {
         -webkit-backdrop-filter: blur(16px) saturate(180%) !important;
         backdrop-filter: blur(16px) saturate(180%) !important;
         border-bottom: 1px solid rgba(0, 0, 0, 0.06) !important;
+        z-index: 1000 !important;
     }
 
     .menu-toggle {
