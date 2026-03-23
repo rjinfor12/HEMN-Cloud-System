@@ -3538,3 +3538,403 @@ input:checked + .hemn-slider:before {
         display: block;
     }
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   22. MOBILE-FIRST COMPREHENSIVE OVERHAUL
+   Cobrindo: touch targets, modais, tabela admin, assinatura,
+   drop zones, busca unitária, safe areas iOS/Android
+═══════════════════════════════════════════════════════════════ */
+
+/* ── Touch Targets Mínimos (Apple HIG: 44x44px) ── */
+@media (max-width: 1024px) {
+    .nav-link {
+        min-height: 44px !important;
+        display: flex;
+        align-items: center;
+    }
+
+    .icon-btn,
+    .btn-primary,
+    .btn-secondary,
+    .btn-outline,
+    .btn-danger {
+        min-height: 44px !important;
+    }
+
+    /* Evitar hover-only feedback em touch */
+    .action-card:hover {
+        transform: none;
+    }
+
+    .premium-status-card:hover {
+        transform: none;
+    }
+
+    /* Sidebar drawer mais largo em tablet */
+    .sidebar {
+        padding: var(--s-5) var(--s-4) !important;
+    }
+}
+
+/* ── Menu Toggle — visível enquanto logado ── */
+@media (max-width: 1024px) {
+    .drawer-toggle,
+    .menu-toggle {
+        display: flex !important;
+        align-items: center;
+        justify-content: center;
+        width: 44px;
+        height: 44px;
+        min-width: 44px;
+        min-height: 44px;
+        position: fixed;
+        top: 11px;
+        left: 12px;
+        z-index: 4000;
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+        cursor: pointer;
+        color: var(--text-1);
+        font-size: 16px;
+        transition: all 0.2s;
+    }
+
+    .drawer-toggle:active,
+    .menu-toggle:active {
+        transform: scale(0.92);
+        background: var(--bg-hover);
+    }
+
+    /* Empurrar conteúdo da top-bar para não sobrepor o hambúrguer */
+    .top-bar {
+        padding-left: 68px !important;
+    }
+}
+
+/* ── User Modal como Bottom Sheet em mobile ── */
+@media (max-width: 768px) {
+    #user-modal {
+        align-items: flex-end !important;
+        padding: 0 !important;
+    }
+
+    #user-modal > .glass-card {
+        width: 100% !important;
+        max-width: 100% !important;
+        max-height: 92dvh;
+        overflow-y: auto;
+        border-radius: 24px 24px 0 0 !important;
+        padding: var(--s-5) var(--s-4) !important;
+        padding-bottom: calc(var(--s-5) + env(safe-area-inset-bottom, 0px)) !important;
+    }
+
+    /* Rodapé do modal em coluna no mobile */
+    #modal-footer-actions {
+        flex-direction: column-reverse !important;
+        gap: 10px !important;
+    }
+
+    #modal-footer-actions > div:last-child {
+        flex-direction: column !important;
+        width: 100%;
+    }
+
+    #modal-footer-actions > div:last-child button {
+        width: 100% !important;
+        justify-content: center !important;
+        min-height: 48px;
+    }
+
+    #modal-danger-actions {
+        width: 100%;
+        justify-content: center !important;
+        gap: 12px !important;
+    }
+
+    #modal-danger-actions button {
+        flex: 1;
+        min-height: 48px;
+        border-radius: 14px !important;
+    }
+
+    /* Form grid do user-modal colapsa em coluna */
+    #user-modal .form-grid,
+    #user-modal [style*="grid-template-columns"] {
+        grid-template-columns: 1fr !important;
+    }
+}
+
+/* ── Tabela Admin — Botões Pill colapsam para ícone em mobile ── */
+@media (max-width: 700px) {
+    /* Coluna de ações vira compacta */
+    .data-table td .pill-action-text {
+        display: none !important;
+    }
+
+    .data-table td button[style*="border-radius: 20px"] {
+        padding: 8px 10px !important;
+        border-radius: 10px !important;
+        min-width: 38px;
+        min-height: 38px;
+        justify-content: center;
+    }
+
+    /* Tabela admin com scroll */
+    .data-table {
+        min-width: 480px;
+    }
+}
+
+/* Wrapper universal para qualquer tabela de gestão */
+@media (max-width: 768px) {
+    .admin-table-wrapper,
+    .glass-card:has(.data-table) {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    /* Admin stats grid colapsa */
+    [id^="admin-stat"] {
+        font-size: 20px !important;
+    }
+}
+
+/* ── Drop Zones — Feedback Touch ── */
+@media (max-width: 1024px) {
+    .drop-zone {
+        /* Em touch, não tem hover, então o estado padrão precisa ser mais claro */
+        border-width: 2px;
+        padding: var(--s-6) var(--s-4) !important;
+        cursor: pointer;
+    }
+
+    .drop-zone::after {
+        content: "Toque para selecionar o arquivo";
+        font-size: 11px;
+        color: var(--text-dim);
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        display: block;
+        margin-top: 4px;
+    }
+
+    /* Esconder o texto de drag & drop padrão em mobile e mostrar touch text */
+    .drop-zone p {
+        display: none;
+    }
+}
+
+/* ── Tela de Assinatura — Cards empilhados ── */
+@media (max-width: 768px) {
+    /* Card do Meu Plano */
+    .premium-status-card {
+        flex-direction: column !important;
+        padding: 20px !important;
+        gap: 16px !important;
+    }
+
+    .status-details-grid {
+        flex-direction: column !important;
+        gap: 12px !important;
+        width: 100%;
+    }
+
+    .pague-fatura-btn {
+        width: 100% !important;
+        justify-content: center !important;
+    }
+
+    /* Grid de planos disponíveis */
+    .plans-grid,
+    [id*="plano"] [style*="grid-template-columns"] {
+        grid-template-columns: 1fr !important;
+    }
+
+    /* Checkout page layout */
+    .checkout-layout,
+    [style*="grid-template-columns: 1fr 340px"],
+    [style*="grid-template-columns: 1fr 360px"] {
+        grid-template-columns: 1fr !important;
+        gap: var(--s-4) !important;
+    }
+
+    .checkout-summary-sidebar {
+        order: -1; /* Resumo acima no mobile */
+    }
+
+    .payment-method-card {
+        padding: 20px !important;
+    }
+}
+
+/* ── Busca Unitária — Resultado empilha ── */
+@media (max-width: 768px) {
+    /* Resultado da busca em coluna */
+    .search-result-layout,
+    #manual-result-grid {
+        grid-template-columns: 1fr !important;
+        flex-direction: column !important;
+    }
+
+    /* Campos de busca em coluna */
+    #busca-form-grid,
+    .busca-form-row {
+        flex-direction: column !important;
+        gap: var(--s-3) !important;
+    }
+
+    #busca-form-grid input,
+    #busca-form-grid select,
+    .busca-form-row input,
+    .busca-form-row select {
+        width: 100% !important;
+    }
+}
+
+/* ── Notificações — Posição correta com safe area ── */
+@media (max-width: 768px) {
+    .notification-container {
+        bottom: calc(var(--s-4) + env(safe-area-inset-bottom, 0px)) !important;
+        left: var(--s-3) !important;
+        right: var(--s-3) !important;
+        top: auto !important;
+    }
+
+    /* Dropdown de notificações — sheet da esquerda */
+    #notification-dropdown {
+        position: fixed !important;
+        top: 65px !important;
+        left: 0 !important;
+        right: 0 !important;
+        width: 100% !important;
+        max-height: 70vh;
+        overflow-y: auto;
+        border-radius: 0 0 20px 20px !important;
+        border-top: none !important;
+        box-shadow: 0 20px 60px rgba(0,0,0,0.3) !important;
+    }
+
+    /* Dropdown de usuário */
+    #user-dropdown {
+        position: fixed !important;
+        right: 0 !important;
+        top: 65px !important;
+        left: 0 !important;
+        width: 100% !important;
+        border-radius: 0 0 20px 20px !important;
+        box-shadow: 0 20px 60px rgba(0,0,0,0.3) !important;
+    }
+
+    /* Dropdown de carteira */
+    #balance-dropdown {
+        position: fixed !important;
+        right: var(--s-3) !important;
+        top: 65px !important;
+        min-width: 200px !important;
+    }
+}
+
+/* ── iOS Safe Area (notch/home indicator) ── */
+@supports (padding: max(0px)) {
+    @media (max-width: 768px) {
+        .top-bar {
+            padding-top: max(0px, env(safe-area-inset-top)) !important;
+            height: calc(var(--topbar-h) + env(safe-area-inset-top)) !important;
+        }
+
+        /* Sidebar cobre a notch */
+        .sidebar {
+            padding-top: max(var(--s-5), env(safe-area-inset-top)) !important;
+        }
+
+        /* Bottom sheets com home indicator */
+        #user-modal > .glass-card {
+            padding-bottom: max(var(--s-6), env(safe-area-inset-bottom)) !important;
+        }
+    }
+}
+
+/* ── Tamanho mínimo de inputs em iOS (evita zoom automático) ── */
+@media (max-width: 768px) {
+    input,
+    select,
+    textarea {
+        font-size: 16px !important; /* iOS não aplica zoom se ≥ 16px */
+    }
+}
+
+/* ── Página de Monitoramento — Tabelas compactas ── */
+@media (max-width: 768px) {
+    #monitor-section .glass-card {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    #monitor-section table {
+        min-width: 500px;
+    }
+}
+
+/* ── Welcome Hero — Ajustes para tela pequena ── */
+@media (max-width: 480px) {
+    .welcome-hero {
+        padding: 24px 20px !important;
+        border-radius: 16px !important;
+    }
+
+    .welcome-hero h1 {
+        font-size: 26px !important;
+        letter-spacing: -0.5px !important;
+    }
+
+    .welcome-hero p {
+        font-size: 14px !important;
+        line-height: 1.5 !important;
+    }
+
+    /* Quick actions em 2 colunas pequenas */
+    .quick-actions-grid {
+        grid-template-columns: 1fr 1fr !important;
+        gap: 10px !important;
+    }
+
+    .action-card {
+        min-height: 130px !important;
+        padding: 16px !important;
+    }
+
+    .action-card h3 {
+        font-size: 15px !important;
+    }
+
+    .action-card p {
+        display: none; /* Esconde descrição em tela muito pequena */
+    }
+
+    /* Logo na sidebar menor */
+    .logo {
+        width: 36px !important;
+        height: 36px !important;
+    }
+
+    .brand-name {
+        font-size: 16px !important;
+    }
+
+    /* Premium modal full-width bottom */
+    .modal {
+        padding: 0 !important;
+        align-items: flex-end !important;
+    }
+
+    .modal-content {
+        border-radius: 20px 20px 0 0 !important;
+        max-width: 100% !important;
+        width: 100% !important;
+        max-height: 85dvh;
+        overflow-y: auto;
+    }
+}

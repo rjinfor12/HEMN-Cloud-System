@@ -1019,7 +1019,7 @@
     <!-- Icons and Fonts -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- Premium Design System -->
-    <link rel="stylesheet" href="/areadocliente/static/design-system.css?v=1.4.6">
+    <link rel="stylesheet" href="/areadocliente/static/design-system.css?v=1.4.7">
     <!-- Charts -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
@@ -1117,7 +1117,7 @@
         <div class="content-area">
             <!-- Top Bar -->
             <header class="top-bar" id="main-header" style="display: none !important;">
-                <button class="menu-toggle" onclick="app.toggleSidebar()" style="display: none;">
+                <button class="menu-toggle" id="main-menu-toggle" onclick="app.toggleSidebar()">
                     <i class="fas fa-bars"></i>
                 </button>
                 <div class="greeting-container">
@@ -3559,13 +3559,13 @@
                         <td>
                             <div style="display:flex; gap:8px; flex-wrap: nowrap; justify-content: flex-end; align-items: center;">
                                 <button onclick="app.viewUserDashboard('${u.username}')" title="Ver Extrato" style="display:flex; align-items:center; gap:6px; padding: 7px 14px; border-radius: 20px; border: none; background: #3b82f6; color: white; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s; white-space: nowrap;" onmouseover="this.style.filter='brightness(1.15)'" onmouseout="this.style.filter='brightness(1)'">
-                                    <i class="fas fa-file-invoice-dollar" style="font-size: 12px;"></i> Extrato
+                                    <i class="fas fa-file-invoice-dollar" style="font-size: 12px;"></i><span class="pill-action-text"> Extrato</span>
                                 </button>
                                 <button onclick="app.toggleUserStatus('${u.username}', '${u.status}')" title="${u.status === 'ACTIVE' ? 'Bloquear Usuário' : 'Ativar Usuário'}" style="display:flex; align-items:center; gap:6px; padding: 7px 14px; border-radius: 20px; border: none; background: ${u.status === 'ACTIVE' ? '#4b5563' : '#10b981'}; color: white; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s; white-space: nowrap;" onmouseover="this.style.filter='brightness(1.15)'" onmouseout="this.style.filter='brightness(1)'">
-                                    <i class="fas ${u.status === 'ACTIVE' ? 'fa-user-slash' : 'fa-user-check'}" style="font-size: 12px;"></i> ${u.status === 'ACTIVE' ? 'Bloquear' : 'Ativar'}
+                                    <i class="fas ${u.status === 'ACTIVE' ? 'fa-user-slash' : 'fa-user-check'}" style="font-size: 12px;"></i><span class="pill-action-text"> ${u.status === 'ACTIVE' ? 'Bloquear' : 'Ativar'}</span>
                                 </button>
                                 <button onclick="app.openUserModal('${u.username}')" title="Editar Usuário" style="display:flex; align-items:center; gap:6px; padding: 7px 14px; border-radius: 20px; border: none; background: #6366f1; color: white; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s; white-space: nowrap;" onmouseover="this.style.filter='brightness(1.15)'" onmouseout="this.style.filter='brightness(1)'">
-                                    <i class="fas fa-edit" style="font-size: 12px;"></i> Editar
+                                    <i class="fas fa-edit" style="font-size: 12px;"></i><span class="pill-action-text"> Editar</span>
                                 </button>
                             </div>
                         </td>
