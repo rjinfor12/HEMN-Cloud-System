@@ -1040,7 +1040,7 @@
     <!-- Icons and Fonts -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- Premium Design System -->
-    <link rel="stylesheet" href="/areadocliente/static/design-system.css?v=1.5.2">
+    <link rel="stylesheet" href="/areadocliente/static/design-system.css?v=1.5.3">
     <!-- Charts -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
@@ -1064,8 +1064,8 @@
             background: rgba(255, 255, 255, 0.95) !important;
             color: #1e293b !important;
             box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25) !important;
-            backdrop-filter: blur(10px) !important;
             -webkit-backdrop-filter: blur(10px) !important;
+            backdrop-filter: blur(10px) !important;
         }
         #login-overlay .form-group label { color: #64748b !important; }
         #login-overlay input {
@@ -1339,9 +1339,19 @@
                 <!-- MODULE: INÍCIO (Home) -->
                 <section id="module-inicio" class="module-view" style="display:none;">
                     <div class="welcome-hero">
-                        <h1 id="welcome-title">Bem-vindo de volta!</h1>
-                        <p>Acessando o <strong>HEMN SYSTEM</strong>. Sua infraestrutura completa para
-                            inteligência de dados, processamento em escala e monitoramento em tempo real.</p>
+                        <div class="hero-aurora">
+                            <div class="aurora-blob blob-1"></div>
+                            <div class="aurora-blob blob-2"></div>
+                            <div class="aurora-blob blob-3"></div>
+                        </div>
+                        <div class="hero-content">
+                            <div class="hero-badge">Acesso Profissional</div>
+                            <h1 id="welcome-title">Bem-vindo de volta!</h1>
+                            <p>Acessando o <strong>HEMN SYSTEM</strong>. Sua infraestrutura completa para inteligência de dados, processamento em escala e monitoramento em tempo real.</p>
+                        </div>
+                        <div class="hero-illustration">
+                            <img src="/areadocliente/static/welcome_asset.png" alt="Dashboard Illustration">
+                        </div>
                     </div>
 
                     <!-- New System Status Row -->
