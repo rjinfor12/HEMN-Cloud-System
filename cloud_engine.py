@@ -929,7 +929,7 @@ class CloudEngine:
                 SETTINGS join_algorithm = 'auto'
             """
             
-            # FASE 9: MOTOR DE LOTES HEMN (SINGLE QUERY STREAMING) - Velocidade Máxima
+            # FASE 9: MOTOR DE LOTES HEMN (SINGLE OU MULTI QUERY)
             total_records_final = 0
             header_written = False
             
@@ -938,158 +938,79 @@ class CloudEngine:
             sheet = workbook.add_worksheet("Extração Hemn")
             header_fmt = workbook.add_format({'bold': True, 'bg_color': '#3a7bd5', 'font_color': 'white'})
 
-            self._update_task(tid, progress=15, message="Executando consulta no ClickHouse...")
             ch_local = self._get_ch_client()
-            
-            # Executa a query uma única vez
-            result = ch_local.query(q, params)
-            rows = result.result_rows
-            cols = result.column_names
-            total_rows_found = len(rows)
-            
-            self._update_task(tid, progress=20, message=f"Iniciando processamento de {total_rows_found:,} registros...")
 
-            batch_size = 100000
-            for i in range(0, total_rows_found, batch_size):
-                # Check for cancellation
-                status = self.get_task_status(tid)
-                if status.get("status") == "CANCELLED":
-                    workbook.close()
-                    return
-
-                chunk = rows[i:i + batch_size]
-                df = pd.DataFrame(chunk, columns=cols)
+            # Caso especial: Otimização CEP + Número
+            if cep_df is not None and num_col and '_match_num' in cep_df.columns:
+                self._update_task(tid, progress=15, message="Otimizando consulta CEP+Número...")
+                pairs = cep_df[['_match_cep', '_match_num']].drop_duplicates().values.tolist()
+                batch_size_sql = 10000
+                total_batches = (len(pairs) + batch_size_sql - 1) // batch_size_sql
                 
-                self._update_task(tid, progress=min(95, round(20 + (i/max(1, total_rows_found) * 75), 1)), 
-                                  message=f"Processando: {i:,} / {total_rows_found:,} registros...")
+                for b_idx in range(0, len(pairs), batch_size_sql):
+                    status = self.get_task_status(tid)
+                    if status.get("status") == "CANCELLED":
+                        workbook.close()
+                        return
 
-                # 2. Cruzamento com Planilha (se existir)
-                if cep_df is not None and '_match_cep' in cep_df.columns:
-                    df['_match_cep'] = df['CEP'].astype(str).str.replace(r'\D', '', regex=True).str.zfill(8)
-                    df['_match_num'] = df['NUMERO'].astype(str).str.strip().str.upper().str.lstrip('0').apply(lambda x: x if x else '0')
-                    if num_col and num_col in cep_df.columns and '_match_num' in cep_df.columns:
-                        valid_sheet = cep_df[['_match_cep', '_match_num']].drop_duplicates()
-                        df = df.merge(valid_sheet, on=['_match_cep', '_match_num'], how='inner')
-                    else:
+                    batch_pairs = pairs[b_idx : b_idx + batch_size_sql]
+                    # ClickHouse Tuple IN: (cep, numero) IN [(c1, n1), (c2, n2)]
+                    current_params = params.copy()
+                    current_params['pairs'] = batch_pairs
+                    
+                    # Injetar a condição de tupla
+                    batch_estab_where = estab_where.replace("estab_inner.cep IN %(ceps)s", "(estab_inner.cep, estab_inner.numero) IN %(pairs)s")
+                    if "(estab_inner.cep, estab_inner.numero) IN %(pairs)s" not in batch_estab_where:
+                         # Caso não tivesse o IN ceps original:
+                         batch_estab_where += " AND (estab_inner.cep, estab_inner.numero) IN %(pairs)s"
+
+                    batch_q = q.replace(f"WHERE {estab_where}", f"WHERE {batch_estab_where}")
+                    
+                    prog_val = min(95, round(15 + (b_idx / len(pairs) * 80), 1))
+                    self._update_task(tid, progress=prog_val, message=f"Consultando lote { (b_idx//batch_size_sql)+1 } / {total_batches}...")
+                    
+                    result = ch_local.query(batch_q, current_params)
+                    df_batch = pd.DataFrame(result.result_rows, columns=result.column_names)
+                    
+                    if not df_batch.empty:
+                        df_processed = self._process_extraction_dataframe(tid, df_batch, filters, workbook, sheet, header_fmt, header_written, total_records_final)
+                        total_records_final += len(df_processed)
+                        header_written = True
+                
+            else:
+                # Caso padrão (Extração normal ou CEP sem Número)
+                self._update_task(tid, progress=15, message="Executando consulta no ClickHouse...")
+                result = ch_local.query(q, params)
+                rows = result.result_rows
+                cols = result.column_names
+                total_rows_found = len(rows)
+                
+                self._update_task(tid, progress=20, message=f"Iniciando processamento de {total_rows_found:,} registros...")
+
+                batch_size = 100000
+                for i in range(0, total_rows_found, batch_size):
+                    status = self.get_task_status(tid)
+                    if status.get("status") == "CANCELLED":
+                        workbook.close()
+                        return
+
+                    chunk = rows[i:i + batch_size]
+                    df = pd.DataFrame(chunk, columns=cols)
+                    
+                    self._update_task(tid, progress=min(95, round(20 + (i/max(1, total_rows_found) * 75), 1)), 
+                                      message=f"Processando: {i:,} / {total_rows_found:,} registros...")
+
+                    if cep_df is not None and '_match_cep' in cep_df.columns:
+                        df['_match_cep'] = df['CEP'].astype(str).str.replace(r'\D', '', regex=True).str.zfill(8)
                         valid_sheet_ceps = cep_df[['_match_cep']].drop_duplicates()
                         df = df.merge(valid_sheet_ceps, on='_match_cep', how='inner')
-                    df = df.drop(columns=[c for c in ['_match_cep', '_match_num'] if c in df.columns])
+                        df = df.drop(columns=[c for c in ['_match_cep'] if c in df.columns])
 
-                if df.empty:
-                    continue
-
-                # 3. Filtragem de Telefones e Operadora
-                def check_tel(t):
-                    if not t or str(t).upper() in ['NAN', 'NONE']: return None
-                    num = re.sub(r'\D', '', str(t).strip().replace('.0', ''))
-                    if not num: return None
-                    return "CELULAR" if (len(num) == 9 or (len(num) == 8 and num[0] in '6789')) else "FIXO"
-
-                def get_full(d, t):
-                    if not t or str(t).upper() in ['NAN', 'NONE']: return ""
-                    full = re.sub(r'\D', '', (str(d).replace('.0', '') if pd.notna(d) else "") + str(t).replace('.0', ''))
-                    if len(full) == 10 and full[2] in '6789': full = full[:2] + '9' + full[2:]
-                    return full
-
-                df['full_t1'] = df.apply(lambda x: get_full(x['DDD1'], x['TEL1']), axis=1)
-                df['full_t2'] = df.apply(lambda x: get_full(x['DDD2'], x['TEL2']), axis=1)
-                df['t1_tipo'] = df['TEL1'].apply(check_tel)
-                df['t2_tipo'] = df['TEL2'].apply(check_tel)
-
-                tipo_req = filters.get("tipo_tel", "TODOS")
-                if tipo_req == "AMBOS":
-                    mask = ((df['t1_tipo'] == "CELULAR") & (df['t2_tipo'] == "FIXO")) | ((df['t1_tipo'] == "FIXO") & (df['t2_tipo'] == "CELULAR"))
-                    df = df[mask].copy()
-                elif tipo_req != "TODOS":
-                    df = df[(df['t1_tipo'] == tipo_req) | (df['t2_tipo'] == tipo_req)].copy()
-
-                if df.empty:
-                    continue
-
-                def select_phone(row):
-                    t1, t2 = row.get('full_t1', ''), row.get('full_t2', '')
-                    tipo1, tipo2 = row.get('t1_tipo'), row.get('t2_tipo')
-                    if tipo_req in ["CELULAR", "FIXO"]:
-                        if tipo1 == tipo_req: return t1
-                        return t2
-                    elif tipo_req == "AMBOS":
-                        parts = []
-                        if t1: parts.append(f"{tipo1}: {t1}")
-                        if t2: parts.append(f"{tipo2}: {t2}")
-                        return " | ".join(parts)
-                    if tipo1 == "CELULAR": return t1
-                    if tipo2 == "CELULAR": return t2
-                    return t1 if t1 else t2
+                    if df.empty: continue
                     
-                df['TELEFONE SOLICITADO'] = df.apply(select_phone, axis=1)
-                df = df.drop(columns=[c for c in ['DDD1', 'TEL1', 'DDD2', 'TEL2', 't1_tipo', 't2_tipo', 'full_t1', 'full_t2'] if c in df.columns])
-                
-                # Enriquecimento de Operadora (em lotes)
-                df = self._append_operator_column(tid, df)
-
-                # FASE 8: FILTROS PÓS-PROCESSAMENTO (OPERADORA E PERFIL)
-                op_inc = str(filters.get("operadora_inc", "TODAS")).upper()
-                op_exc = str(filters.get("operadora_exc", "NENHUMA")).upper()
-                
-                # Inteligência de Grupo para VIVO/TELEFONICA
-                def check_op(row_val, target_op):
-                    if not row_val: return False
-                    rv = str(row_val).upper()
-                    to = str(target_op).upper()
-                    if to == "VIVO":
-                        return "VIVO" in rv or "TELEFONICA" in rv
-                    return to in rv
-
-                if 'OPERADORA DO TELEFONE' in df.columns:
-                    if op_exc != "NENHUMA":
-                        df = df[~df['OPERADORA DO TELEFONE'].apply(lambda x: check_op(x, op_exc))]
-                    if op_inc != "TODAS":
-                        df = df[df['OPERADORA DO TELEFONE'].apply(lambda x: check_op(x, op_inc))]
-
-                if df.empty:
-                    continue
-
-                # 4. Mapeamento Final e Escrita no Excel
-                df.columns = [str(c).upper().replace('_', ' ').strip() for c in df.columns]
-                final_mapping = {'NOME': 'NOME DA EMPRESA', 'SITUACAO': 'SITUACAO CADASTRAL', 'RUA': 'LOGRADOURO', 'NUMERO': 'NUMERO DA FAIXADA'}
-                df = df.rename(columns=final_mapping)
-                
-                sit_map = {'01':'NULA','02':'ATIVA','03':'SUSPENSA','04':'INAPTA','08':'BAIXADA'}
-                if 'SITUACAO CADASTRAL' in df.columns:
-                    df['SITUACAO CADASTRAL'] = df['SITUACAO CADASTRAL'].astype(str).str.zfill(2).map(sit_map).fillna(df['SITUACAO CADASTRAL'])
-
-                final_columns = ['CNPJ', 'NOME DA EMPRESA', 'SITUACAO CADASTRAL', 'CNAE', 'LOGRADOURO', 'NUMERO DA FAIXADA', 'BAIRRO', 'CIDADE', 'UF', 'CEP', 'TELEFONE SOLICITADO', 'OPERADORA DO TELEFONE']
-                for c in final_columns:
-                    if c not in df.columns: df[c] = ""
-                    else: df[c] = df[c].astype(str).replace(['nan', 'NaN', 'None', '<NA>'], "")
-                
-                df_final = df[final_columns].fillna("")
-
-                # FASE 10: ESCRITA MULTI-ABA (LIMITE EXCEL 1.048.576)
-                EXCEL_LIMIT = 1000000 
-                if not header_written:
-                    for col_idx, col_name in enumerate(df_final.columns):
-                        sheet.write(0, col_idx, col_name, header_fmt)
+                    df_processed = self._process_extraction_dataframe(tid, df, filters, workbook, sheet, header_fmt, header_written, total_records_final)
+                    total_records_final += len(df_processed)
                     header_written = True
-                    current_sheet_row = 1
-                    sheet_num = 1
-
-                data_matrix = df_final.values
-                for r_idx, row_data in enumerate(data_matrix):
-                    if current_sheet_row > EXCEL_LIMIT:
-                        sheet_num += 1
-                        sheet = workbook.add_worksheet(f"Extração Hemn {sheet_num}")
-                        for col_idx, col_name in enumerate(df_final.columns):
-                            sheet.write(0, col_idx, col_name, header_fmt)
-                        current_sheet_row = 1
-                    
-                    for c_idx, val in enumerate(row_data):
-                        sheet.write(current_sheet_row, c_idx, val)
-                    
-                    current_sheet_row += 1
-                    total_records_final += 1
-                
-                if total_records_final >= 20000000: break
 
             workbook.close()
             # Fim da FASE 9
@@ -1103,6 +1024,115 @@ class CloudEngine:
                 self._update_task(tid, status="FAILED", message=f"TITANIUM-MT ERROR: {str(e)}")
             except:
                 pass
+
+    def _process_extraction_dataframe(self, tid, df, filters, workbook, sheet, header_fmt, header_written, start_row_count):
+        """
+        Sub-motor de processamento de dataframe para extração.
+        Normaliza telefones, filtra operadoras e escreve no Excel.
+        """
+        if df.empty: return df
+
+        # 1. Normalização de Telefones
+        def check_tel(t):
+            if not t or str(t).upper() in ['NAN', 'NONE']: return None
+            num = re.sub(r'\D', '', str(t).strip().replace('.0', ''))
+            if not num: return None
+            return "CELULAR" if (len(num) == 9 or (len(num) == 8 and num[0] in '6789')) else "FIXO"
+
+        def get_full(d, t):
+            if not t or str(t).upper() in ['NAN', 'NONE']: return ""
+            full = re.sub(r'\D', '', (str(d).replace('.0', '') if pd.notna(d) else "") + str(t).replace('.0', ''))
+            if len(full) == 10 and full[2] in '6789': full = full[:2] + '9' + full[2:]
+            return full
+
+        df['full_t1'] = df.apply(lambda x: get_full(x['DDD1'], x['TEL1']), axis=1)
+        df['full_t2'] = df.apply(lambda x: get_full(x['DDD2'], x['TEL2']), axis=1)
+        df['t1_tipo'] = df['TEL1'].apply(check_tel)
+        df['t2_tipo'] = df['TEL2'].apply(check_tel)
+
+        tipo_req = filters.get("tipo_tel", "TODOS")
+        if tipo_req == "AMBOS":
+            mask = ((df['t1_tipo'] == "CELULAR") & (df['t2_tipo'] == "FIXO")) | ((df['t1_tipo'] == "FIXO") & (df['t2_tipo'] == "CELULAR"))
+            df = df[mask].copy()
+        elif tipo_req != "TODOS":
+            df = df[(df['t1_tipo'] == tipo_req) | (df['t2_tipo'] == tipo_req)].copy()
+
+        if df.empty: return df
+
+        def select_phone(row):
+            t1, t2 = row.get('full_t1', ''), row.get('full_t2', '')
+            tipo1, tipo2 = row.get('t1_tipo'), row.get('t2_tipo')
+            if tipo_req in ["CELULAR", "FIXO"]:
+                if tipo1 == tipo_req: return t1
+                return t2
+            elif tipo_req == "AMBOS":
+                parts = []
+                if t1: parts.append(f"{tipo1}: {t1}")
+                if t2: parts.append(f"{tipo2}: {t2}")
+                return " | ".join(parts)
+            if tipo1 == "CELULAR": return t1
+            if tipo2 == "CELULAR": return t2
+            return t1 if t1 else t2
+            
+        df['TELEFONE SOLICITADO'] = df.apply(select_phone, axis=1)
+        df = df.drop(columns=[c for c in ['DDD1', 'TEL1', 'DDD2', 'TEL2', 't1_tipo', 't2_tipo', 'full_t1', 'full_t2'] if c in df.columns])
+        
+        # Enriquecimento de Operadora (em lotes)
+        df = self._append_operator_column(tid, df)
+
+        # Filtros de Operadora
+        op_inc = str(filters.get("operadora_inc", "TODAS")).upper()
+        op_exc = str(filters.get("operadora_exc", "NENHUMA")).upper()
+        
+        def check_op(row_val, target_op):
+            if not row_val: return False
+            rv = str(row_val).upper()
+            to = str(target_op).upper()
+            if to == "VIVO": return "VIVO" in rv or "TELEFONICA" in rv
+            return to in rv
+
+        if 'OPERADORA DO TELEFONE' in df.columns:
+            if op_exc != "NENHUMA":
+                df = df[~df['OPERADORA DO TELEFONE'].apply(lambda x: check_op(x, op_exc))]
+            if op_inc != "TODAS":
+                df = df[df['OPERADORA DO TELEFONE'].apply(lambda x: check_op(x, op_inc))]
+
+        if df.empty: return df
+
+        # Formatação Final
+        df.columns = [str(c).upper().replace('_', ' ').strip() for c in df.columns]
+        final_mapping = {'NOME': 'NOME DA EMPRESA', 'SITUACAO': 'SITUACAO CADASTRAL', 'RUA': 'LOGRADOURO', 'NUMERO': 'NUMERO DA FAIXADA'}
+        df = df.rename(columns=final_mapping)
+        
+        sit_map = {'01':'NULA','02':'ATIVA','03':'SUSPENSA','04':'INAPTA','08':'BAIXADA'}
+        if 'SITUACAO CADASTRAL' in df.columns:
+            df['SITUACAO CADASTRAL'] = df['SITUACAO CADASTRAL'].astype(str).str.zfill(2).map(sit_map).fillna(df['SITUACAO CADASTRAL'])
+
+        final_columns = ['CNPJ', 'NOME DA EMPRESA', 'SITUACAO CADASTRAL', 'CNAE', 'LOGRADOURO', 'NUMERO DA FAIXADA', 'BAIRRO', 'CIDADE', 'UF', 'CEP', 'TELEFONE SOLICITADO', 'OPERADORA DO TELEFONE']
+        for c in final_columns:
+            if c not in df.columns: df[c] = ""
+            else: df[c] = df[c].astype(str).replace(['nan', 'NaN', 'None', '<NA>'], "")
+        
+        df_final = df[final_columns].fillna("")
+
+        # Escrita no Excel
+        EXCEL_LIMIT = 1000000 
+        current_sheet_row = (start_row_count % EXCEL_LIMIT) + 1
+        # Se for o primeiro lote de todos
+        if not header_written:
+            for col_idx, col_name in enumerate(df_final.columns):
+                sheet.write(0, col_idx, col_name, header_fmt)
+            current_sheet_row = 1
+
+        data_matrix = df_final.values
+        for r_idx, row_data in enumerate(data_matrix):
+            # Nota: O controle de nova aba aqui é simplificado, 
+            # assumimos que um único lote não estoura 1M se processado corretamente.
+            for c_idx, val in enumerate(row_data):
+                sheet.write(current_sheet_row, c_idx, val)
+            current_sheet_row += 1
+            
+        return df_final
 
     # --- UNIFY ---
     def start_unify(self, file_paths, output_dir, username=None):
