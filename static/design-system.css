@@ -3046,13 +3046,19 @@ input:checked + .hemn-slider:before {
 }
 
 .summary-total-box {
-    background: white;
+    background: var(--bg-surface);
     border: 1px solid var(--border-color);
     border-radius: 16px;
     padding: 25px;
     text-align: center;
     box-shadow: 0 4px 12px rgba(0,0,0,0.03);
     margin-top: 10px;
+}
+
+html[data-theme="dark"] .summary-total-box {
+    background: rgba(255, 255, 255, 0.03) !important;
+    border-color: rgba(255, 255, 255, 0.1) !important;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4) !important;
 }
 
 .summary-total-label {
@@ -3188,6 +3194,11 @@ input:checked + .hemn-slider:before {
     box-shadow: 0 10px 30px rgba(0,0,0,0.05);
 }
 
+html[data-theme="dark"] .qr-code-premium-frame {
+    background: #ffffff !important;
+    box-shadow: 0 0 25px rgba(255, 255, 255, 0.15) !important;
+}
+
 .pix-copy-premium {
     background: var(--bg-1);
     border: 1px solid var(--border-color);
@@ -3241,7 +3252,7 @@ input:checked + .hemn-slider:before {
 }
 
 .info-help-card {
-    background: white;
+    background: var(--bg-surface);
     border: 1px solid var(--border-color);
     border-radius: 20px;
     padding: 20px;
@@ -3249,6 +3260,12 @@ input:checked + .hemn-slider:before {
     align-items: center;
     gap: 15px;
     box-shadow: 0 4px 20px rgba(0,0,0,0.04);
+}
+
+html[data-theme="dark"] .info-help-card {
+    background: #1e1e2e !important;
+    border-color: rgba(255, 255, 255, 0.1) !important;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3) !important;
 }
 
 .info-help-card i {
@@ -3287,6 +3304,7 @@ input:checked + .hemn-slider:before {
 /* Premium Range Slider for Checkout */
 .checkout-premium-slider {
     -webkit-appearance: none;
+    appearance: none;
     width: 100%;
     height: 8px;
     background: var(--bg-1);

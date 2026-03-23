@@ -77,8 +77,8 @@
            /* Professional Plan Cards V3 */
         }
         .plan-card { 
-            background: linear-gradient(145deg, rgba(255,255,255,0.95), rgba(255,255,255,0.7)); 
-            border: 1px solid rgba(255, 255, 255, 0.6); 
+            background: var(--bg-card); 
+            border: 1px solid var(--border); 
             border-radius: 24px; 
             padding: 30px 20px; 
             cursor: pointer; 
@@ -92,9 +92,13 @@
             justify-content: center;
             gap: 15px;
             min-height: 280px;
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            box-shadow: 0 10px 30px rgba(0,0,0,0.03);
+            backdrop-filter: var(--glass-blur);
+            -webkit-backdrop-filter: var(--glass-blur);
+            box-shadow: var(--glass-shadow);
+        }
+        [data-theme="dark"] .plan-card {
+            background: rgba(255, 255, 255, 0.03);
+            border-color: rgba(255, 255, 255, 0.1);
         }
         .plan-card::before {
             content: '';
@@ -106,7 +110,7 @@
         }
         .plan-card:hover { 
             transform: translateY(-8px); 
-            box-shadow: 0 20px 40px rgba(0,0,0,0.08); 
+            box-shadow: 0 20px 40px rgba(0,0,0,0.15); 
         }
         .plan-card:hover::before { opacity: 1; }
         
@@ -184,10 +188,10 @@
 #module-assinatura .page-header { margin-bottom: 15px !important; }
         /* Premium Status Card Themes */
         .premium-status-card {
-            background: rgba(255, 255, 255, 0.7);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            border: 1px solid rgba(255, 255, 255, 0.5);
+            background: var(--bg-card);
+            backdrop-filter: var(--glass-blur);
+            -webkit-backdrop-filter: var(--glass-blur);
+            border: 1px solid var(--border);
             border-radius: 20px;
             padding: 20px 30px;
             width: fit-content;
@@ -197,13 +201,17 @@
             align-items: center;
             justify-content: space-between;
             gap: 40px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.08); /* Default light shadow */
+            box-shadow: var(--glass-shadow);
             margin: 0 auto !important;
             transition: transform 0.3s ease, box-shadow 0.3s ease;
             position: relative;
             overflow: hidden;
         }
-        .premium-status-card:hover { transform: translateY(-3px); box-shadow: 0 15px 40px rgba(0,0,0,0.12); }
+        [data-theme="dark"] .premium-status-card {
+            background: rgba(255, 255, 255, 0.04);
+            border-color: rgba(255, 255, 255, 0.08);
+        }
+        .premium-status-card:hover { transform: translateY(-3px); box-shadow: 0 15px 40px rgba(0,0,0,0.2); }
         .premium-status-card::after {
             content: '';
             position: absolute;
@@ -293,6 +301,7 @@
         .plan-card.premium-gold .plan-name {
             background: none;
             -webkit-background-clip: unset;
+            background-clip: unset;
             -webkit-text-fill-color: unset;
             font-weight: 900;
             color: #ffffff !important;
@@ -341,6 +350,7 @@
         .plan-card.platinum-gold .plan-name {
             background: linear-gradient(135deg, #ffffff, #a0a0a0);
             -webkit-background-clip: text;
+            background-clip: text;
             -webkit-text-fill-color: transparent;
             font-weight: 900;
             color: #ffffff;
@@ -390,17 +400,21 @@
             margin: 0 auto 20px auto;
             padding: 35px 45px;
             border-radius: 24px;
-            background: #ffffff;
-            border: 1px solid rgba(0, 0, 0, 0.04);
+            background: var(--bg-surface);
+            border: 1px solid var(--border);
             display: flex;
             flex-direction: column;
             gap: 25px;
-            box-shadow: 0 20px 50px rgba(0,0,0,0.06), 0 4px 15px rgba(0,0,0,0.03);
+            box-shadow: var(--glass-shadow);
             position: relative;
             overflow: hidden;
             width: 100%;
             max-width: 1400px;
             animation: fadeInDetails 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        [data-theme="dark"] .plan-details-card {
+            background: #1e1e2e;
+            border-color: rgba(255, 255, 255, 0.08);
         }
         .plan-details-card::before {
             content: '';
@@ -431,7 +445,10 @@
             font-size: 26px;
             color: #0088cc;
             border: 1px solid rgba(0, 136, 204, 0.2);
-            box-shadow: inset 0 0 10px rgba(255,255,255,0.8);
+        }
+        [data-theme="dark"] .details-icon {
+            background: rgba(255, 255, 255, 0.05);
+            border-color: rgba(255, 255, 255, 0.1);
         }
         .details-title-group h3 { font-size: 11px; color: var(--text-3); text-transform: uppercase; letter-spacing: 2px; margin: 0 0 6px 0; font-weight: 800; }
         .details-title-group h2 { font-size: 28px; font-weight: 900; color: var(--text-1); margin: 0; font-family: var(--font-heading); letter-spacing: -0.5px; }
@@ -495,10 +512,10 @@
             gap: 8px;
             font-size: 13px;
             color: var(--text-2);
-            background: rgba(0,0,0,0.03);
+            background: var(--bg-hover);
             padding: 6px 14px;
             border-radius: 10px;
-            border: 1px solid rgba(0,0,0,0.05);
+            border: 1px solid var(--border);
             font-weight: 600;
             transition: all 0.3s;
         }
@@ -1019,9 +1036,35 @@
     <!-- Icons and Fonts -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- Premium Design System -->
-    <link rel="stylesheet" href="/areadocliente/static/design-system.css?v=1.4.8">
+    <link rel="stylesheet" href="/areadocliente/static/design-system.css?v=1.4.9">
     <!-- Charts -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- FINAL THEME OVERRIDES (High Specificity) -->
+    <style>
+        html[data-theme="dark"] .plan-details-card,
+        html[data-theme="dark"] #plan-details-card {
+            background: #1e1e2e !important;
+            border-color: rgba(255, 255, 255, 0.1) !important;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.3) !important;
+        }
+        html[data-theme="dark"] .plan-card {
+            background: rgba(255, 255, 255, 0.03) !important;
+            border-color: rgba(255, 255, 255, 0.1) !important;
+        }
+        html[data-theme="dark"] .plan-card.selected {
+            border-color: #3a7bd5 !important;
+            background: rgba(58, 123, 213, 0.1) !important;
+        }
+        html[data-theme="dark"] .details-title-group h2,
+        html[data-theme="dark"] .details-description,
+        html[data-theme="dark"] .details-column h4 {
+            color: #e6edf3 !important;
+        }
+        html[data-theme="dark"] .details-list li span {
+            color: #8b949e !important;
+        }
+    </style>
 </head>
 
 <body>
@@ -3956,10 +3999,36 @@
                     }
                 }
 
+                const isDarkMode = document.documentElement.getAttribute('data-theme') === 'dark';
+                
+                let iconBg = iconColor;
+                let iconText = iconTextColor;
+                let borderCol = iconBorder;
+
+                if (isDarkMode) {
+                    if (planId.toLowerCase() === 'premium') {
+                        iconBg = 'rgba(212, 175, 55, 0.2)';
+                        iconText = '#FFDF00';
+                        borderCol = 'rgba(212, 175, 55, 0.4)';
+                    } else if (planId.toLowerCase() === 'platinum') {
+                        iconBg = 'rgba(255, 255, 255, 0.1)';
+                        iconText = '#ffffff';
+                        borderCol = 'rgba(255, 255, 255, 0.2)';
+                    } else if (planId.toLowerCase() === 'custom') {
+                        iconBg = 'rgba(16, 185, 129, 0.2)';
+                        iconText = '#10b981';
+                        borderCol = 'rgba(16, 185, 129, 0.4)';
+                    } else {
+                        iconBg = 'rgba(58, 123, 213, 0.2)';
+                        iconText = '#00d2ff';
+                        borderCol = 'rgba(58, 123, 213, 0.4)';
+                    }
+                }
+
                 card.innerHTML = `
                     <style>
                         #plan-details-card::before { background: ${topBarColor} !important; }
-                        #plan-details-card .details-icon { background: ${iconColor} !important; color: ${iconTextColor} !important; border-color: ${iconBorder} !important; }
+                        #plan-details-card .details-icon { background: ${iconBg} !important; color: ${iconText} !important; border-color: ${borderCol} !important; }
                     </style>
                     <div class="details-header" style="display: flex; align-items: center; justify-content: space-between;">
                         <div style="display: flex; align-items: center; gap: 15px;">

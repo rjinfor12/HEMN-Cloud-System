@@ -835,6 +835,7 @@ input::placeholder {
     font-size: 32px;
     background: var(--g-primary);
     -webkit-background-clip: text;
+    background-clip: text;
     -webkit-text-fill-color: transparent;
     transition: transform 0.3s ease;
 }
@@ -849,7 +850,8 @@ input::placeholder {
     font-weight: 500;
 }
 
-color: #10b981;
+.positive {
+    color: #10b981;
 }
 
 .negative {
@@ -1688,6 +1690,7 @@ color: #10b981;
     font-size: 32px;
     background: var(--g-primary);
     -webkit-background-clip: text;
+    background-clip: text;
     -webkit-text-fill-color: transparent;
     transition: transform 0.3s ease;
 }
@@ -1976,6 +1979,12 @@ color: #10b981;
     box-shadow: var(--shadow-lg);
 }
 
+[data-theme="dark"] .checkout-summary-card {
+    background: #1e1e2e;
+    border-color: rgba(255, 255, 255, 0.1);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+}
+
 .summary-header {
     background: var(--bg-1);
     padding: 25px;
@@ -2044,13 +2053,24 @@ color: #10b981;
 }
 
 .summary-total-box {
-    background: white;
+    background: var(--bg-surface);
     border: 1px solid var(--border-color);
     border-radius: 16px;
     padding: 25px;
     text-align: center;
     box-shadow: 0 4px 12px rgba(0,0,0,0.03);
     margin-top: 10px;
+}
+
+html[data-theme="dark"] .summary-total-box {
+    background: rgba(255, 255, 255, 0.03) !important;
+    border-color: rgba(255, 255, 255, 0.1) !important;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4) !important;
+}
+
+[data-theme="dark"] .summary-total-box {
+    background: rgba(255, 255, 255, 0.03);
+    border-color: rgba(255, 255, 255, 0.1);
 }
 
 .summary-total-label {
@@ -2136,6 +2156,18 @@ color: #10b981;
     color: var(--text-3);
 }
 
+.checkout-premium-slider {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 8px;
+    background: var(--bg-1);
+    border-radius: 10px;
+    outline: none;
+    margin: 25px 0;
+    border: 1px solid var(--border-color);
+}
+
 .pix-input-group input {
     width: 100%;
     height: 56px;
@@ -2146,6 +2178,11 @@ color: #10b981;
     font-size: 16px;
     color: var(--text-1);
     transition: all 0.3s;
+}
+
+[data-theme="dark"] .pix-input-group input {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.1);
 }
 
 .pix-input-group input:focus {
@@ -2184,6 +2221,11 @@ color: #10b981;
     display: inline-block;
     margin: 20px auto;
     box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+}
+
+[data-theme="dark"] .qr-code-premium-frame {
+    background: #ffffff; /* QR Code needs white background to be readable by most cameras */
+    box-shadow: 0 0 20px rgba(255, 255, 255, 0.1);
 }
 
 .pix-copy-premium {
@@ -2239,7 +2281,7 @@ color: #10b981;
 }
 
 .info-help-card {
-    background: white;
+    background: var(--bg-surface);
     border: 1px solid var(--border-color);
     border-radius: 20px;
     padding: 20px;
@@ -2247,6 +2289,17 @@ color: #10b981;
     align-items: center;
     gap: 15px;
     box-shadow: 0 4px 20px rgba(0,0,0,0.04);
+}
+
+html[data-theme="dark"] .info-help-card {
+    background: #1e1e2e !important;
+    border-color: rgba(255, 255, 255, 0.1) !important;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3) !important;
+}
+
+[data-theme="dark"] .info-help-card {
+    background: #1e1e2e;
+    border-color: rgba(255, 255, 255, 0.1);
 }
 
 .info-help-card i {
