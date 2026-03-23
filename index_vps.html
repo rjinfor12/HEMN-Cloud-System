@@ -1036,7 +1036,7 @@
     <!-- Icons and Fonts -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- Premium Design System -->
-    <link rel="stylesheet" href="/areadocliente/static/design-system.css?v=1.5.0">
+    <link rel="stylesheet" href="/areadocliente/static/design-system.css?v=1.5.1">
     <!-- Charts -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
@@ -1063,6 +1063,17 @@
         }
         html[data-theme="dark"] .details-list li span {
             color: #8b949e !important;
+        }
+        
+        /* Force hide menu toggle on desktop */
+        .menu-toggle {
+            display: none !important;
+        }
+        /* Show only on mobile/tablet */
+        @media (max-width: 1024px) {
+            .menu-toggle {
+                display: flex !important;
+            }
         }
     </style>
 </head>
