@@ -1040,7 +1040,7 @@
     <!-- Icons and Fonts -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- Premium Design System -->
-    <link rel="stylesheet" href="/areadocliente/static/design-system.css?v=1.5.5">
+    <link rel="stylesheet" href="/areadocliente/static/design-system.css?v=1.5.6">
     <!-- Charts -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
@@ -1095,24 +1095,27 @@
         /* --- NEBULA GLASS FUSION BANNER --- */
         .welcome-hero {
             position: relative;
-            min-height: 320px;
-            border-radius: 32px;
+            min-height: 280px;
+            border-radius: 28px;
             margin-bottom: var(--s-6);
             overflow: hidden;
             display: flex;
-            align-items: center;
-            background: #0f172a !important;
+            flex-direction: column;
+            justify-content: center;
+            background: rgba(15, 23, 42, 0.4) !important;
+            backdrop-filter: blur(30px) saturate(180%) !important;
+            -webkit-backdrop-filter: blur(30px) saturate(180%) !important;
             border: 1px solid rgba(255, 255, 255, 0.1) !important;
-            box-shadow: 0 40px 100px rgba(0,0,0,0.5) !important;
-            padding: 40px 60px !important;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3) !important;
+            padding: 50px 60px !important;
         }
 
         .hero-nebula {
             position: absolute;
             inset: 0;
             z-index: 1;
-            filter: blur(80px);
-            opacity: 0.8;
+            filter: blur(100px);
+            opacity: 0.6;
             pointer-events: none;
         }
 
@@ -1131,20 +1134,13 @@
 
         @keyframes nebulaRotate {
             0% { transform: translate(0, 0) scale(1) rotate(0deg); }
-            100% { transform: translate(150px, 100px) scale(1.3) rotate(180deg); }
+            100% { transform: translate(120px, 80px) scale(1.2) rotate(180deg); }
         }
 
-        .hero-glass-core {
+        .hero-content-wrapper {
             position: relative;
             z-index: 2;
             width: 100%;
-            padding: 40px !important;
-            background: rgba(255, 255, 255, 0.03) !important;
-            -webkit-backdrop-filter: blur(30px) saturate(180%) !important;
-            backdrop-filter: blur(30px) saturate(180%) !important;
-            border-radius: 24px;
-            border: 1px solid rgba(255, 255, 255, 0.1) !important;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.2) !important;
         }
 
         .hero-header-top {
@@ -1478,10 +1474,10 @@
                             <div class="nebula-blob blob-magenta"></div>
                             <div class="nebula-blob blob-blue"></div>
                         </div>
-                        <div class="hero-glass-core">
+                        <div class="hero-content-wrapper">
                             <div class="hero-header-top">
                                 <span class="badge-new">PORTAL HEMN</span>
-                                <span class="system-tag">v1.5.5 PREMIUM</span>
+                                <span class="system-tag">v1.5.6 PREMIUM</span>
                             </div>
                             <h1 id="welcome-title">Bem-vindo!</h1>
                             <div class="hero-divider"></div>
