@@ -55,6 +55,9 @@
     --font-body: 'Inter', sans-serif;
     --font-mono: 'Courier New', monospace;
 
+    /* Highlight Color */
+    --accent-color: #3b82f6;
+
     /* Component Sizes */
     --sidebar-w: 270px;
     --topbar-h: 72px;
@@ -649,7 +652,8 @@ body {
     gap: var(--s-4);
 }
 
-.mobile-brand {
+.mobile-brand,
+.mobile-greeting {
     display: none;
 }
 
@@ -2962,6 +2966,16 @@ input:checked + .hemn-slider:before {
     position: sticky;
     top: 20px;
     box-shadow: var(--shadow-lg);
+    z-index: 10;
+}
+
+@media (max-width: 992px) {
+    .checkout-summary-card {
+        position: relative !important;
+        top: 0 !important;
+        z-index: 1;
+        margin-bottom: 20px;
+    }
 }
 
 .summary-header {
@@ -3083,6 +3097,7 @@ html[data-theme="dark"] .summary-total-box {
     display: flex;
     flex-direction: column;
     gap: 20px;
+    overflow-x: hidden;
 }
 
 .payment-method-card {
@@ -3091,6 +3106,25 @@ html[data-theme="dark"] .summary-total-box {
     border-radius: 24px;
     padding: 35px;
     box-shadow: var(--shadow-sm);
+}
+
+@media (max-width: 768px) {
+    .payment-method-card {
+        padding: 20px;
+        border-radius: 20px;
+        overflow-x: hidden;
+    }
+    
+    .payment-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 15px;
+        margin-bottom: 20px;
+    }
+
+    .payment-title-group h3 {
+        font-size: 18px;
+    }
 }
 
 .payment-header {
@@ -3213,20 +3247,46 @@ html[data-theme="dark"] .qr-code-premium-frame {
     align-items: center;
     gap: 15px;
     margin-top: 15px;
+    transition: all 0.3s ease;
+}
+
+@media (max-width: 768px) {
+    .pix-copy-premium {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+        padding: 12px;
+    }
+    
+    .pix-copy-premium code {
+        text-align: center;
+        padding: 8px;
+        background: rgba(0,0,0,0.03);
+        border-radius: 8px;
+        width: 100%;
+        box-sizing: border-box;
+    }
+    
+    .pix-copy-btn {
+        width: 100%;
+        height: 48px;
+        font-size: 14px;
+    }
 }
 
 .pix-copy-premium code {
     flex: 1;
     font-family: 'JetBrains Mono', monospace;
-    font-size: 12px;
+    font-size: 11px;
     color: var(--text-2);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    min-width: 0;
 }
 
 .pix-copy-btn {
-    background: var(--accent-color);
+    background: var(--accent-color, #3b82f6);
     color: white;
     border: none;
     padding: 10px 18px;
@@ -3628,18 +3688,78 @@ html[data-theme="dark"] .info-help-card {
     }
 
     .mobile-brand {
+        display: none !important;
+    }
+
+    .mobile-greeting {
         display: flex !important;
         align-items: center;
-        gap: 8px;
-        pointer-events: auto;
+        gap: 10px;
         margin-right: auto;
-        padding-left: 8px;
+        padding-left: 0;
+        margin-left: -15px;
+        flex: 1;
+        overflow: hidden;
+    }
+
+    .mg-icon {
+        width: 36px;
+        height: 36px;
+        background: rgba(0, 0, 0, 0.03);
+        border: 1px solid rgba(0, 0, 0, 0.05);
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--accent);
+        font-size: 14px;
+        flex-shrink: 0;
+    }
+
+    [data-theme="dark"] .mg-icon {
+        background: rgba(255, 255, 255, 0.04);
+        border-color: rgba(255, 255, 255, 0.1);
+    }
+
+    .mg-text {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        overflow: hidden;
+    }
+
+    .mg-subtitle {
+        font-size: 8px;
+        font-weight: 800;
+        text-transform: uppercase;
+        color: var(--text-3);
+        letter-spacing: 0.5px;
+        line-height: 1;
+        margin-bottom: 2px;
+        opacity: 0.8;
+    }
+
+    .mg-greeting {
+        font-size: 14px;
+        font-weight: 700;
+        color: var(--text-1);
+        margin: 0;
+        line-height: 1.2;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .mg-greeting b {
+        background: var(--g-primary);
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+        font-weight: 800;
     }
 
     .mobile-logo-img {
-        height: 24px !important;
-        width: auto;
-        filter: none !important;
+        display: none !important;
     }
 
     /* O greeting some em mobile */
@@ -3656,21 +3776,47 @@ html[data-theme="dark"] .info-help-card {
     /* Ícones limpos e profissionais */
     .header-tools .icon-btn, 
     .header-tools .user-profile-trigger,
-    .notification-wrapper button {
-        background: transparent !important;
-        border: none !important;
-        box-shadow: none !important;
-        width: 40px !important;
-        height: 40px !important;
+    .notification-wrapper button,
+    .user-menu-trigger {
+        background: rgba(255, 255, 255, 0.05) !important;
+        border: 1px solid rgba(0, 0, 0, 0.05) !important;
+        width: 38px !important;
+        height: 38px !important;
+        border-radius: 50% !important; /* Todos circulares */
         padding: 0 !important;
         display: flex !important;
-        align-items: center;
-        justify-content: center;
+        align-items: center !important;
+        justify-content: center !important;
         color: var(--text-2) !important;
+        box-shadow: none !important;
+    }
+
+    .user-menu-avatar {
+        width: 36px !important;
+        height: 36px !important;
+        border-radius: 50% !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        font-size: 15px !important;
+        font-weight: 800 !important;
+        background: var(--g-primary) !important;
+        color: #fff !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        aspect-ratio: 1/1 !important;
+        flex-shrink: 0 !important;
+        overflow: hidden !important;
+    }
+
+    /* Remove seta e nome no mobile */
+    .user-menu-name,
+    .user-menu-caret {
+        display: none !important;
     }
 
     .header-tools .icon-btn i {
-        font-size: 18px;
+        font-size: 17px;
     }
 }
 
@@ -3890,7 +4036,8 @@ html[data-theme="dark"] .info-help-card {
     /* Grid de planos disponíveis */
     .plans-grid,
     [id*="plano"] [style*="grid-template-columns"] {
-        grid-template-columns: 1fr !important;
+        grid-template-columns: 1fr 1fr !important;
+        gap: 12px !important;
     }
 
     /* Checkout page layout */
@@ -3943,37 +4090,44 @@ html[data-theme="dark"] .info-help-card {
         top: auto !important;
     }
 
-    /* Dropdown de notificações — sheet da esquerda */
+    /* Dropdowns Flutuantes Compactos (v1.6.4 Standard) */
     #notification-dropdown {
         position: fixed !important;
         top: 65px !important;
-        left: 0 !important;
-        right: 0 !important;
-        width: 100% !important;
+        right: 16px !important;
+        left: auto !important;
+        width: 320px !important;
+        max-width: calc(100vw - 32px) !important;
         max-height: 70vh;
         overflow-y: auto;
-        border-radius: 0 0 20px 20px !important;
-        border-top: none !important;
-        box-shadow: 0 20px 60px rgba(0,0,0,0.3) !important;
+        border-radius: 16px !important;
+        border: 1px solid var(--border) !important;
+        box-shadow: 0 15px 45px rgba(0,0,0,0.15) !important;
+        z-index: 10002 !important;
     }
 
-    /* Dropdown de usuário */
     #user-dropdown {
         position: fixed !important;
-        right: 0 !important;
         top: 65px !important;
-        left: 0 !important;
-        width: 100% !important;
-        border-radius: 0 0 20px 20px !important;
-        box-shadow: 0 20px 60px rgba(0,0,0,0.3) !important;
+        right: 16px !important;
+        left: auto !important;
+        width: 220px !important;
+        border-radius: 16px !important;
+        border: 1px solid var(--border) !important;
+        box-shadow: 0 15px 45px rgba(0,0,0,0.15) !important;
+        z-index: 10002 !important;
     }
 
-    /* Dropdown de carteira */
     #balance-dropdown {
         position: fixed !important;
-        right: var(--s-3) !important;
         top: 65px !important;
-        min-width: 200px !important;
+        right: 16px !important;
+        left: auto !important;
+        width: 200px !important;
+        border-radius: 16px !important;
+        border: 1px solid var(--border) !important;
+        box-shadow: 0 15px 45px rgba(0,0,0,0.15) !important;
+        z-index: 10002 !important;
     }
 }
 
@@ -4077,4 +4231,187 @@ html[data-theme="dark"] .info-help-card {
         max-height: 85dvh;
         overflow-y: auto;
     }
+
+    /* ═══════════════════════════════════════════════════════════════
+       V1.6.5 - PRECISE "EXPLORE SYSTEM" STYLE FOR PLANS
+    ═══════════════════════════════════════════════════════════════ */
+    .plans-grid {
+        grid-template-columns: 1fr 1fr !important;
+        gap: 12px !important;
+        padding: 4px 0 !important;
+        margin-top: 15px !important;
+    }
+
+    .plan-card {
+        min-height: 160px !important;
+        padding: 15px !important;
+        flex-direction: column !important;
+        align-items: center !important;
+        justify-content: center !important;
+        text-align: center !important;
+        border-radius: 26px !important;
+        gap: 6px !important;
+        background: var(--bg-card) !important;
+        border: 1px solid var(--border) !important;
+        position: relative !important;
+        overflow: hidden !important;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.05) !important;
+        transform: none !important;
+    }
+
+    /* Small Icon Box Top-Center (Centralized Style) */
+    .plan-icon-wrapper {
+        position: relative !important;
+        top: 0 !important;
+        left: 0 !important;
+        width: 38px !important;
+        height: 38px !important;
+        border-radius: 12px !important;
+        font-size: 16px !important;
+        margin: 0 0 5px 0 !important;
+        background: var(--bg-input) !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        box-shadow: none !important;
+        border: 1px solid var(--border) !important;
+    }
+
+    .plan-name {
+        font-size: 11px !important;
+        font-weight: 800 !important;
+        text-transform: none !important;
+        letter-spacing: 0px !important;
+        color: var(--text-1) !important;
+        margin-top: 5px !important;
+        margin-bottom: 0px !important;
+        line-height: 1.2 !important;
+        width: 100% !important;
+        text-align: center !important;
+    }
+
+    .plan-credits {
+        font-size: 9px !important;
+        padding: 3px 10px !important;
+        background: rgba(0, 0, 0, 0.05) !important;
+        color: var(--text-2) !important;
+        border: none !important;
+        border-radius: 8px !important;
+        font-weight: 700 !important;
+        margin: 0 !important;
+        display: inline-block !important;
+        width: fit-content !important;
+    }
+
+    [data-theme="dark"] .plan-credits {
+        background: rgba(255, 255, 255, 0.08) !important;
+    }
+
+    .plan-price {
+        font-size: 18px !important;
+        font-weight: 900 !important;
+        margin: 2px 0 !important;
+        color: var(--text-1) !important;
+        display: flex !important;
+        align-items: baseline !important;
+        justify-content: center !important;
+        gap: 2px !important;
+        width: 100% !important;
+    }
+
+    .plan-price .currency {
+        font-size: 10px !important;
+        font-weight: 700 !important;
+        color: var(--text-3) !important;
+    }
+
+    .plan-validity,
+    .recommended-badge,
+    .plan-card::before {
+        display: none !important; /* Hide elements that clutter the compact view */
+    }
+
+    /* Premium Theme Color Adaptations for Compact view */
+    .plan-card.premium-gold {
+        background: linear-gradient(135deg, #FFDF00 0%, #D4AF37 100%) !important;
+        border: none !important;
+    }
+    .plan-card.premium-gold .plan-icon-wrapper {
+        background: rgba(255, 255, 255, 0.2) !important;
+        color: #fff !important;
+        border: 1px solid rgba(255, 255, 255, 0.3) !important;
+    }
+    .plan-card.premium-gold .plan-name,
+    .plan-card.premium-gold .plan-price,
+    .plan-card.premium-gold .plan-credits {
+        color: #fff !important;
+    }
+    .plan-card.premium-gold .plan-credits {
+        background: rgba(0,0,0,0.1) !important;
+    }
+
+    .plan-card.platinum-gold {
+        background: linear-gradient(135deg, #111 0%, #000 100%) !important;
+    }
+    .plan-card.platinum-gold .plan-icon-wrapper {
+        background: rgba(255, 255, 255, 0.1) !important;
+        color: #fff !important;
+    }
+
+    /* Selected state */
+    .plan-card.selected {
+        border: 2px solid var(--accent) !important;
+        box-shadow: 0 10px 30px rgba(58, 123, 213, 0.25) !important;
+    }
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   V1.6.7 - REPOSITIONED STATEMENT HEADER (MOBILE OPTIMIZATION)
+   Reposiciona título e filtro para fora do card no mobile
+═══════════════════════════════════════════════════════════════ */
+.statement-header-mobile {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    padding: 0 5px;
+}
+
+.statement-header-mobile h3 {
+    font-family: var(--font-heading);
+    font-size: 16px;
+    font-weight: 700;
+    margin: 0;
+    color: var(--text-1);
+}
+
+@media (max-width: 768px) {
+    .statement-header-mobile {
+        margin-bottom: 15px;
+        padding: 0 4px;
+        margin-top: 5px;
+        width: 100% !important;
+    }
+    
+    .statement-header-mobile h3 {
+        font-size: 14px !important;
+        white-space: nowrap !important;
+    }
+    
+    .statement-header-mobile .header-actions {
+        margin-left: auto !important;
+    }
+
+    .statement-header-mobile .header-actions select {
+        height: 34px !important;
+        width: auto !important;
+        max-width: 140px !important;
+        border-radius: 10px !important;
+        background: var(--bg-card) !important;
+        border: 1px solid var(--border) !important;
+        font-size: 13px !important;
+        padding: 0 8px !important;
+        color: var(--text-1) !important;
+    }
+}
+
