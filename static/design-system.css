@@ -3576,40 +3576,58 @@ input:checked + .hemn-slider:before {
     }
 }
 
-/* ── Menu Toggle — visível enquanto logado ── */
+/* ── Menu Toggle — integrado na top-bar (SEM position:fixed) ── */
 @media (max-width: 1024px) {
-    .drawer-toggle,
+    /* O menu-toggle vive DENTRO da top-bar */
     .menu-toggle {
         display: flex !important;
         align-items: center;
         justify-content: center;
-        width: 44px;
-        height: 44px;
-        min-width: 44px;
-        min-height: 44px;
-        position: fixed;
-        top: 11px;
-        left: 12px;
-        z-index: 4000;
-        background: var(--bg-card);
+        width: 40px;
+        height: 40px;
+        min-width: 40px;
+        flex-shrink: 0;
+        background: var(--bg-input);
         border: 1px solid var(--border);
-        border-radius: 12px;
-        box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+        border-radius: 10px;
         cursor: pointer;
         color: var(--text-1);
         font-size: 16px;
         transition: all 0.2s;
+        /* SEM position:fixed — fica no fluxo normal da top-bar */
     }
 
-    .drawer-toggle:active,
     .menu-toggle:active {
         transform: scale(0.92);
         background: var(--bg-hover);
     }
 
-    /* Empurrar conteúdo da top-bar para não sobrepor o hambúrguer */
+    /* Top-bar em mobile: items alinhados na linha, padding normal */
     .top-bar {
-        padding-left: 68px !important;
+        display: flex !important;
+        align-items: center !important;
+        gap: 8px !important;
+        padding: 0 12px !important;
+        justify-content: flex-start !important;
+    }
+
+    /* O greeting some em mobile para dar espaço aos ícones */
+    .greeting-container {
+        display: none !important;
+    }
+
+    /* Header-tools fica à direita (margin-left auto empurra) */
+    .header-tools {
+        margin-left: auto !important;
+        display: flex !important;
+        align-items: center !important;
+        gap: 6px !important;
+        flex-shrink: 0;
+    }
+
+    /* Qualquer drawer-toggle legado também fica no fluxo */
+    .drawer-toggle {
+        display: none !important;
     }
 }
 
@@ -3666,24 +3684,103 @@ input:checked + .hemn-slider:before {
     }
 }
 
-/* ── Tabela Admin — Botões Pill colapsam para ícone em mobile ── */
-@media (max-width: 700px) {
-    /* Coluna de ações vira compacta */
+/* ── Tabela Admin — card view em mobile ── */
+@media (max-width: 768px) {
+    /* Container da tabela admite scroll */
+    .glass-card:has(#users-table-body),
+    .glass-card:has(.data-table) {
+        overflow-x: hidden !important;
+        padding: 0 !important;
+    }
+
+    /* Esconde o <thead> — substitui por labels nos cards */
+    #users-table-body ~ * thead,
+    .data-table thead {
+        display: none !important;
+    }
+
+    /* Cada <tr> vira um card */
+    .data-table tbody tr {
+        display: block !important;
+        border: 1px solid var(--border) !important;
+        border-radius: 14px !important;
+        margin: 12px 12px !important;
+        padding: 14px !important;
+        background: var(--bg-input) !important;
+        position: relative;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+
+    /* Cada <td> ocupa linha inteira */
+    .data-table tbody td {
+        display: flex !important;
+        align-items: center;
+        justify-content: space-between;
+        padding: 4px 0 !important;
+        border: none !important;
+        font-size: 13px;
+        min-height: 0 !important;
+    }
+
+    /* Primeira coluna (nome/usuário) — destaque */
+    .data-table tbody td:first-child {
+        margin-bottom: 8px;
+        padding-bottom: 10px !important;
+        border-bottom: 1px solid var(--border) !important;
+    }
+
+    .data-table tbody td:first-child .admin-user-info-wrapper {
+        flex: 1;
+    }
+
+    .data-table tbody td:first-child .emp-name {
+        font-size: 15px !important;
+        font-weight: 700;
+    }
+
+    /* Colunas do meio: label automática via data-label */
+    .data-table tbody td::before {
+        content: attr(data-label);
+        font-size: 10px;
+        font-weight: 700;
+        text-transform: uppercase;
+        color: var(--text-dim);
+        letter-spacing: 0.6px;
+        flex-shrink: 0;
+    }
+
+    /* Ultima coluna (ações) — ocupa toda a largura */
+    .data-table tbody td:last-child {
+        margin-top: 10px;
+        padding-top: 10px !important;
+        border-top: 1px solid var(--border) !important;
+        justify-content: flex-start !important;
+    }
+
+    .data-table tbody td:last-child > div {
+        width: 100%;
+        justify-content: space-between !important;
+        gap: 6px !important;
+    }
+
+    /* Botões pill — ocupam espaço igual */
+    .data-table tbody td:last-child button {
+        flex: 1 !important;
+        justify-content: center !important;
+        padding: 9px 8px !important;
+        font-size: 11px !important;
+        border-radius: 12px !important;
+    }
+
+    /* Esconde o texto pill em mobile, mantém ícone */
     .data-table td .pill-action-text {
         display: none !important;
     }
 
-    .data-table td button[style*="border-radius: 20px"] {
-        padding: 8px 10px !important;
-        border-radius: 10px !important;
-        min-width: 38px;
-        min-height: 38px;
-        justify-content: center;
-    }
-
-    /* Tabela admin com scroll */
+    /* Tabela com min-width normal para garantir scroll em telas tablets */
     .data-table {
-        min-width: 480px;
+        min-width: 0 !important;
+        width: 100% !important;
     }
 }
 

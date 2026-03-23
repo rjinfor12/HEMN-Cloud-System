@@ -1019,7 +1019,7 @@
     <!-- Icons and Fonts -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- Premium Design System -->
-    <link rel="stylesheet" href="/areadocliente/static/design-system.css?v=1.4.7">
+    <link rel="stylesheet" href="/areadocliente/static/design-system.css?v=1.4.8">
     <!-- Charts -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
@@ -3544,19 +3544,19 @@
                     const expLabel = (u.role === 'ADMIN' || u.role === 'MAYK') ? 'Ilimitado' : (u.expiration ? u.expiration.split(' ')[0].split('-').reverse().join('/') : 'Sem vencimento');
 
                     row.innerHTML = `
-                        <td>
+                        <td data-label="">
                             <div class="admin-user-info-wrapper">
                                 <div class="emp-name" style="font-size:14px" title="${u.full_name}">${u.full_name}</div>
                                 <div style="font-size:11px; color:var(--text-dim)">@${u.username} | ${roleLabel}</div>
                             </div>
                         </td>
-                        <td><div class="badge ${statusBadge}">${u.status === 'ACTIVE' ? 'ATIVO' : u.status === 'REVOKED' ? 'REVOGADO' : 'BLOQUEADO'}</div></td>
-                        <td><div style="font-size:12px">${expLabel}</div></td>
-                        <td>
+                        <td data-label="Status"><div class="badge ${statusBadge}">${u.status === 'ACTIVE' ? 'ATIVO' : u.status === 'REVOKED' ? 'REVOGADO' : 'BLOQUEADO'}</div></td>
+                        <td data-label="Vencimento"><div style="font-size:12px">${expLabel}</div></td>
+                        <td data-label="Consumo">
                             <div style="font-size:13px; font-weight:600">${u.current_usage.toLocaleString()} / ${limitLabel}</div>
-                            <div style="font-size:10px; color:var(--text-dim)">${usagePct}% consumido</div>
+                            <div style="font-size:10px; color:var(--text-dim)">${usagePct}%</div>
                         </td>
-                        <td>
+                        <td data-label="">
                             <div style="display:flex; gap:8px; flex-wrap: nowrap; justify-content: flex-end; align-items: center;">
                                 <button onclick="app.viewUserDashboard('${u.username}')" title="Ver Extrato" style="display:flex; align-items:center; gap:6px; padding: 7px 14px; border-radius: 20px; border: none; background: #3b82f6; color: white; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s; white-space: nowrap;" onmouseover="this.style.filter='brightness(1.15)'" onmouseout="this.style.filter='brightness(1)'">
                                     <i class="fas fa-file-invoice-dollar" style="font-size: 12px;"></i><span class="pill-action-text"> Extrato</span>
