@@ -18,6 +18,10 @@
         (function () {
             const token = localStorage.getItem("hemn_token");
             if (token) document.documentElement.classList.add('is-logged-in');
+            
+            // Carregamento antecipado do tema para persistência (F5)
+            const savedTheme = localStorage.getItem("hemn_theme") || 'light';
+            document.documentElement.setAttribute('data-theme', savedTheme);
         })();
     </script>
     <style>
@@ -1036,7 +1040,7 @@
     <!-- Icons and Fonts -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- Premium Design System -->
-    <link rel="stylesheet" href="/areadocliente/static/design-system.css?v=1.5.1">
+    <link rel="stylesheet" href="/areadocliente/static/design-system.css?v=1.5.2">
     <!-- Charts -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
@@ -1048,6 +1052,29 @@
             border-color: rgba(255, 255, 255, 0.1) !important;
             box-shadow: 0 20px 50px rgba(0,0,0,0.3) !important;
         }
+        
+        /* Regras do Painel de Login (Sempre Claro) */
+        #login-overlay {
+            --bg-card: #ffffff !important;
+            --text-1: #1e293b !important;
+            --text-2: #64748b !important;
+            --border: rgba(0,0,0,0.1) !important;
+        }
+        #login-overlay .glass-card {
+            background: rgba(255, 255, 255, 0.95) !important;
+            color: #1e293b !important;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25) !important;
+            backdrop-filter: blur(10px) !important;
+            -webkit-backdrop-filter: blur(10px) !important;
+        }
+        #login-overlay .form-group label { color: #64748b !important; }
+        #login-overlay input {
+            background: #ffffff !important;
+            color: #1e293b !important;
+            border-color: rgba(0,0,0,0.1) !important;
+        }
+        #login-overlay h2 { color: #1e293b !important; }
+        #login-overlay .login-footer { color: #64748b !important; }
         html[data-theme="dark"] .plan-card {
             background: rgba(255, 255, 255, 0.03) !important;
             border-color: rgba(255, 255, 255, 0.1) !important;
@@ -3109,6 +3136,9 @@
                     if (res.ok) {
                         localStorage.setItem("hemn_token", data.access_token);
                         localStorage.setItem("hemn_last_module", "inicio");
+                        // Reset tema para claro no Login (conforme regra)
+                        localStorage.setItem("hemn_theme", "light");
+                        document.documentElement.setAttribute('data-theme', 'light');
                         if (data.force_password_change) {
                             localStorage.setItem("hemn_force_pw_change", "1");
                         }
@@ -3133,6 +3163,10 @@
                 localStorage.removeItem("hemn_force_pw_change");
                 localStorage.removeItem("hemn_active_tasks");
                 localStorage.removeItem("hemn_last_module");
+                
+                // Reset tema para claro no Logout (conforme regra)
+                localStorage.setItem("hemn_theme", "light");
+                document.documentElement.setAttribute('data-theme', 'light');
                 // Instant UI Reset
                 document.documentElement.classList.remove('is-logged-in');
                 
