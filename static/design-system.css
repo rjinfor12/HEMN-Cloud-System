@@ -3497,6 +3497,9 @@ html[data-theme="dark"] .info-help-card {
 
     .page-container {
         padding: var(--s-4) !important;
+        overflow-x: hidden !important;
+        max-width: 100vw !important;
+        box-sizing: border-box !important;
     }
 
     /* Adjust cards for mobile */
@@ -3538,7 +3541,15 @@ html[data-theme="dark"] .info-help-card {
     }
 
     .data-table {
-        min-width: 600px; /* Force scroll */
+        min-width: 0 !important;
+        width: 100% !important;
+    }
+
+    /* Admin table: força layout de card (sem min-width fixo) */
+    #admin-users-table {
+        min-width: 0 !important;
+        width: 100% !important;
+        table-layout: auto !important;
     }
 
     /* Mobile Header Specifics */
@@ -3892,23 +3903,37 @@ html[data-theme="dark"] .info-help-card {
     .data-table tbody tr {
         display: block !important;
         border: 1px solid var(--border) !important;
-        border-radius: 14px !important;
-        margin: 12px 12px !important;
-        padding: 14px !important;
-        background: var(--bg-input) !important;
+        border-radius: 12px !important;
+        margin: 10px 10px !important;
+        padding: 12px !important;
+        background: var(--bg-card) !important;
         position: relative;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+        overflow: hidden !important;
+        box-sizing: border-box !important;
     }
 
     /* Cada <td> ocupa linha inteira */
     .data-table tbody td {
         display: flex !important;
         align-items: center;
-        justify-content: space-between;
-        padding: 4px 0 !important;
+        justify-content: flex-start !important;
+        padding: 6px 0 !important;
         border: none !important;
         font-size: 13px;
         min-height: 0 !important;
+        gap: 8px;
+        width: 100% !important;
+        overflow: hidden;
+    }
+
+    /* Valor (conteúdo depois do label) */
+    .data-table tbody td > *:not(:first-child),
+    .data-table tbody td > div:last-child {
+        flex: 1;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
     }
 
     /* Primeira coluna (nome/usuário) — destaque */
@@ -3930,12 +3955,14 @@ html[data-theme="dark"] .info-help-card {
     /* Colunas do meio: label automática via data-label */
     .data-table tbody td::before {
         content: attr(data-label);
-        font-size: 10px;
-        font-weight: 700;
+        font-size: 9px;
+        font-weight: 800;
         text-transform: uppercase;
         color: var(--text-dim);
         letter-spacing: 0.6px;
         flex-shrink: 0;
+        width: 85px;
+        opacity: 0.7;
     }
 
     /* Ultima coluna (ações) — ocupa toda a largura */
@@ -3948,17 +3975,21 @@ html[data-theme="dark"] .info-help-card {
 
     .data-table tbody td:last-child > div {
         width: 100%;
-        justify-content: space-between !important;
-        gap: 6px !important;
+        display: flex !important;
+        flex-direction: row !important;
+        justify-content: space-evenly !important;
+        gap: 10px !important;
     }
 
     /* Botões pill — ocupam espaço igual */
     .data-table tbody td:last-child button {
         flex: 1 !important;
         justify-content: center !important;
-        padding: 9px 8px !important;
-        font-size: 11px !important;
-        border-radius: 12px !important;
+        padding: 10px 8px !important;
+        font-size: 14px !important;
+        border-radius: 50px !important;
+        aspect-ratio: 1/1;
+        max-width: 44px;
     }
 
     /* Esconde o texto pill em mobile, mantém ícone */
@@ -3975,9 +4006,16 @@ html[data-theme="dark"] .info-help-card {
 
 /* Wrapper universal para qualquer tabela de gestão */
 @media (max-width: 768px) {
+    /* Admin module: garantir que nenhum filho ultrapasse o viewport */
+    #module-admin {
+        overflow-x: hidden !important;
+        max-width: 100% !important;
+    }
+    #module-admin .glass-card,
     .admin-table-wrapper,
     .glass-card:has(.data-table) {
-        overflow-x: auto;
+        overflow-x: hidden !important;
+        max-width: 100% !important;
         -webkit-overflow-scrolling: touch;
     }
 

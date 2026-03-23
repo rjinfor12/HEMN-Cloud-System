@@ -2451,34 +2451,36 @@
                         </div>
                     </div>
 
-                    <div class="glass-card">
-                        <div
-                            style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--s-5);">
-                            <h3 style="font-family: var(--font-heading); font-size: 16px;">Lista de Licenças Ativas</h3>
-                            <button class="btn-primary" onclick="app.openUserModal()"
-                                style="height: 38px; padding: 0 var(--s-4); font-size: 13px;">
-                                <i class="fas fa-plus"></i> Novo Usuário
-                            </button>
-                        </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--s-4); padding: 0 4px;">
+                        <h3 style="font-family: var(--font-heading); font-size: 16px;">Lista de Licenças Ativas</h3>
+                        <button class="btn-primary" onclick="app.openUserModal()"
+                            style="height: 38px; padding: 0 var(--s-4); font-size: 13px;">
+                            <i class="fas fa-plus"></i> Novo Usuário
+                        </button>
+                    </div>
+
+                    <div class="glass-card" style="padding: 0;">
 
                         <div>
                             <style>
-                                #admin-users-table {
-                                    table-layout: fixed;
-                                    width: 100% !important;
-                                    min-width: 0 !important;
+                                /* Estilos de desktop para a tabela admin — overrides de mobile estão no design-system.css */
+                                @media (min-width: 769px) {
+                                    #admin-users-table {
+                                        table-layout: fixed;
+                                        width: 100% !important;
+                                        min-width: 0 !important;
+                                    }
+                                    #admin-users-table th, #admin-users-table td {
+                                        overflow: hidden;
+                                        text-overflow: ellipsis;
+                                        white-space: nowrap;
+                                    }
+                                    #admin-users-table th:nth-child(1), #admin-users-table td:nth-child(1) { width: 35%; }
+                                    #admin-users-table th:nth-child(2), #admin-users-table td:nth-child(2) { width: 12%; }
+                                    #admin-users-table th:nth-child(3), #admin-users-table td:nth-child(3) { width: 15%; }
+                                    #admin-users-table th:nth-child(4), #admin-users-table td:nth-child(4) { width: 18%; }
+                                    #admin-users-table th:nth-child(5), #admin-users-table td:nth-child(5) { width: 20%; text-align: right; }
                                 }
-                                #admin-users-table th, #admin-users-table td {
-                                    overflow: hidden;
-                                    text-overflow: ellipsis;
-                                    white-space: nowrap;
-                                }
-                                #admin-users-table th:nth-child(1), #admin-users-table td:nth-child(1) { width: 35%; }
-                                #admin-users-table th:nth-child(2), #admin-users-table td:nth-child(2) { width: 12%; }
-                                #admin-users-table th:nth-child(3), #admin-users-table td:nth-child(3) { width: 15%; }
-                                #admin-users-table th:nth-child(4), #admin-users-table td:nth-child(4) { width: 18%; }
-                                #admin-users-table th:nth-child(5), #admin-users-table td:nth-child(5) { width: 20%; text-align: right; }
-                                
                                 .admin-user-info-wrapper {
                                     display: flex;
                                     flex-direction: column;
