@@ -649,6 +649,10 @@ body {
     gap: var(--s-4);
 }
 
+.mobile-brand {
+    display: none;
+}
+
 .search-bar {
     display: flex;
     align-items: center;
@@ -3618,6 +3622,25 @@ html[data-theme="dark"] .info-help-card {
     .menu-toggle:active {
         transform: scale(0.92);
         background: var(--bg-hover);
+    }
+
+    /* Logo no centro do cabeçalho mobile */
+    .mobile-brand {
+        display: flex !important;
+        align-items: center;
+        justify-content: center;
+        position: absolute;
+        left: 50%;
+        transform: translateX(-50%);
+        pointer-events: none;
+        z-index: 10;
+    }
+
+    .mobile-logo-img {
+        height: 26px;
+        width: auto;
+        object-fit: contain;
+        filter: drop-shadow(0 2px 4px rgba(0,0,0,0.05));
     }
 
     /* Top-bar em mobile: items alinhados na linha, padding normal */
