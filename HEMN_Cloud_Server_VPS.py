@@ -306,6 +306,7 @@ def search_leads(req: LeadSearchRequest, user: dict = Depends(check_clinicas_acc
 @app.post("/tasks/enrich")
 def start_enrich(req: EnrichRequest, user: dict = Depends(get_current_user)):
     if req.manual:
+        # ... (Deep search logic)
         # Limpeza básica do CPF
         cpf_clean = ''.join(filter(str.isdigit, str(req.cpf or "")))
         res = engine.deep_search(req.name, cpf_clean)
@@ -326,6 +327,10 @@ def start_enrich(req: EnrichRequest, user: dict = Depends(get_current_user)):
     if not req.file_id:
         raise HTTPException(status_code=400, detail="Nenhum arquivo (file_id) fornecido. Envie o arquivo primeiro.")
     
+    # Otimização v1.9.0: Trava de Concorrência
+    if user["role"] != "ADMIN" and engine.count_active_tasks(user["username"]) > 0:
+        raise HTTPException(status_code=403, detail="Você já possui uma pesquisa em andamento. Aguarde a conclusão ou cancele-a antes de iniciar outra.")
+
     path = os.path.join(UPLOAD_DIR, req.file_id)
     print(f"[DEBUG] /tasks/enrich - File: {req.file_id}, Perfil: {req.perfil}, User: {user['username']}")
     tid = engine.start_enrich(path, RESULT_DIR, req.name_col, req.cpf_col, username=user["username"], perfil=req.perfil)
@@ -335,6 +340,10 @@ def start_enrich(req: EnrichRequest, user: dict = Depends(get_current_user)):
 
 @app.post("/tasks/extract")
 def start_extract(filters: ExtractionFilter, user: dict = Depends(get_current_user)):
+    # Otimização v1.9.0: Trava de Concorrência
+    if user["role"] != "ADMIN" and engine.count_active_tasks(user["username"]) > 0:
+        raise HTTPException(status_code=403, detail="Você já possui uma extração em andamento. Aguarde a conclusão ou cancele-a antes de iniciar outra.")
+
     # Logar início de extração
     log_transaction(user["username"], "CREDIT", 0, "EXTRACT", f"Iniciada extração de dados: {filters.uf} - {filters.cidade}")
     
@@ -348,6 +357,10 @@ def start_extract(filters: ExtractionFilter, user: dict = Depends(get_current_us
 
 @app.post("/tasks/carrier")
 def start_carrier(req: CarrierRequest, user: dict = Depends(get_current_user)):
+    # Otimização v1.9.0: Trava de Concorrência
+    if user["role"] != "ADMIN" and engine.count_active_tasks(user["username"]) > 0:
+        raise HTTPException(status_code=403, detail="Você já possui uma consulta de operadoras em andamento.")
+
     path = os.path.join(UPLOAD_DIR, req.file_id)
     tid = engine.batch_carrier(path, RESULT_DIR, req.phone_col, username=user["username"])
     # Logar início de processamento

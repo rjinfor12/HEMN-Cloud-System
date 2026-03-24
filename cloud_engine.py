@@ -310,6 +310,21 @@ class CloudEngine:
         except:
             return {"status": "OFFLINE", "uptime": "0", "active_queries": 0}
 
+    def count_active_tasks(self, username):
+        """Retorna o número de tarefas QUEUED ou PROCESSING de um usuário."""
+        if not username: return 0
+        try:
+            conn = sqlite3.connect(self.db_path, timeout=30)
+            conn.execute("PRAGMA journal_mode=WAL")
+            count = conn.execute(
+                "SELECT COUNT(*) FROM background_tasks WHERE username = ? COLLATE NOCASE AND status IN ('QUEUED', 'PROCESSING')",
+                (username,)
+            ).fetchone()[0]
+            conn.close()
+            return count
+        except:
+            return 0
+
     def _batch_query(self, sql_template, key_param, values, batch_size=3000, tid=None, base_prog=0, max_prog=0, msg_prefix=""):
         """Execute a query with a large IN() list in safe-sized batches with progress tracking."""
         ch_local = self._get_ch_client()
@@ -327,7 +342,8 @@ class CloudEngine:
                 if status.get("status") == "CANCELLED": return [], []
 
             chunk = values[i:i + batch_size]
-            res = ch_local.query(sql_template, {key_param: chunk})
+            # Otimização v1.8.12: Limitar threads para permitir concorrência de usuários
+            res = ch_local.query(sql_template + " SETTINGS max_threads = 1", {key_param: chunk})
             all_rows.extend(res.result_rows)
             # Log names once
             if not col_names:
@@ -339,6 +355,8 @@ class CloudEngine:
             if tid and max_prog > base_prog:
                 prog = base_prog + int((i / total) * (max_prog - base_prog))
                 self._update_task(tid, progress=prog, message=f"{msg_prefix} ({i:,}/{total:,})...")
+                # Yield to OS for concurrency in multi-user environments (High Priority v1.8.12)
+                time.sleep(0.1) 
 
         return all_rows, col_names
 
@@ -380,7 +398,7 @@ class CloudEngine:
     def start_enrich(self, input_file, output_dir, name_col, cpf_col, username=None, perfil="TODOS"):
         print(f"[DEBUG] start_enrich called: input={input_file}, name_col={name_col}, cpf_col={cpf_col}, user={username}, perfil={perfil}")
         fname = os.path.basename(input_file)
-        f_summary = f"[v1.8.10] Enriquecer: {fname} (Perfil: {perfil})"
+        f_summary = f"[v1.9.1] Enriquecer: {fname} (Perfil: {perfil})"
         tid = self._create_task(module="ENRICH", username=username, filters=f_summary)
         threading.Thread(target=self._run_enrich, args=(tid, input_file, output_dir, name_col, cpf_col, perfil), daemon=True).start()
         return tid
@@ -499,7 +517,7 @@ class CloudEngine:
 
     def _run_enrich(self, tid, input_file, output_dir, name_col, cpf_col, perfil="TODOS"):
         try:
-            self._update_task(tid, status="PROCESSING", message="[v1.8.10] Iniciando Escaneamento Titanium-MT (Motor Paralelo)...")
+            self._update_task(tid, status="PROCESSING", message="[v1.9.1] Iniciando Escaneamento Titanium-MT (Motor Paralelo)...")
             status = self.get_task_status(tid)
             if status.get("status") == "CANCELLED": return
             start_time = time.time()
@@ -585,15 +603,13 @@ class CloudEngine:
 
             # --- PHASE 1: BATCH PROCESSING (EXTREME SPEED) ---
             # Generar chaves combinadas (socio_chave) para busca ultra precisa
-            search_chaves = []
-            for _, row in df_in.iterrows():
-                name = str(row['titanium_nome']).strip()
-                cpf = str(row['titanium_cpf']).strip()
-                if name and len(cpf) >= 11:
-                    # Formato na base: NOME COMPLETO ***123456**
-                    search_chaves.append(f"{name} ***{cpf[3:9]}**")
-            
-            search_chaves = list(set(search_chaves))
+            # Otimização v1.8.11: Vetorização de Chaves (Elimina iterrows/CPU spike)
+            mask_chave = (df_in['titanium_nome'] != '') & (df_in['titanium_cpf'].str.len() >= 11)
+            if mask_chave.any():
+                df_masked = df_in[mask_chave]
+                search_chaves = (df_masked['titanium_nome'] + " ***" + df_masked['titanium_cpf'].str[3:9] + "**").unique().tolist()
+            else:
+                search_chaves = []
 
             # Mantemos CPF e Nome isolados apenas para fallbacks (se faltar um deles)
             valid_cpfs = [cpf for cpf in all_cpfs if len(cpf) >= 11]
@@ -683,13 +699,14 @@ class CloudEngine:
                         df_final_lookup = pd.merge(df_socios, df_info, on='cnpj_basico', how='inner')
                         
                         # Pack into all_results
-                        for _, d in df_final_lookup.iterrows():
+                        # Pack into all_results (Otimização v1.8.12: to_dict em vez de iterrows)
+                        for d in df_final_lookup.to_dict('records'):
                             addr = self._parse_address_columns(d)
                             cont = self._parse_contact_columns(d)
                             mapping = {'01': 'NULA', '02': 'ATIVA', '03': 'SUSPENSA', '04': 'INAPTA', '08': 'BAIXADA'}
                             all_results.append({
                                 'lookup_key': str(d['lookup_key']),
-                                'CNPJ': f"{str(d['cnpj_basico']).zfill(8)}{str(d['cnpj_ordem']).zfill(4)}{str(d['cnpj_dv']).zfill(2)}",
+                                'CNPJ': f"{str(int(d['cnpj_basico'])).zfill(8)}{str(int(d['cnpj_ordem'])).zfill(4)}{str(int(d['cnpj_dv'])).zfill(2)}",
                                 'RAZAO_SOCIAL': d['razao_social'], 
                                 'SITUACAO': mapping.get(str(d['situacao_cadastral']).zfill(2), 'ATIVA'),
                                 'CNAE': d['cnae_fiscal'], 'LOGRADOURO': str(addr[0]).upper(), 'NÚMERO': addr[1], 'COMPLEMENTO': addr[2],
@@ -734,15 +751,12 @@ class CloudEngine:
 
                     # Otimização v1.8.9: Recalcula listas para Phase 2 MEI
                     # Se tem CPF, ignoramos o NOME (Pois o CPF já existe na razão social do MEI e é 100x mais rápido)
-                    search_cpfs_mei = set()
-                    search_names_mei = set()
-                    for _, row in df_in.iterrows():
-                        c_val = str(row.get('titanium_cpf', '')).strip()
-                        n_val = str(row.get('titanium_nome', '')).upper().strip()
-                        if len(c_val) >= 11:
-                            search_cpfs_mei.add(c_val)
-                        elif len(n_val) > 5:
-                            search_names_mei.add(n_val)
+                    # Otimização v1.8.11: Vetorização de Listas MEI
+                    has_cpf = df_in['titanium_cpf'].str.len() >= 11
+                    search_cpfs_mei = set(df_in.loc[has_cpf, 'titanium_cpf'].tolist())
+                    
+                    # Nomes apenas para quem não tem CPF válido
+                    search_names_mei = set(df_in.loc[~has_cpf & (df_in['titanium_nome'].str.len() > 5), 'titanium_nome'].tolist())
 
                     # Sincronização v1.8.10: Só executa MEI Scan se perfil for TODOS ou MEI
                     if p_val in ["TODOS", "MEI"] and (search_cpfs_mei or search_names_mei):
@@ -821,7 +835,11 @@ class CloudEngine:
                         mask_lookup = {f"***{str(c)[3:9]}**": c for c in search_cpfs_mei if len(str(c)) >= 9}
                         name_lookup = {str(n).upper().strip(): n for n in search_names_mei}
 
-                        for _, d in df_mei.iterrows():
+                        # OTIMIZAÇÃO v1.8.12: RegEx para busca O(N) em vez de O(N*M)
+                        import re
+                        name_pattern = re.compile('|'.join([re.escape(n) for n in name_lookup.keys() if len(n) > 5])) if name_lookup else None
+                        
+                        for d in df_mei.to_dict('records'):
                             addr = self._parse_address_columns(d)
                             cont = self._parse_contact_columns(d)
                             mapping = {'01': 'NULA', '02': 'ATIVA', '03': 'SUSPENSA', '04': 'INAPTA', '08': 'BAIXADA'}
@@ -838,17 +856,16 @@ class CloudEngine:
                                 elif last_p in mask_lookup:
                                     matched_key = mask_lookup[last_p]
                             
-                            # 2. Fallback: Busca por Nome (se a razão social não seguir o padrão ou for nome limpo)
-                            if not matched_key:
-                                for name_clean, original_name in name_lookup.items():
-                                    if name_clean in r_social:
-                                        matched_key = original_name
-                                        break
+                            # 2. Fallback: Busca por Nome via RegEx (Otimização Ultra v1.8.12)
+                            if not matched_key and name_pattern:
+                                match = name_pattern.search(r_social)
+                                if match:
+                                    matched_key = name_lookup.get(match.group())
                             
                             if matched_key:
                                 all_results.append({
                                     'lookup_key': matched_key,
-                                    'CNPJ': f"{str(d['cnpj_basico']).zfill(8)}{str(d['cnpj_ordem']).zfill(4)}{str(d['cnpj_dv']).zfill(2)}",
+                                    'CNPJ': f"{str(int(d['cnpj_basico'])).zfill(8)}{str(int(d['cnpj_ordem'])).zfill(4)}{str(int(d['cnpj_dv'])).zfill(2)}",
                                     'RAZAO_SOCIAL': d['razao_social'], 
                                     'SITUACAO': mapping.get(str(d['situacao_cadastral']).zfill(2), 'ATIVA'),
                                     'CNAE': d['cnae_fiscal'], 'LOGRADOURO': str(addr[0]).upper(), 'NÚMERO': addr[1], 'COMPLEMENTO': addr[2],

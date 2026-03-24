@@ -1488,7 +1488,7 @@
                         <div class="hero-content-wrapper">
                             <div class="hero-header-top">
                                 <span class="badge-new">PORTAL HEMN</span>
-                                <span class="system-tag">v1.5.7 PREMIUM</span>
+                                <span class="system-tag">v1.9.1 PREMIUM</span>
                             </div>
                             <h1 id="welcome-title">Bem-vindo!</h1>
                             <div class="hero-divider"></div>
@@ -3579,9 +3579,6 @@
                             // Hide Dashboard/Statement
                             dashboardEls.forEach(el => { if (el) el.style.display = 'none'; });
                             
-                            // Hide Enriquecimento (TESTING ONLY FOR ADMIN)
-                            enrichEls.forEach(el => { if (el) el.style.display = 'none'; });
-
                             // Hide Subscription/Plans
                             const assNav = document.getElementById('nav-assinatura');
                             const assCard = document.getElementById('assinatura-card');
@@ -3619,9 +3616,6 @@
                             if (clinNav) clinNav.style.display = 'none';
                             if (clinCard) clinCard.style.display = 'none';
                             
-                            // Hide Enriquecimento (TESTING ONLY FOR ADMIN)
-                            enrichEls.forEach(el => { if (el) el.style.display = 'none'; });
-
                             // Standard users see everything except Admin and Clinicas
                             [...manualEls, ...extractEls, ...unifyEls, ...splitEls, ...carrierEls, ...dashboardEls].forEach(el => {
                                 if (el) el.style.display = el.classList.contains('action-card') ? 'flex' : 'flex';
