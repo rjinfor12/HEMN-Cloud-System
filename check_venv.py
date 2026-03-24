@@ -1,6 +1,6 @@
 import paramiko
 
-def check_paths():
+def check_venv():
     host = "129.121.45.136"
     port = 22022
     username = "root"
@@ -11,7 +11,7 @@ def check_paths():
         ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         ssh.connect(host, port=port, username=username, password=password)
         
-        stdin, stdout, stderr = ssh.exec_command('ls -R /root')
+        stdin, stdout, stderr = ssh.exec_command('ls -F /var/www/hemn_cloud/')
         print(stdout.read().decode())
         
         ssh.close()
@@ -19,4 +19,4 @@ def check_paths():
         print(f"FAILED: {e}")
 
 if __name__ == "__main__":
-    check_paths()
+    check_venv()

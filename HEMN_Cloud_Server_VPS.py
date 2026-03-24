@@ -126,6 +126,7 @@ class EnrichRequest(BaseModel):
     manual: Optional[bool] = False
     name: Optional[str] = None
     cpf: Optional[str] = None
+    perfil: Optional[str] = "TODOS"
 
 
 class CarrierRequest(BaseModel):
@@ -326,9 +327,8 @@ def start_enrich(req: EnrichRequest, user: dict = Depends(get_current_user)):
         raise HTTPException(status_code=400, detail="Nenhum arquivo (file_id) fornecido. Envie o arquivo primeiro.")
     
     path = os.path.join(UPLOAD_DIR, req.file_id)
-    import inspect
-    print(f"[DEBUG] engine: {type(engine)}, sig: {inspect.signature(engine.start_enrich)}")
-    tid = engine.start_enrich(path, RESULT_DIR, req.name_col, req.cpf_col, username=user["username"])
+    print(f"[DEBUG] /tasks/enrich - File: {req.file_id}, Perfil: {req.perfil}, User: {user['username']}")
+    tid = engine.start_enrich(path, RESULT_DIR, req.name_col, req.cpf_col, username=user["username"], perfil=req.perfil)
     # Logar início de processamento
     log_transaction(user["username"], "CREDIT", 0, "ENRICH", f"Iniciado processamento em lote: {req.file_id}")
     return {"task_id": tid}

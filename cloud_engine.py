@@ -9,6 +9,10 @@ import shutil
 import re
 import unicodedata
 from concurrent.futures import ThreadPoolExecutor
+try:
+    import clickhouse_connect
+except ImportError:
+    pass
 
 def remove_accents(input_str):
     if not input_str: return ""
@@ -43,7 +47,6 @@ class CloudEngine:
     def _get_ch_client(self):
         """Retorna uma nova instância de cliente ClickHouse (Thread-Safe)"""
         if not self.is_linux: return None
-        import clickhouse_connect
         try:
             return clickhouse_connect.get_client(host='localhost', port=8123, username='default', password='')
         except Exception as e:
@@ -307,7 +310,7 @@ class CloudEngine:
         except:
             return {"status": "OFFLINE", "uptime": "0", "active_queries": 0}
 
-    def _batch_query(self, sql_template, key_param, values, batch_size=2000, tid=None, base_prog=0, max_prog=0, msg_prefix=""):
+    def _batch_query(self, sql_template, key_param, values, batch_size=3000, tid=None, base_prog=0, max_prog=0, msg_prefix=""):
         """Execute a query with a large IN() list in safe-sized batches with progress tracking."""
         ch_local = self._get_ch_client()
         if not ch_local: return [], []
@@ -326,8 +329,12 @@ class CloudEngine:
             chunk = values[i:i + batch_size]
             res = ch_local.query(sql_template, {key_param: chunk})
             all_rows.extend(res.result_rows)
-            if not col_names and res.column_names:
-                col_names = res.column_names
+            # Log names once
+            if not col_names:
+                print(f"[DEBUG] _batch_query: col_names from res: {getattr(res, 'column_names', 'ATTR_NOT_FOUND')}")
+            
+            if not col_names and getattr(res, 'column_names', None):
+                col_names = list(res.column_names)
             
             if tid and max_prog > base_prog:
                 prog = base_prog + int((i / total) * (max_prog - base_prog))
@@ -353,23 +360,29 @@ class CloudEngine:
         tel1 = str(row.get('telefone1', '')).strip()
         ddd2 = str(row.get('ddd2', '')).strip()
         tel2 = str(row.get('telefone2', '')).strip()
+        email = str(row.get('correio_eletronico', '')).strip()
         
-        def clean(d, t):
-            if not d or not t: return "", ""
-            return d, t
+        def format_tel(d, t):
+            t = ''.join(filter(str.isdigit, t))
+            d = ''.join(filter(str.isdigit, d))
+            if not t: return ""
+            # Adicionar 9º dígito se for celular (8 dígitos começando com 6-9)
+            if len(t) == 8 and t[0] in '6789':
+                t = '9' + t
+            return f"{d}{t}"
         
-        d1, t1 = clean(ddd1, tel1)
-        if t1: return [d1, t1, "FIXO/CEL", row.get('correio_eletronico', '')]
-        d2, t2 = clean(ddd2, tel2)
-        if t2: return [d2, t2, "FIXO/CEL", row.get('correio_eletronico', '')]
-        return ["", "", "", row.get('correio_eletronico', '')]
+        f1 = format_tel(ddd1, tel1)
+        if f1: return [f1, "FIXO/CEL", email]
+        f2 = format_tel(ddd2, tel2)
+        if f2: return [f2, "FIXO/CEL", email]
+        return ["", "", email]
 
-    def start_enrich(self, input_file, output_dir, name_col, cpf_col, username=None):
-        print(f"[DEBUG] start_enrich called: input={input_file}, name_col={name_col}, cpf_col={cpf_col}, user={username}")
+    def start_enrich(self, input_file, output_dir, name_col, cpf_col, username=None, perfil="TODOS"):
+        print(f"[DEBUG] start_enrich called: input={input_file}, name_col={name_col}, cpf_col={cpf_col}, user={username}, perfil={perfil}")
         fname = os.path.basename(input_file)
-        f_summary = f"Enriquecer: {fname} (Colunas: {name_col}, {cpf_col})"
+        f_summary = f"[v1.8.10] Enriquecer: {fname} (Perfil: {perfil})"
         tid = self._create_task(module="ENRICH", username=username, filters=f_summary)
-        threading.Thread(target=self._run_enrich, args=(tid, input_file, output_dir, name_col, cpf_col), daemon=True).start()
+        threading.Thread(target=self._run_enrich, args=(tid, input_file, output_dir, name_col, cpf_col, perfil), daemon=True).start()
         return tid
 
     def deep_search(self, name, cpf):
@@ -484,9 +497,9 @@ class CloudEngine:
         return pd.DataFrame(res.result_rows, columns=res.column_names)
 
 
-    def _run_enrich(self, tid, input_file, output_dir, name_col, cpf_col):
+    def _run_enrich(self, tid, input_file, output_dir, name_col, cpf_col, perfil="TODOS"):
         try:
-            self._update_task(tid, status="PROCESSING", message="Iniciando Escaneamento Titanium-MT (Motor Paralelo)...")
+            self._update_task(tid, status="PROCESSING", message="[v1.8.10] Iniciando Escaneamento Titanium-MT (Motor Paralelo)...")
             status = self.get_task_status(tid)
             if status.get("status") == "CANCELLED": return
             start_time = time.time()
@@ -571,183 +584,365 @@ class CloudEngine:
             df_in['titanium_cpf'] = df_in[c_col].fillna('').astype(str).str.replace(r'\D', '', regex=True).str.zfill(11)
 
             # --- PHASE 1: BATCH PROCESSING (EXTREME SPEED) ---
-            # Extract all CPFs and Names
-            # all_cpfs and all_names are already populated from chunked reading or full Excel load
+            # Generar chaves combinadas (socio_chave) para busca ultra precisa
+            search_chaves = []
+            for _, row in df_in.iterrows():
+                name = str(row['titanium_nome']).strip()
+                cpf = str(row['titanium_cpf']).strip()
+                if name and len(cpf) >= 11:
+                    # Formato na base: NOME COMPLETO ***123456**
+                    search_chaves.append(f"{name} ***{cpf[3:9]}**")
             
-            # Identify valid CPFs for bulk lookup
+            search_chaves = list(set(search_chaves))
+
+            # Mantemos CPF e Nome isolados apenas para fallbacks (se faltar um deles)
             valid_cpfs = [cpf for cpf in all_cpfs if len(cpf) >= 11]
-            valid_masks = [f"***{cpf[3:9]}**" for cpf in valid_cpfs]
+            search_cpfs = list(set(valid_cpfs))
             
-            # Combine exact CPFs and typical masks for MEI/Socios
-            search_terms = list(set(valid_cpfs + valid_masks))
-            
-            # --- PHASE 1.1: NAME VARIATIONS (NORMALIZED) ---
             valid_names = [normalize_name(n) for n in all_names if len(str(n)) > 3]
             search_names = list(set(valid_names))
             
-            # Prepare Global Cache
-            global_cache = {}
+            # Prepare Global Results
+            all_results = []
             found_count = 0
             
-            # --- PHASE 1: TITANIUM-TURBO JOIN (HIGH SPEED) ---
-            # Process in large batches for join efficiency
-            q_template = """
-                SELECT 
-                    s.lookup_key AS lookup_key,
-                    e.razao_social AS razao_social, 
-                    estab.cnpj_basico AS cnpj_basico, 
-                    estab.cnpj_ordem AS cnpj_ordem, 
-                    estab.cnpj_dv AS cnpj_dv, 
-                    estab.situacao_cadastral AS situacao_cadastral, 
-                    estab.uf AS uf, 
-                    mun.descricao AS municipio_nome, 
-                    estab.ddd1 AS ddd1, 
-                    estab.telefone1 AS telefone1, 
-                    estab.ddd2 AS ddd2, 
-                    estab.telefone2 AS telefone2, 
-                    estab.correio_eletronico AS correio_eletronico, 
-                    estab.tipo_logradouro AS tipo_logradouro, 
-                    estab.logradouro AS logradouro, 
-                    estab.numero AS numero, 
-                    estab.complemento AS complemento, 
-                    estab.bairro AS bairro, 
-                    estab.cep AS cep, 
-                    estab.cnae_fiscal AS cnae_fiscal, 
-                    estab.municipio AS municipio, 
-                    s.nome_socio AS nome_socio
-                FROM (
-                    SELECT cnpj_basico, {lookup_col} AS lookup_key, nome_socio
+            # --- PHASE 1: TITANIUM-TURBO DATA GATHERING ---
+            # 1. Perfil Configuration
+            p_val = str(perfil).upper().strip()
+            if p_val == "MEI":
+                perfil_cond_sql = "e.natureza_juridica = '2135'"
+                is_expansion_required = False
+            elif p_val == "NAO MEI":
+                perfil_cond_sql = "e.natureza_juridica != '2135'"
+                is_expansion_required = True
+            else:
+                perfil_cond_sql = "1=1"
+                is_expansion_required = False
+
+            # 2. Buscar dados em SÓCIOS
+            if search_chaves or search_cpfs or search_names:
+                self._update_task(tid, progress=10, message="Buscando Sócios...")
+                
+                # Queries para Sócios
+                q_socios_base = f"""
+                    SELECT cnpj_basico, nome_socio, socio_chave, {{lookup_col}} AS lookup_key 
                     FROM hemn.socios 
-                    WHERE {lookup_col} IN %(keys)s
-                ) AS s
-                INNER JOIN hemn.estabelecimento AS estab ON s.cnpj_basico = estab.cnpj_basico
-                INNER JOIN hemn.empresas AS e ON s.cnpj_basico = e.cnpj_basico
-                LEFT JOIN hemn.municipio AS mun ON estab.municipio = mun.codigo
-                ORDER BY (estab.situacao_cadastral = '02') DESC, estab.situacao_cadastral ASC
-                LIMIT 1 BY lookup_key
-                SETTINGS join_algorithm = 'grace_hash'
-            """
-
-            if search_terms:
-                self._update_task(tid, progress=10, message=f"Turbo v3.0: Cruzando {len(search_terms):,} CPFs/Máscaras...")
-                
-                # Socio lookup
-                q_cpf = q_template.format(lookup_col="cnpj_cpf_socio")
-                results_s, cols_s = self._batch_query(q_cpf, "keys", search_terms, batch_size=5000, tid=tid, base_prog=10, max_prog=35, msg_prefix="Cruzando Sócios")
-                
-                # Direct Empresa lookup (for MEIs/CNPJs)
-                q_mei = """
-                    SELECT 
-                        e.cnpj_basico AS lookup_key,
-                        e.razao_social AS razao_social, 
-                        estab.cnpj_basico AS cnpj_basico, 
-                        estab.cnpj_ordem AS cnpj_ordem, 
-                        estab.cnpj_dv AS cnpj_dv, 
-                        estab.situacao_cadastral AS situacao_cadastral, 
-                        estab.uf AS uf, 
-                        mun.descricao AS municipio_nome, 
-                        estab.ddd1 AS ddd1, 
-                        estab.telefone1 AS telefone1, 
-                        estab.ddd2 AS ddd2, 
-                        estab.telefone2 AS telefone2, 
-                        estab.correio_eletronico AS correio_eletronico, 
-                        estab.tipo_logradouro AS tipo_logradouro, 
-                        estab.logradouro AS logradouro, 
-                        estab.numero AS numero, 
-                        estab.complemento AS complemento, 
-                        estab.bairro AS bairro, 
-                        estab.cep AS cep, 
-                        estab.cnae_fiscal AS cnae_fiscal, 
-                        estab.municipio AS municipio, 
-                        '' AS nome_socio
-                    FROM (
-                        SELECT * FROM hemn.empresas WHERE cnpj_basico IN %(keys)s
-                    ) AS e
-                    INNER JOIN hemn.estabelecimento AS estab ON e.cnpj_basico = estab.cnpj_basico
-                    LEFT JOIN hemn.municipio AS mun ON estab.municipio = mun.codigo
-                    ORDER BY (estab.situacao_cadastral = '02') DESC, estab.situacao_cadastral ASC
-                    LIMIT 1 BY lookup_key
+                    WHERE {{lookup_col}} IN %(keys)s
+                    {"LIMIT 1 BY socio_chave" if not is_expansion_required else ""}
                 """
-                results_e, cols_e = self._batch_query(q_mei, "keys", search_terms, batch_size=5000, tid=tid, base_prog=35, max_prog=40, msg_prefix="Cruzando MEIs")
                 
-                for r in results_s + results_e:
-                    # Use appropriate columns for the result row
-                    curr_cols = cols_s if len(r) == len(cols_s) else cols_e
-                    d = dict(zip(curr_cols, r))
-                    k = d['lookup_key']
-                    if k not in global_cache:
-                        addr = self._parse_address_columns(d)
-                        cont = self._parse_contact_columns(d)
-                        mapping = {'01': 'NULA', '02': 'ATIVA', '03': 'SUSPENSA', '04': 'INAPTA', '08': 'BAIXADA'}
-                        global_cache[k] = {
-                            'CNPJ': f"{str(d['cnpj_basico']).zfill(8)}{str(d['cnpj_ordem']).zfill(4)}{str(d['cnpj_dv']).zfill(2)}",
-                            'RAZAO_SOCIAL': d['razao_social'], 
-                            'SITUACAO': mapping.get(str(d['situacao_cadastral']).zfill(2), 'ATIVA'),
-                            'SITUACAO_CODIGO': str(d['situacao_cadastral']).zfill(2),
-                            'CNAE': d['cnae_fiscal'], 'LOGRADOURO': addr[0], 'NUMERO': addr[1], 'COMPLEMENTO': addr[2],
-                            'BAIRRO': addr[3], 'CIDADE': str(addr[4]).upper(), 'UF_END': addr[5], 'CEP': addr[6],
-                            'DDD': cont[0], 'TELEFONE': cont[1], 'TIPO': cont[2], 'EMAIL': cont[3]
-                        }
+                results_s = []
+                cols_s = []
+                # Prioridade 1: Chave Combinada (Socio Chave) - Muito mais precisa
+                if search_chaves:
+                    r, c = self._batch_query(q_socios_base.format(lookup_col="socio_chave"), "keys", search_chaves, tid=tid, base_prog=10, max_prog=20)
+                    results_s += r
+                    if c: cols_s = c
+                
+                # Prioridade 2: CPF (Apenas CPFs reais, sem máscaras isoladas para evitar poluição)
+                if search_cpfs:
+                    r, c = self._batch_query(q_socios_base.format(lookup_col="cnpj_cpf_socio"), "keys", search_cpfs, tid=tid, base_prog=20, max_prog=30)
+                    results_s += r
+                    if c: cols_s = c
+                
+                # Prioridade 3: Nome (Se ainda não encontrou nada)
+                if search_names:
+                    r, c = self._batch_query(q_socios_base.format(lookup_col="nome_socio"), "keys", search_names, tid=tid, base_prog=30, max_prog=40)
+                    results_s += r
+                    if c: cols_s = c
+                
+                if results_s:
+                    df_socios = pd.DataFrame(results_s, columns=cols_s)
+                    
+                    # 3. Buscar dados de EMPRESAS e ESTABELECIMENTOS para os CNPJs encontrados
+                    unique_cnpjs = df_socios['cnpj_basico'].unique().tolist()
+                    self._update_task(tid, progress=45, message=f"Buscando Dados de {len(unique_cnpjs):,} Empresas...")
+                    
+                    q_info = f"""
+                        SELECT 
+                            e.cnpj_basico AS cnpj_basico, e.razao_social AS razao_social,
+                            estab.cnpj_ordem, estab.cnpj_dv, estab.situacao_cadastral, estab.uf,
+                            estab.ddd1, estab.telefone1, estab.ddd2, estab.telefone2, estab.correio_eletronico,
+                            estab.tipo_logradouro, estab.logradouro, estab.numero, estab.complemento,
+                            estab.bairro, estab.cep, estab.cnae_fiscal, estab.municipio,
+                            mun.descricao AS municipio_nome
+                        FROM hemn.empresas AS e
+                        INNER JOIN hemn.estabelecimento AS estab ON e.cnpj_basico = estab.cnpj_basico
+                        LEFT JOIN hemn.municipio AS mun ON estab.municipio = mun.codigo
+                        WHERE e.cnpj_basico IN %(keys)s AND {perfil_cond_sql} AND estab.situacao_cadastral = '02'
+                        ORDER BY (estab.cnpj_ordem = '0001') DESC
+                        LIMIT 1 BY e.cnpj_basico
+                    """
+                    
+                    results_info, cols_info = self._batch_query(q_info, "keys", unique_cnpjs, tid=tid, base_prog=45, max_prog=75)
+                    
+                    if results_info:
+                        df_info = pd.DataFrame(results_info, columns=cols_info)
+                        
+                        # 4. Join Final (Socio + Info)
+                        df_final_lookup = pd.merge(df_socios, df_info, on='cnpj_basico', how='inner')
+                        
+                        # Pack into all_results
+                        for _, d in df_final_lookup.iterrows():
+                            addr = self._parse_address_columns(d)
+                            cont = self._parse_contact_columns(d)
+                            mapping = {'01': 'NULA', '02': 'ATIVA', '03': 'SUSPENSA', '04': 'INAPTA', '08': 'BAIXADA'}
+                            all_results.append({
+                                'lookup_key': str(d['lookup_key']),
+                                'CNPJ': f"{str(d['cnpj_basico']).zfill(8)}{str(d['cnpj_ordem']).zfill(4)}{str(d['cnpj_dv']).zfill(2)}",
+                                'RAZAO_SOCIAL': d['razao_social'], 
+                                'SITUACAO': mapping.get(str(d['situacao_cadastral']).zfill(2), 'ATIVA'),
+                                'CNAE': d['cnae_fiscal'], 'LOGRADOURO': str(addr[0]).upper(), 'NÚMERO': addr[1], 'COMPLEMENTO': addr[2],
+                                'BAIRRO': addr[3], 'CIDADE': str(addr[4]).upper(), 'UF_END': addr[5], 'CEP': addr[6],
+                                'TELEFONE': cont[0], 'TIPO': cont[1], 'EMAIL': cont[2],
+                                'CHAVE_SOCIO': d.get('socio_chave', '')
+                            })
 
-            if search_names:
-                self._update_task(tid, progress=40, message=f"Turbo v3.0: Cruzando {len(search_names):,} Nomes...")
-                q_name = q_template.format(lookup_col="nome_socio")
-                results, cols = self._batch_query(q_name, "keys", search_names, batch_size=5000, tid=tid, base_prog=40, max_prog=75, msg_prefix="Cruzando Nomes")
-                
-                for r in results:
-                    d = dict(zip(cols, r))
-                    # Normalizamos a chave de volta caso o clickhouse tenha retornado com variacao minor
-                    k = normalize_name(d['lookup_key'])
-                    if k not in global_cache:
-                        addr = self._parse_address_columns(d)
-                        cont = self._parse_contact_columns(d)
-                        mapping = {'01': 'NULA', '02': 'ATIVA', '03': 'SUSPENSA', '04': 'INAPTA', '08': 'BAIXADA'}
-                        global_cache[k] = {
-                            'CNPJ': f"{str(d['cnpj_basico']).zfill(8)}{str(d['cnpj_ordem']).zfill(4)}{str(d['cnpj_dv']).zfill(2)}",
-                            'RAZAO_SOCIAL': d['razao_social'], 
-                            'SITUACAO': mapping.get(str(d['situacao_cadastral']).zfill(2), 'ATIVA'),
-                            'SITUACAO_CODIGO': str(d['situacao_cadastral']).zfill(2),
-                            'CNAE': d['cnae_fiscal'], 'LOGRADOURO': addr[0], 'NUMERO': addr[1], 'COMPLEMENTO': addr[2],
-                            'BAIRRO': addr[3], 'CIDADE': str(addr[4]).upper(), 'UF_END': addr[5], 'CEP': addr[6],
-                            'DDD': cont[0], 'TELEFONE': cont[1], 'TIPO': cont[2], 'EMAIL': cont[3]
-                        }
+                    # Motor One-Shot v5.1.4: Busca Híbrida Inteligente (CPF Flash-IN + Nome Aho-Scan)
+                    def run_mei_scan(search_cpfs, search_names, tid, base_p, max_p):
+                        results = []
+                        ch_local = self._get_ch_client()
+                        if not ch_local: return []
+
+                        # 1. BUSCA POR CPF (Modo Flash: IN Operator) - Resolve 99% dos casos em 1 seg
+                        if search_cpfs:
+                            cpfs = list(set([str(c).strip() for c in search_cpfs if len(str(c)) >= 11]))
+                            if cpfs:
+                                cpf_batch = 10000
+                                for idx in range(0, len(cpfs), cpf_batch):
+                                    block = cpfs[idx:idx + cpf_batch]
+                                    self._update_task(tid, progress=base_p + 1, message=f"MEI CPF Flash: {idx:,}/{len(cpfs):,}...")
+                                    # Otimização Crítica: substring(-11) extrai o CPF do final da Razão Social do MEI
+                                    sql_cpf = "SELECT cnpj_basico, razao_social FROM hemn.empresas PREWHERE natureza_juridica = '2135' WHERE substring(razao_social, -11) IN %(cpfs)s"
+                                    res_cpf = ch_local.query(sql_cpf, {'cpfs': block})
+                                    results.extend(res_cpf.result_rows)
+
+                        # 2. BUSCA POR NOME (Rede de Segurança Total) - Varre tudo que não tiver CPF ou se falhou
+                        if search_names:
+                            names = list(set([str(n).upper().strip() for n in search_names if len(str(n)) > 5]))
+                            total_names = len(names)
+                            # Para evitar travamento, lotes cirúrgicos de 250 nomes.
+                            batch_size = 500
+                            for i in range(0, total_names, batch_size):
+                                block = names[i:min(i + batch_size, total_names)]
+                                self._update_task(tid, progress=base_p + 5 + int((i/total_names)*5), message=f"MEI Name Scan: {i:,}/{total_names:,}...")
+                                sql_name = "SELECT cnpj_basico, razao_social FROM hemn.empresas PREWHERE natureza_juridica = '2135' WHERE multiSearchAny(razao_social, %(n)s)"
+                                res_name = ch_local.query(sql_name, {'n': block})
+                                results.extend(res_name.result_rows)
+                        
+                        return results
+
+                    # Otimização v1.8.9: Recalcula listas para Phase 2 MEI
+                    # Se tem CPF, ignoramos o NOME (Pois o CPF já existe na razão social do MEI e é 100x mais rápido)
+                    search_cpfs_mei = set()
+                    search_names_mei = set()
+                    for _, row in df_in.iterrows():
+                        c_val = str(row.get('titanium_cpf', '')).strip()
+                        n_val = str(row.get('titanium_nome', '')).upper().strip()
+                        if len(c_val) >= 11:
+                            search_cpfs_mei.add(c_val)
+                        elif len(n_val) > 5:
+                            search_names_mei.add(n_val)
+
+                    # Sincronização v1.8.10: Só executa MEI Scan se perfil for TODOS ou MEI
+                    if p_val in ["TODOS", "MEI"] and (search_cpfs_mei or search_names_mei):
+                        found_meis = run_mei_scan(list(search_cpfs_mei), list(search_names_mei), tid, 40, 55)
+                    else:
+                        found_meis = []
+
+                    # 2. Busca de Detalhes (Apenas para os encontrados)
+                    if found_meis:
+                        found_cnpjs = list(set([str(r[0]) for r in found_meis]))
+                        self._update_task(tid, progress=55, message=f"Buscando detalhes de {len(found_cnpjs)} MEIs...")
+                        
+                        ch_local = self._get_ch_client()
+                        all_mei_results = []
+                        cols_mei = []
+                        
+                        # Otimização v5.1.2: Lotes de 5.000 para evitar 'Max query size exceeded'
+                        cnpj_batch = 10000
+                        for idx in range(0, len(found_cnpjs), cnpj_batch):
+                            block = found_cnpjs[idx:idx + cnpj_batch]
+                            sql_details = """
+                            SELECT 
+                                e.cnpj_basico AS cnpj_basico, e.razao_social AS razao_social,
+                                estab.cnpj_ordem AS cnpj_ordem, estab.cnpj_dv AS cnpj_dv, 
+                                estab.situacao_cadastral AS situacao_cadastral, estab.uf AS uf,
+                                estab.ddd1 AS ddd1, estab.telefone1 AS telefone1, 
+                                estab.ddd2 AS ddd2, estab.telefone2 AS telefone2, 
+                                estab.correio_eletronico AS correio_eletronico,
+                                estab.logradouro AS logradouro, estab.numero AS numero, 
+                                estab.complemento AS complemento, estab.bairro AS bairro, 
+                                estab.cep AS cep, estab.cnae_fiscal AS cnae_fiscal, 
+                                mun.descricao AS municipio_nome
+                            FROM hemn.estabelecimento estab
+                            INNER JOIN (SELECT cnpj_basico, razao_social FROM hemn.empresas WHERE cnpj_basico IN %(cnpjs)s) e 
+                              ON estab.cnpj_basico = e.cnpj_basico
+                            LEFT JOIN hemn.municipio mun ON estab.municipio = mun.codigo
+                            WHERE estab.situacao_cadastral = '02'
+                            """
+                            res_details = ch_local.query(sql_details, {'cnpjs': block})
+                            all_mei_results.extend(res_details.result_rows)
+                            if not cols_mei: cols_mei = res_details.column_names
+
+                        # 3. Filtragem Geográfica Final (Precisão v1.8.6)
+                        # Identifica coluna de UF para isolamento regional
+                        uf_col = next((c for c in df_in.columns if c.upper() in ['UF', 'ESTADO', 'UF_CLIENTE']), None)
+                        if uf_col:
+                            # Criar mapa CPF -> UF do Cliente para filtragem cirúrgica
+                            client_uf_map = {}
+                            for _, row in df_in.iterrows():
+                                c = str(row.get('titanium_cpf', '')).strip()
+                                n = str(row.get('titanium_nome', '')).upper().strip()
+                                u = str(row[uf_col]).upper().strip() if pd.notna(row[uf_col]) else ""
+                                if c: client_uf_map[c] = u
+                                if n: client_uf_map[n] = u
+
+                            final_filtered = []
+                            for d in all_mei_results:
+                                r_social = str(d[1])
+                                r_uf = str(d[5])
+                                # O MEI deve bater na UF do cliente que originou a busca
+                                # Checamos se o CPF ou Nome do MEI e a UF batem com o cliente
+                                is_match = False
+                                for pattern, uf in client_uf_map.items():
+                                    if pattern in r_social and uf == r_uf:
+                                        is_match = True
+                                        break
+                                if is_match: final_filtered.append(d)
+                            all_mei_results = final_filtered
+
+                    if all_mei_results:
+                        df_mei = pd.DataFrame(all_mei_results, columns=cols_mei).drop_duplicates(subset=['cnpj_basico'])
+                        
+                        # OTIMIZAÇÃO CRÍTICA: Criar mapas para lookup O(1) em vez de loop O(N^2)
+                        # Sincronizado com v1.8.10 (search_cpfs_mei / search_names_mei)
+                        cpf_lookup = {str(c).strip(): c for c in search_cpfs_mei}
+                        mask_lookup = {f"***{str(c)[3:9]}**": c for c in search_cpfs_mei if len(str(c)) >= 9}
+                        name_lookup = {str(n).upper().strip(): n for n in search_names_mei}
+
+                        for _, d in df_mei.iterrows():
+                            addr = self._parse_address_columns(d)
+                            cont = self._parse_contact_columns(d)
+                            mapping = {'01': 'NULA', '02': 'ATIVA', '03': 'SUSPENSA', '04': 'INAPTA', '08': 'BAIXADA'}
+                            
+                            r_social = str(d['razao_social']).upper()
+                            matched_key = None
+                            
+                            # 1. Tentar extrair o CPF/Mascara do final da Razão Social (Padrão MEI 2135)
+                            parts = r_social.split()
+                            if parts:
+                                last_p = parts[-1].replace('.', '').replace('-', '')
+                                if last_p in cpf_lookup:
+                                    matched_key = cpf_lookup[last_p]
+                                elif last_p in mask_lookup:
+                                    matched_key = mask_lookup[last_p]
+                            
+                            # 2. Fallback: Busca por Nome (se a razão social não seguir o padrão ou for nome limpo)
+                            if not matched_key:
+                                for name_clean, original_name in name_lookup.items():
+                                    if name_clean in r_social:
+                                        matched_key = original_name
+                                        break
+                            
+                            if matched_key:
+                                all_results.append({
+                                    'lookup_key': matched_key,
+                                    'CNPJ': f"{str(d['cnpj_basico']).zfill(8)}{str(d['cnpj_ordem']).zfill(4)}{str(d['cnpj_dv']).zfill(2)}",
+                                    'RAZAO_SOCIAL': d['razao_social'], 
+                                    'SITUACAO': mapping.get(str(d['situacao_cadastral']).zfill(2), 'ATIVA'),
+                                    'CNAE': d['cnae_fiscal'], 'LOGRADOURO': str(addr[0]).upper(), 'NÚMERO': addr[1], 'COMPLEMENTO': addr[2],
+                                    'BAIRRO': addr[3], 'CIDADE': str(addr[4]).upper(), 'UF_END': addr[5], 'CEP': addr[6],
+                                    'TELEFONE': cont[0], 'TIPO': cont[1], 'EMAIL': cont[2],
+                                    'CHAVE_SOCIO': 'MEI (BUSCA DIRETA)'
+                                })
 
             # --- PHASE 2: IN-MEMORY MAPPING & FALLBACKS ---
-            self._update_task(tid, progress=80, message="Estruturando resultados finais (C-Level Array Vectorization)...")
+            self._update_task(tid, progress=80, message="Consolidando base de dados...")
             
-            if global_cache:
-                # Converter o cache em DataFrame para merge imediato
-                df_cache = pd.DataFrame.from_dict(global_cache, orient='index')
-                df_cache.index.name = 'lookup_key'
-                df_cache.reset_index(inplace=True)
+            if all_results:
+                df_cache = pd.DataFrame(all_results)
                 
-                # Preparar coluna de lookup no DataFrame original (tenta CPF exato primeiro, senao a mascara)
-                df_in['mask_calc'] = df_in['titanium_cpf'].apply(lambda x: f"***{x[3:9]}**" if len(str(x)) >= 11 else "")
-                df_in['lookup_key'] = df_in['titanium_cpf']
+                # Preparar colunas de lookup no DataFrame original
+                df_in['socio_chave_lookup'] = df_in.apply(lambda r: f"{str(r['titanium_nome']).strip()} ***{str(r['titanium_cpf'])[3:9]}**" if len(str(r['titanium_cpf'])) >= 11 else "", axis=1)
                 
-                # Merge tenta bater a chave primaria primeiro (CPF Exato)
+                # Detectar coluna de UF no input para regra de desempate
+                uf_input_col = next((c for c in df_in.columns if c.upper() in ['UF', 'ESTADO', 'UF_CLIENTE']), None)
+                if uf_input_col:
+                    df_in[uf_input_col] = df_in[uf_input_col].astype(str).str.strip().str.upper()
+
+                # Merge 1: Chave Combinada (Socio Chave) - PRIORIDADE MÁXIMA
+                df_in['lookup_key'] = df_in['socio_chave_lookup']
                 df_merged = pd.merge(df_in, df_cache, on='lookup_key', how='left')
                 
-                # Se ainda tem nulos, tenta bater a mascara
-                if 'mask_calc' in df_in.columns:
-                    mask_rows = df_merged['CNPJ'].isna()
-                    if mask_rows.any():
-                        df_masks_only = df_in[mask_rows].copy()
-                        df_masks_only['lookup_key'] = df_masks_only['mask_calc']
-                        df_merged_masks = pd.merge(df_masks_only.drop(columns=df_cache.columns.drop('lookup_key'), errors='ignore'), df_cache, on='lookup_key', how='left')
-                        # Update original merged results with mask hits
-                        df_merged.update(df_merged_masks, overwrite=False)
+                # Merge 2: CPF Exato (Fallback se não houver nome ou se houver erro na chave)
+                null_rows = df_merged['CNPJ'].isna()
+                if null_rows.any():
+                    df_no_match_cpf = df_in[null_rows].copy()
+                    df_no_match_cpf['lookup_key'] = df_no_match_cpf['titanium_cpf']
+                    df_merged_cpf = pd.merge(df_no_match_cpf.drop(columns=df_cache.columns.drop('lookup_key'), errors='ignore'), df_cache, on='lookup_key', how='left')
+                    df_merged = pd.concat([df_merged[~null_rows], df_merged_cpf], ignore_index=True)
 
-                    # Se AINDA tem nulos, tenta bater pelo Nome Normalizado
-                    null_rows = df_merged['CNPJ'].isna()
-                    if null_rows.any():
-                        df_names_only = df_in[null_rows].copy()
-                        df_names_only['lookup_key'] = df_names_only['titanium_nome'].apply(normalize_name)
-                        df_merged_names = pd.merge(df_names_only.drop(columns=df_cache.columns.drop('lookup_key'), errors='ignore'), df_cache, on='lookup_key', how='left')
-                        df_merged.update(df_merged_names, overwrite=False)
+                # Merge 3: Nomes (apenas onde ainda não houve match)
+                null_rows = df_merged['CNPJ'].isna()
+                if null_rows.any() and not df_cache.empty:
+                    # Normalizar chaves no cache para comparação de nomes
+                    df_cache['titanium_nome'] = df_cache['lookup_key'].apply(normalize_name)
+                    df_cache_names = df_cache.drop_duplicates(subset=['titanium_nome', 'CNPJ'])
+                    
+                    df_no_match = df_merged[null_rows].drop(columns=df_cache.columns.drop('titanium_nome', errors='ignore'), errors='ignore').copy()
+                    df_no_match['titanium_nome'] = df_no_match['titanium_nome'].apply(normalize_name)
+                    df_merged_names = pd.merge(df_no_match, df_cache_names, on='titanium_nome', how='left')
+                    
+                    df_merged = pd.concat([df_merged[~null_rows], df_merged_names], ignore_index=True)
+
+                # Merge 4: MEI Fallback (onde lookup_key era o Nome diretamente da busca de empresas)
+                null_rows = df_merged['CNPJ'].isna()
+                if null_rows.any() and not df_cache.empty:
+                    df_no_match_mei = df_merged[null_rows].copy()
+                    
+                    # Tentar merge por CPF bruto (O(1) no lookup do cache)
+                    df_no_match_mei['lookup_key'] = df_no_match_mei['titanium_cpf']
+                    df_merged_mei_cpf = pd.merge(df_no_match_mei.drop(columns=df_cache.columns.drop('lookup_key'), errors='ignore'), df_cache, on='lookup_key', how='left')
+                    
+                    # Onde ainda sobrar nulo, tentar por Nome bruto
+                    null_still = df_merged_mei_cpf['CNPJ'].isna()
+                    if null_still.any():
+                        df_no_match_name = df_merged_mei_cpf[null_still].copy()
+                        df_no_match_name['lookup_key'] = df_no_match_name['titanium_nome']
+                        df_merged_mei_name = pd.merge(df_no_match_name.drop(columns=df_cache.columns.drop('lookup_key'), errors='ignore'), df_cache, on='lookup_key', how='left')
+                        df_merged_mei_cpf = pd.concat([df_merged_mei_cpf[~null_still], df_merged_mei_name], ignore_index=True)
+                    
+                    df_merged = pd.concat([df_merged[~null_rows], df_merged_mei_cpf], ignore_index=True)
+
+                # --- LÓGICA DE FILTRO INTELIGENTE POR UF (REGRA DO CLIENTE) ---
+                if uf_input_col and not df_merged.empty and 'CNPJ' in df_merged.columns:
+                    # 1. Contar ocorrências globais por chave no cache (Unicidade Nacional)
+                    counts = df_cache['lookup_key'].value_counts().rename('total_brazil')
+                    df_merged = df_merged.merge(counts, on='lookup_key', how='left')
+                    
+                    # 2. Aplicar Regras de Descarte
+                    # Regra 1: Se total_brazil == 1 (MANTÉM SEMPRE)
+                    # Regra 2: Se total_brazil > 1 E UF_END == UF_INPUT (MANTÉM)
+                    # Regra 3: Se total_brazil > 1 E UF_END != UF_INPUT (DESCARTA)
+                    mask_discard = (df_merged['total_brazil'] > 1) & (df_merged['UF_END'] != df_merged[uf_input_col]) & df_merged['CNPJ'].notna()
+                    
+                    # Remover linhas descartadas
+                    df_merged = df_merged[~mask_discard].copy()
+                    df_merged = df_merged.drop(columns=['total_brazil'], errors='ignore')
                         
-                found_count = df_merged['CNPJ'].notna().sum()
-                df_final = df_merged.drop(columns=['titanium_cpf', 'titanium_nome', 'mask_calc', 'lookup_key'], errors='ignore')
+                # 3. Remover registros que não foram encontrados (limpar linhas vazias no retorno)
+                df_merged = df_merged.dropna(subset=['CNPJ'])
+                found_count = len(df_merged)
+                df_final = df_merged.drop(columns=['titanium_cpf', 'titanium_nome', 'socio_chave_lookup', 'lookup_key'], errors='ignore')
+                
+                # Reordenar colunas e renomear chave
+                cols = list(df_final.columns)
+                if 'CHAVE_SOCIO' in cols:
+                    cols.insert(0, cols.pop(cols.index('CHAVE_SOCIO')))
+                    df_final = df_final[cols]
+                
+                df_final = df_final.rename(columns={'CHAVE_SOCIO': 'CHAVE DO SOCIO'})
             else:
                 found_count = 0
                 df_final = df_in.drop(columns=['titanium_cpf', 'titanium_nome'], errors='ignore')

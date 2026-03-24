@@ -840,7 +840,15 @@
                         </div>
                         <div id="file-list-enrich" style="margin: var(--s-4) 0;"></div>
                         <div style="margin-bottom: var(--s-3); text-align: center;">
-                            <span class="badge badge-blue">Requisito: Coluna A = CPF | Coluna B = Nome</span>
+                            <span class="badge badge-blue">REQUISITO: COLUNA A = CPF | COLUNA B = NOME | COLUNA C = UF</span>
+                        </div>
+                        <div class="form-group" style="max-width: 300px; margin: 0 auto var(--s-5) auto;">
+                            <label>PERFIL DA EMPRESA</label>
+                            <select id="enrich-perfil">
+                                <option value="TODOS" selected>TODOS</option>
+                                <option value="MEI">MEI</option>
+                                <option value="NAO MEI">NAO MEI</option>
+                            </select>
                         </div>
                         <button class="btn-primary" onclick="app.startEnrich()"
                             style="width: 100%; justify-content: center;">Iniciar Enriquecimento</button>
@@ -2184,6 +2192,7 @@
                     this.setupDragAndDrop();
                 }
                 
+                
                 // Mostrar o app apenas APÓS o showModule inicial ter definido o display:block!important
                 setTimeout(() => {
                     document.getElementById('app').classList.add('app-ready');
@@ -2641,7 +2650,10 @@
                             const btnExtract = document.querySelector('#module-extract .btn-primary');
                             if (btnExtract) btnExtract.innerHTML = '<i class="fas fa-rocket"></i> Iniciar Processamento Massivo';
 
-                            [...manualEls, ...enrichEls, ...extractEls, ...unifyEls, ...splitEls, ...carrierEls].forEach(el => {
+                            // Hide Enriquecimento (TESTING ONLY FOR ADMIN)
+                            enrichEls.forEach(el => { if (el) el.style.display = 'none'; });
+
+                            [...manualEls, ...extractEls, ...unifyEls, ...splitEls, ...carrierEls].forEach(el => {
                                 if (el) el.style.display = el.classList.contains('action-card') ? 'flex' : 'flex';
                             });
                             if (processingLabel) processingLabel.style.display = 'block';
@@ -2688,14 +2700,15 @@
             },
 
             showModule(mid, element) {
-                // RESTRIÇÃO ENRIQUECIMENTO EM LOTE (Somente ADMIN)
                 if (mid === 'enrich') {
-                    const isAdmin = (this.user && this.user.role === 'ADMIN') || 
-                                    (document.getElementById('admin-menu') && document.getElementById('admin-menu').style.display === 'block');
+                    // ROBUST CHECK (Testing mode for Admin only)
+                    const adminMenu = document.getElementById('admin-menu');
+                    const hasAdminMenu = adminMenu && window.getComputedStyle(adminMenu).display !== 'none';
+                    const isExplicitAdmin = (this.user && String(this.user.role).toUpperCase() === 'ADMIN');
                     
-                    if (!isAdmin) {
+                    if (!hasAdminMenu && !isExplicitAdmin) {
                         mid = 'enrich-placeholder';
-                        console.log("[RBAC] User restricted from direct enrichment view. Showing placeholder.");
+                        console.log("[RBAC] User restricted from direct enrichment view. Placeholder shown.");
                     }
                 }
 
@@ -3195,7 +3208,6 @@
                     const badgeClass = l.type === 'DEBIT' ? 'badge-red' : 'badge-green';
                     const amountPrefix = l.type === 'DEBIT' ? '-' : '+';
 
-                    const row = document.createElement('tr');
                     let downloadBtn = '';
                     if (l.task_id) {
                         const now = new Date();
@@ -3873,8 +3885,10 @@
                 }, 'unify'); 
             },
             startEnrich() {
+                const perfil = document.getElementById('enrich-perfil').value;
                 this.startTask('/tasks/enrich', {
                     file_id: this.uploadedFiles.enrich[0],
+                    perfil: perfil,
                     name_col: null,
                     cpf_col: null,
                     filterSummary: "Enriquecimento via Planilha"

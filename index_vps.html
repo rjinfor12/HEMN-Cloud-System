@@ -1264,7 +1264,6 @@
                 <a href="#" class="nav-link" id="nav-enrich" onclick="app.showModule('enrich', this)">
                     <i class="icon fas fa-database"></i>
                     <span style="flex: 1; white-space: nowrap !important;">Enriquecer Lote</span>
-                    <span class="badge-premium" style="font-size: 7px; padding: 1px 4px; font-weight: 700; background: rgba(0, 210, 255, 0.12); color: #0088cc; border: 1px solid rgba(0, 210, 255, 0.2); border-radius: 3px; text-transform: uppercase; letter-spacing: 0.4px; white-space: nowrap; margin-left: 8px; display: inline-flex; align-items: center; vertical-align: middle;">Em breve</span>
                 </a>
                 <a href="#" class="nav-link" id="nav-clinicas" onclick="app.showModule('clinicas', this)">
                     <i class="icon fas fa-user-check"></i>
@@ -1564,7 +1563,7 @@
                         <div class="action-card" id="enrich-card"
                             onclick="app.showModule('enrich', document.getElementById('nav-enrich'))">
                             <div class="icon-box"><i class="fas fa-database"></i></div>
-                            <h3 style="white-space: nowrap !important;">Enriquecer Lote <span class="badge-premium" style="font-size: 7px; padding: 1px 4px; font-weight: 700; background: rgba(0, 210, 255, 0.12); color: #0088cc; border: 1px solid rgba(0, 210, 255, 0.2); border-radius: 3px; text-transform: uppercase; letter-spacing: 0.4px; white-space: nowrap; margin-left: 8px; display: inline-flex; align-items: center; vertical-align: middle;">Em breve</span></h3>
+                            <h3 style="white-space: nowrap !important;">Enriquecer Lote</h3>
                             <p>Processe arquivos grandes para higienização e enriquecimento de dados.</p>
                             <i class="fas fa-chevron-right arrow"></i>
                         </div>
@@ -1819,7 +1818,15 @@
                         </div>
                         <div id="file-list-enrich" style="margin: var(--s-4) 0;"></div>
                         <div style="margin-bottom: var(--s-3); text-align: center;">
-                            <span class="badge badge-blue">Requisito: Coluna A = CPF | Coluna B = Nome</span>
+                            <span class="badge badge-blue">Requisito: Coluna A = CPF | Coluna B = Nome | Coluna C = UF</span>
+                        </div>
+                        <div class="form-group" style="max-width: 300px; margin: 0 auto var(--s-5) auto;">
+                            <label>PERFIL DA EMPRESA</label>
+                            <select id="enrich-perfil">
+                                <option value="TODOS" selected>TODOS</option>
+                                <option value="MEI">MEI</option>
+                                <option value="NAO MEI">NAO MEI</option>
+                            </select>
                         </div>
                         <button class="btn-primary" onclick="app.startEnrich()"
                             style="width: 100%; justify-content: center;">Iniciar Enriquecimento</button>
@@ -3545,6 +3552,8 @@
                             if (intelligenceLabel) intelligenceLabel.style.display = 'block';
                             this.populateAdminUserSelect();
 
+                            console.log("[DEBUG] Strict RBAC applied for ADMIN");
+
                         } else if (user.role === 'CLINICAS') {
                             // CLINICAS: STRICT ACCESS (Inicio, Encontre PF, Dashboard)
                             if (clinNav) clinNav.style.setProperty('display', 'flex', 'important');
@@ -3570,6 +3579,9 @@
                             // Hide Dashboard/Statement
                             dashboardEls.forEach(el => { if (el) el.style.display = 'none'; });
                             
+                            // Hide Enriquecimento (TESTING ONLY FOR ADMIN)
+                            enrichEls.forEach(el => { if (el) el.style.display = 'none'; });
+
                             // Hide Subscription/Plans
                             const assNav = document.getElementById('nav-assinatura');
                             const assCard = document.getElementById('assinatura-card');
@@ -3596,7 +3608,7 @@
                             const btnExtract = document.querySelector('#module-extract .btn-primary');
                             if (btnExtract) btnExtract.innerHTML = '<i class="fas fa-rocket"></i> Iniciar Processamento Massivo';
 
-                            [...manualEls, ...enrichEls, ...extractEls, ...unifyEls, ...splitEls, ...carrierEls].forEach(el => {
+                            [...manualEls, ...extractEls, ...unifyEls, ...splitEls, ...carrierEls].forEach(el => {
                                 if (el) el.style.display = el.classList.contains('action-card') ? 'flex' : 'flex';
                             });
                             if (processingLabel) processingLabel.style.display = 'block';
@@ -3607,8 +3619,11 @@
                             if (clinNav) clinNav.style.display = 'none';
                             if (clinCard) clinCard.style.display = 'none';
                             
+                            // Hide Enriquecimento (TESTING ONLY FOR ADMIN)
+                            enrichEls.forEach(el => { if (el) el.style.display = 'none'; });
+
                             // Standard users see everything except Admin and Clinicas
-                            [...manualEls, ...enrichEls, ...extractEls, ...unifyEls, ...splitEls, ...carrierEls, ...dashboardEls].forEach(el => {
+                            [...manualEls, ...extractEls, ...unifyEls, ...splitEls, ...carrierEls, ...dashboardEls].forEach(el => {
                                 if (el) el.style.display = el.classList.contains('action-card') ? 'flex' : 'flex';
                             });
                             if (processingLabel) processingLabel.style.display = 'block';
@@ -3643,16 +3658,6 @@
             },
 
             showModule(mid, element) {
-                // RESTRIÇÃO ENRIQUECIMENTO EM LOTE (Somente ADMIN)
-                if (mid === 'enrich') {
-                    const isAdmin = (this.user && this.user.role === 'ADMIN') || 
-                                    (document.getElementById('admin-menu') && document.getElementById('admin-menu').style.display === 'block');
-                    
-                    if (!isAdmin) {
-                        mid = 'enrich-placeholder';
-                        console.log("[RBAC] User restricted from direct enrichment view. Showing placeholder.");
-                    }
-                }
 
                 this.currentModule = mid;
                 // Persist the current module so F5 restores it
@@ -5274,11 +5279,16 @@
                 }, 'unify'); 
             },
             startEnrich() {
+                const perfilEl = document.getElementById('enrich-perfil');
+                const perfil = perfilEl ? perfilEl.value : "TODOS";
+                console.log("[DEBUG] Iniciar Enriquecimento - Perfil Selecionado:", perfil);
+                
                 this.startTask('/tasks/enrich', {
                     file_id: this.uploadedFiles.enrich[0],
                     name_col: null,
                     cpf_col: null,
-                    filterSummary: "Enriquecimento via Planilha"
+                    perfil: perfil,
+                    filterSummary: `Enriquecimento (${perfil})`
                 }, 'enrich');
             },
             startCarrier() { 
