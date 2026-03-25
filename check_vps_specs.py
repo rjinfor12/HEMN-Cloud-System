@@ -1,4 +1,5 @@
-import paramiko, os
+import paramiko
+import os
 
 host = '129.121.45.136'
 port = 22022
@@ -9,18 +10,16 @@ client = paramiko.SSHClient()
 client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 client.connect(host, port=port, username=user, key_filename=key_path)
 
-def run(cmd):
-    stdin, stdout, stderr = client.exec_command(cmd)
-    stdout.channel.recv_exit_status()
-    return stdout.read().decode('utf-8', errors='replace') + stderr.read().decode('utf-8', errors='replace')
+print("--- VPS HARDWARE SPECS ---")
+stdin, stdout, stderr = client.exec_command('free -m')
+print("RAM (MB):")
+print(stdout.read().decode())
 
-print('=== CPU INFO ===')
-print(run("lscpu | grep 'Model name'"))
+stdin, stdout, stderr = client.exec_command('nproc')
+print("CPU CORES:", stdout.read().decode().strip())
 
-print('\n=== MEMORY INFO ===')
-print(run("free -h"))
-
-print('\n=== DISK SPACE (Detailed) ===')
-print(run("df -h /"))
+stdin, stdout, stderr = client.exec_command('lsblk')
+print("\nDISK PARTITIONS:")
+print(stdout.read().decode())
 
 client.close()

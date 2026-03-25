@@ -29,8 +29,10 @@ def log(msg):
 
 def run_cmd(cmd):
     log(f"Running: {cmd}")
-    process = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-    stdout, stderr = process.communicate()
+    process = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    stdout_bin, stderr_bin = process.communicate()
+    stdout = stdout_bin.decode('utf-8', errors='replace')
+    stderr = stderr_bin.decode('utf-8', errors='replace')
     if process.returncode != 0:
         log(f"ERROR: {stderr.strip()}")
         return False, stderr
@@ -100,6 +102,14 @@ def process_file(filename):
         log(f"Skipping unknown file type: {filename}")
         return
     
+    # Resumable logic: Check if we've already tried this file in this log
+    # (Simplified: just check if 'Finished <filename>' is in the log)
+    if os.path.exists(LOG_FILE):
+        with open(LOG_FILE, "r") as f:
+            if f"Finished {filename}" in f.read():
+                log(f"Resuming: Skipping already finished {filename}")
+                return
+
     zip_path = os.path.join(DOWNLOAD_DIR, filename)
     url = f"{BASE_URL}/{filename}"
     
