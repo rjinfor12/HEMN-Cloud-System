@@ -6,6 +6,7 @@ host = '129.121.45.136'
 port = 22022
 user = 'root'
 key_path = os.path.expanduser('~/.ssh/id_rsa')
+password = 'ChangeMe123!'
 
 def run_cmd(client, cmd):
     print(f"Running: {cmd}")
@@ -17,10 +18,14 @@ def run_cmd(client, cmd):
     if err: print("ERR:", err.encode('ascii', 'ignore').decode())
     return exit_status
 
-print(f"Connecting to {host}:{port} via key...")
+print(f"Connecting to {host}:{port}...")
 client = paramiko.SSHClient()
 client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-client.connect(host, port=port, username=user, key_filename=key_path)
+try:
+    client.connect(host, port=port, username=user, key_filename=key_path, timeout=10)
+except:
+    print("Key failed, trying password...")
+    client.connect(host, port=port, username=user, password=password)
 
 print("Preparing Ubuntu Server...")
 run_cmd(client, 'apt-get update')

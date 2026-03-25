@@ -119,6 +119,21 @@ class CloudEngine:
         finally:
             client.close()
 
+    def get_db_version(self):
+        """Busca a versão atual do banco de dados na tabela hemn._metadata"""
+        if not self.is_linux: return "Ambiente Windows (Local)"
+        client = self._get_ch_client()
+        if not client: return "Erro de Conexão (ClickHouse)"
+        try:
+            res = client.query("SELECT value FROM hemn._metadata WHERE key = 'db_version' LIMIT 1")
+            if res.result_rows:
+                return str(res.result_rows[0][0])
+            return "Versão Desconhecida"
+        except:
+            return "Tabela _metadata não encontrada"
+        finally:
+            client.close()
+
     def _load_carrier_assets(self):
         """Loads prefix tree and operator dictionary from data_assets folder"""
         self.prefix_tree = {} # {prefix: operator_code}
@@ -325,7 +340,7 @@ class CloudEngine:
         except:
             return 0
 
-    def _batch_query(self, sql_template, key_param, values, batch_size=3000, tid=None, base_prog=0, max_prog=0, msg_prefix=""):
+    def _batch_query(self, sql_template, key_param, values, batch_size=3000, tid=None, base_prog=0, max_prog=0, msg_prefix="", extra_params=None):
         """Execute a query with a large IN() list in safe-sized batches with progress tracking."""
         ch_local = self._get_ch_client()
         if not ch_local: return [], []
@@ -342,8 +357,10 @@ class CloudEngine:
                 if status.get("status") == "CANCELLED": return [], []
 
             chunk = values[i:i + batch_size]
+            params = {key_param: chunk}
+            if extra_params: params.update(extra_params)
             # Otimização v1.8.12: Limitar threads para permitir concorrência de usuários
-            res = ch_local.query(sql_template + " SETTINGS max_threads = 1", {key_param: chunk})
+            res = ch_local.query(sql_template + " SETTINGS max_threads = 1", params)
             all_rows.extend(res.result_rows)
             # Log names once
             if not col_names:
@@ -601,6 +618,28 @@ class CloudEngine:
             df_in['titanium_nome'] = df_in[n_col].fillna('').astype(str).str.upper().str.strip().apply(remove_accents)
             df_in['titanium_cpf'] = df_in[c_col].fillna('').astype(str).str.replace(r'\D', '', regex=True).str.zfill(11)
 
+            # --- EXTRAÇÃO DE UF (DETERMINAÇÃO DA COLUNA) ---
+            # Prioridade: Coluna nomeada 'UF' ou 'Estado' -> Coluna C (Index 2)
+            uf_col = next((c for c in df_in.columns if str(c).upper() in ['UF', 'ESTADO', 'UF_CLIENTE']), None)
+            if not uf_col and len(df_in.columns) > 2:
+                uf_col = df_in.columns[2]
+            
+            if uf_col:
+                df_in['titanium_uf'] = df_in[uf_col].fillna('').astype(str).str.upper().str.strip().str[:2]
+            else:
+                df_in['titanium_uf'] = ''
+            
+            # Mapa de UF para conferência rápida
+            client_uf_map = {}
+            for _, row in df_in.iterrows():
+                u = str(row.get('titanium_uf', '')).strip()
+                c = str(row.get('titanium_cpf', '')).strip()
+                n = str(row.get('titanium_nome', '')).strip()
+                sc = f"{n} ***{c[3:9]}**" if len(c) >= 11 else ""
+                if c: client_uf_map[c] = u
+                if n: client_uf_map[n] = u
+                if sc: client_uf_map[sc] = u
+
             # --- PHASE 1: BATCH PROCESSING (EXTREME SPEED) ---
             # Generar chaves combinadas (socio_chave) para busca ultra precisa
             # Otimização v1.8.11: Vetorização de Chaves (Elimina iterrows/CPU spike)
@@ -633,7 +672,7 @@ class CloudEngine:
                 is_expansion_required = True
             else:
                 perfil_cond_sql = "1=1"
-                is_expansion_required = False
+                is_expansion_required = True
 
             # 2. Buscar dados em SÓCIOS
             if search_chaves or search_cpfs or search_names:
@@ -674,6 +713,10 @@ class CloudEngine:
                     unique_cnpjs = df_socios['cnpj_basico'].unique().tolist()
                     self._update_task(tid, progress=45, message=f"Buscando Dados de {len(unique_cnpjs):,} Empresas...")
                     
+                    # Otimização v1.9.2: Filtro Geográfico na Query (Somente UFs presentes na planilha)
+                    unique_ufs = [u for u in df_in['titanium_uf'].unique().tolist() if u and len(u) == 2]
+                    uf_filter_sql = " AND estab.uf IN %(ufs)s" if unique_ufs else ""
+                    
                     q_info = f"""
                         SELECT 
                             e.cnpj_basico AS cnpj_basico, e.razao_social AS razao_social,
@@ -685,12 +728,14 @@ class CloudEngine:
                         FROM hemn.empresas AS e
                         INNER JOIN hemn.estabelecimento AS estab ON e.cnpj_basico = estab.cnpj_basico
                         LEFT JOIN hemn.municipio AS mun ON estab.municipio = mun.codigo
-                        WHERE e.cnpj_basico IN %(keys)s AND {perfil_cond_sql} AND estab.situacao_cadastral = '02'
+                        WHERE e.cnpj_basico IN %(keys)s AND {perfil_cond_sql} AND estab.situacao_cadastral = '02' {uf_filter_sql}
                         ORDER BY (estab.cnpj_ordem = '0001') DESC
                         LIMIT 1 BY e.cnpj_basico
                     """
                     
-                    results_info, cols_info = self._batch_query(q_info, "keys", unique_cnpjs, tid=tid, base_prog=45, max_prog=75)
+                    params_info = {}
+                    if unique_ufs: params_info["ufs"] = unique_ufs
+                    results_info, cols_info = self._batch_query(q_info, "keys", unique_cnpjs, tid=tid, base_prog=45, max_prog=75, extra_params=params_info)
                     
                     if results_info:
                         df_info = pd.DataFrame(results_info, columns=cols_info)
@@ -704,8 +749,15 @@ class CloudEngine:
                             addr = self._parse_address_columns(d)
                             cont = self._parse_contact_columns(d)
                             mapping = {'01': 'NULA', '02': 'ATIVA', '03': 'SUSPENSA', '04': 'INAPTA', '08': 'BAIXADA'}
+                            # Verificação Geográfica de Segurança (Garante que a UF bate com a solicitada para esse registro)
+                            l_key = str(d['lookup_key'])
+                            target_uf = client_uf_map.get(l_key, '')
+                            if target_uf and target_uf != str(d['uf']):
+                                continue
+
+                            mapping = {'01': 'NULA', '02': 'ATIVA', '03': 'SUSPENSA', '04': 'INAPTA', '08': 'BAIXADA'}
                             all_results.append({
-                                'lookup_key': str(d['lookup_key']),
+                                'lookup_key': l_key,
                                 'CNPJ': f"{str(int(d['cnpj_basico'])).zfill(8)}{str(int(d['cnpj_ordem'])).zfill(4)}{str(int(d['cnpj_dv'])).zfill(2)}",
                                 'RAZAO_SOCIAL': d['razao_social'], 
                                 'SITUACAO': mapping.get(str(d['situacao_cadastral']).zfill(2), 'ATIVA'),
@@ -716,10 +768,14 @@ class CloudEngine:
                             })
 
                     # Motor One-Shot v5.1.4: Busca Híbrida Inteligente (CPF Flash-IN + Nome Aho-Scan)
-                    def run_mei_scan(search_cpfs, search_names, tid, base_p, max_p):
+                    def run_mei_scan(search_cpfs, search_names, tid, base_p, max_p, ufs=None):
                         results = []
                         ch_local = self._get_ch_client()
                         if not ch_local: return []
+
+                        uf_filter = " AND uf IN %(ufs)s" if ufs else ""
+                        params = {}
+                        if ufs: params['ufs'] = ufs
 
                         # 1. BUSCA POR CPF (Modo Flash: IN Operator) - Resolve 99% dos casos em 1 seg
                         if search_cpfs:
@@ -730,8 +786,21 @@ class CloudEngine:
                                     block = cpfs[idx:idx + cpf_batch]
                                     self._update_task(tid, progress=base_p + 1, message=f"MEI CPF Flash: {idx:,}/{len(cpfs):,}...")
                                     # Otimização Crítica: substring(-11) extrai o CPF do final da Razão Social do MEI
-                                    sql_cpf = "SELECT cnpj_basico, razao_social FROM hemn.empresas PREWHERE natureza_juridica = '2135' WHERE substring(razao_social, -11) IN %(cpfs)s"
-                                    res_cpf = ch_local.query(sql_cpf, {'cpfs': block})
+                                    # Fix v1.9.2: Join com estabelecimento para filtrar UF (já que UF não existe em empresas)
+                                    if ufs:
+                                        sql_cpf = f"""
+                                            SELECT e.cnpj_basico, e.razao_social 
+                                            FROM hemn.empresas AS e
+                                            INNER JOIN hemn.estabelecimento AS estab ON e.cnpj_basico = estab.cnpj_basico
+                                            PREWHERE e.natureza_juridica = '2135'
+                                            WHERE substring(e.razao_social, -11) IN %(cpfs)s AND estab.uf IN %(ufs)s
+                                        """
+                                    else:
+                                        sql_cpf = "SELECT cnpj_basico, razao_social FROM hemn.empresas PREWHERE natureza_juridica = '2135' WHERE substring(razao_social, -11) IN %(cpfs)s"
+                                    
+                                    p = params.copy()
+                                    p['cpfs'] = block
+                                    res_cpf = ch_local.query(sql_cpf, p)
                                     results.extend(res_cpf.result_rows)
 
                         # 2. BUSCA POR NOME (Rede de Segurança Total) - Varre tudo que não tiver CPF ou se falhou
@@ -743,8 +812,21 @@ class CloudEngine:
                             for i in range(0, total_names, batch_size):
                                 block = names[i:min(i + batch_size, total_names)]
                                 self._update_task(tid, progress=base_p + 5 + int((i/total_names)*5), message=f"MEI Name Scan: {i:,}/{total_names:,}...")
-                                sql_name = "SELECT cnpj_basico, razao_social FROM hemn.empresas PREWHERE natureza_juridica = '2135' WHERE multiSearchAny(razao_social, %(n)s)"
-                                res_name = ch_local.query(sql_name, {'n': block})
+                                # Fix v1.9.2: Join com estabelecimento para filtrar UF
+                                if ufs:
+                                    sql_name = f"""
+                                        SELECT e.cnpj_basico, e.razao_social 
+                                        FROM hemn.empresas AS e
+                                        INNER JOIN hemn.estabelecimento AS estab ON e.cnpj_basico = estab.cnpj_basico
+                                        PREWHERE e.natureza_juridica = '2135'
+                                        WHERE multiSearchAny(e.razao_social, %(n)s) AND estab.uf IN %(ufs)s
+                                    """
+                                else:
+                                    sql_name = f"SELECT cnpj_basico, razao_social FROM hemn.empresas PREWHERE natureza_juridica = '2135' WHERE multiSearchAny(razao_social, %(n)s)"
+                                
+                                p = params.copy()
+                                p['n'] = block
+                                res_name = ch_local.query(sql_name, p)
                                 results.extend(res_name.result_rows)
                         
                         return results
@@ -760,7 +842,7 @@ class CloudEngine:
 
                     # Sincronização v1.8.10: Só executa MEI Scan se perfil for TODOS ou MEI
                     if p_val in ["TODOS", "MEI"] and (search_cpfs_mei or search_names_mei):
-                        found_meis = run_mei_scan(list(search_cpfs_mei), list(search_names_mei), tid, 40, 55)
+                        found_meis = run_mei_scan(list(search_cpfs_mei), list(search_names_mei), tid, 40, 55, ufs=unique_ufs)
                     else:
                         found_meis = []
 

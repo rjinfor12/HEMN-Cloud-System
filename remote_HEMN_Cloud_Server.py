@@ -897,13 +897,6 @@ async def get_me(user: dict = Depends(get_current_user)):
         
     return user
 
-@router.get("/me/db_version")
-async def get_db_version(user: dict = Depends(get_current_user)):
-    if user["role"] != "ADMIN":
-        raise HTTPException(status_code=403, detail="Acesso restrito.")
-    db_version = engine.get_db_version()
-    return {"version": db_version}
-
 @router.get("/admin/users")
 def list_users(user: dict = Depends(get_current_user)):
     if user["role"] != "ADMIN": 

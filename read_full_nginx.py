@@ -9,7 +9,9 @@ client = paramiko.SSHClient()
 client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 client.connect(HOST, port=PORT, username=USER, key_filename=KEY_PATH)
 
-stdin, stdout, stderr = client.exec_command("cat /var/www/hemn_cloud/HEMN_Cloud_Server.py")
-print(stdout.read().decode('utf-8'))
+stdin, stdout, stderr = client.exec_command('cat /etc/nginx/sites-enabled/hemn_cloud')
+content = stdout.read().decode('utf-8')
+print("--- FULL NGINX CONFIG ---")
+print(content)
 
 client.close()

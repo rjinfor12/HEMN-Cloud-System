@@ -9,7 +9,6 @@ client = paramiko.SSHClient()
 client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 client.connect(HOST, port=PORT, username=USER, key_filename=KEY_PATH)
 
-stdin, stdout, stderr = client.exec_command("cat /var/www/hemn_cloud/HEMN_Cloud_Server.py")
+stdin, stdout, stderr = client.exec_command("sqlite3 /var/lib/clickhouse/user_files/cnpj.db 'PRAGMA table_info(estabelecimento)'")
 print(stdout.read().decode('utf-8'))
-
 client.close()

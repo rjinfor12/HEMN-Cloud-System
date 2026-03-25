@@ -9,7 +9,7 @@ client = paramiko.SSHClient()
 client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 client.connect(HOST, port=PORT, username=USER, key_filename=KEY_PATH)
 
-stdin, stdout, stderr = client.exec_command("cat /var/www/hemn_cloud/HEMN_Cloud_Server.py")
+stdin, stdout, stderr = client.exec_command('grep -r "areadocliente" /etc/nginx/')
 print(stdout.read().decode('utf-8'))
 
 client.close()
