@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HEMN SYSTEM | Monitoramento Administrativo</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --bg: #0b0c10;
+            --card: #15161c;
+            --accent: #3b82f6;
+            --accent-glow: rgba(59, 130, 246, 0.3);
+            --text-main: #f1f5f9;
+            --text-muted: #64748b;
+            --border: #242735;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', sans-serif;
+        }
+
+        body {
+            background: var(--bg);
+            color: var(--text-main);
+            overflow-x: hidden;
+        }
+
+        .dashboard {
+            padding: 30px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+        }
+
+        .header h1 span {
+            color: var(--accent);
+        }
+
+        .status-badge {
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--success);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--success);
+            box-shadow: 0 0 10px var(--success);
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 24px;
+            transition: 0.3s;
+        }
+
+        .card:hover {
+            border-color: var(--accent);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        }
+
+        .card-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-muted);
+            margin-bottom: 20px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .metric-value {
+            font-size: 36px;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+
+        .metric-unit {
+            font-size: 14px;
+            color: var(--text-muted);
+            font-weight: 400;
+        }
+
+        .chart-container {
+            height: 200px;
+            width: 100%;
+            position: relative;
+        }
+
+        .list-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .list-item:last-child {
+            border-bottom: none;
+        }
+
+        .list-label {
+            font-size: 14px;
+            color: var(--text-muted);
+        }
+
+        .list-value {
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .progress-bar {
+            height: 8px;
+            background: var(--border);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 10px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: var(--accent);
+            transition: 1s ease-in-out;
+        }
+
+        .btn-back {
+            padding: 10px 20px;
+            background: var(--border);
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-back:hover {
+            background: #303446;
+        }
+
+        /* Animation for real-time pulsing */
+        @keyframes pulse {
+            0% {
+                transform: scale(1);
+                opacity: 1;
+            }
+
+            50% {
+                transform: scale(1.2);
+                opacity: 0.7;
+            }
+
+            100% {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+
+        .live-indicator {
+            animation: pulse 2s infinite;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="dashboard">
+        <div class="header">
+            <div>
+                <a href="../static/admin.html" class="btn-back">← Voltar ao Painel</a>
+                <h1 style="margin-top: 20px;">Monitoramento <span>Real-Time</span></h1>
+            </div>
+            <div class="status-badge">
+                <div class="status-dot live-indicator"></div>
+                SISTEMA OPERACIONAL
+            </div>
+        </div>
+
+        <div class="grid">
+            <!-- CPU Card -->
+            <div class="card">
+                <div class="card-title">Carga de Processamento (CPU)</div>
+                <div class="metric-value"><span id="cpu-val">0</span><span class="metric-unit">%</span></div>
+                <div class="chart-container">
+                    <canvas id="cpuChart"></canvas>
+                </div>
+            </div>
+
+            <!-- RAM Card -->
+            <div class="card">
+                <div class="card-title">Memória do Servidor (RAM)</div>
+                <div class="metric-value"><span id="ram-val">0</span><span class="metric-unit">%</span></div>
+                <div class="progress-bar">
+                    <div id="ram-progress" class="progress-fill" style="width: 0%"></div>
+                </div>
+                <div style="margin-top: 20px;">
+                    <div class="list-item">
+                        <span class="list-label">Disco (Storage)</span>
+                        <span class="list-value" id="disk-val">0%</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ClickHouse Health -->
+            <div class="card">
+                <div class="card-title">Banco de Dados (ClickHouse)</div>
+                <div id="ch-status" class="list-value" style="color: var(--success); margin-bottom: 15px;">ONLINE</div>
+                <div class="list-item">
+                    <span class="list-label">Versão</span>
+                    <span class="list-value" id="ch-version">--</span>
+                </div>
+                <div class="list-item">
+                    <span class="list-label">Queries Ativas</span>
+                    <span class="list-value" id="ch-queries">--</span>
+                </div>
+                <div class="list-item">
+                    <span class="list-label">RAM ClickHouse</span>
+                    <span class="list-value" id="ch-ram">--</span>
+                </div>
+                <div class="list-item">
+                    <span class="list-label">Uptime</span>
+                    <span class="list-value" id="ch-uptime">--</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid" style="grid-template-columns: 1fr 2fr;">
+            <!-- Engine Queue -->
+            <div class="card">
+                <div class="card-title">Fila do Motor HEMN</div>
+                <div class="list-item">
+                    <span class="list-label">Tarefas Ativas</span>
+                    <span class="list-value" id="engine-active" style="color: var(--accent);">0</span>
+                </div>
+                <div class="list-item">
+                    <span class="list-label">Aguardando Fila</span>
+                    <span class="list-value" id="engine-queued">0</span>
+                </div>
+                <div class="list-item">
+                    <span class="list-label">Slots Livres (Semáforo)</span>
+                    <span class="list-value" id="engine-slots">--</span>
+                </div>
+                <div class="list-item">
+                    <span class="list-label">Concluídas Hoje</span>
+                    <span class="list-value" id="engine-completed">0</span>
+                </div>
+            </div>
+
+            <!-- Task Summary -->
+            <div class="card">
+                <div class="card-title">Resumo de Atividades</div>
+                <div id="task-logs" style="max-height: 250px; overflow-y: auto; font-size: 13px;">
+                    <div style="color: var(--text-muted); text-align: center; margin-top: 40px;">Monitorando
+                        atividades...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API = "";
+        const token = localStorage.getItem("hemn_token");
+        if (!token) location.href = "../static/admin.html";
+
+        // Chart Setup
+        const ctx = document.getElementById('cpuChart').getContext('2d');
+        const cpuChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: Array(20).fill(''),
+                datasets: [{
+                    label: 'CPU Usage',
+                    data: Array(20).fill(0),
+                    borderColor: '#3b82f6',
+                    backgroundGradient: 'rgba(59, 130, 246, 0.1)',
+                    borderWidth: 2,
+                    tension: 0.4,
+                    pointRadius: 0,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: { min: 0, max: 100, ticks: { display: false }, grid: { color: 'rgba(255,255,255,0.05)' } },
+                    x: { grid: { display: false } }
+                }
+            }
+        });
+
+        async function updateStats() {
+            try {
+                // Use relative path to work behind /areadocliente proxy
+                const res = await fetch(`monitor/stats`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (!res.ok) throw new Error("Unauthorized");
+                const data = await res.json();
+
+                // Update System
+                document.getElementById('cpu-val').innerText = data.system.cpu;
+                document.getElementById('ram-val').innerText = data.system.ram;
+                document.getElementById('ram-progress').style.width = data.system.ram + '%';
+                document.getElementById('disk-val').innerText = data.system.disk + '%';
+
+                // Update Chart
+                cpuChart.data.datasets[0].data.shift();
+                cpuChart.data.datasets[0].data.push(data.system.cpu);
+                cpuChart.update('none');
+
+                // Update ClickHouse
+                const ch = data.clickhouse;
+                document.getElementById('ch-status').innerText = ch.status;
+                document.getElementById('ch-status').style.color = ch.status === 'ONLINE' ? 'var(--success)' : 'var(--danger)';
+                document.getElementById('ch-version').innerText = ch.version || '--';
+                document.getElementById('ch-queries').innerText = ch.active_queries || '0';
+                document.getElementById('ch-ram').innerText = ch.memory_usage_bytes ? (ch.memory_usage_bytes / 1024 / 1024 / 1024).toFixed(2) + ' GB' : '--';
+                document.getElementById('ch-uptime').innerText = ch.uptime_seconds ? (ch.uptime_seconds / 3600).toFixed(1) + ' hrs' : '--';
+
+                // Update Engine
+                const eng = data.engine;
+                document.getElementById('engine-active').innerText = eng.tasks.active;
+                document.getElementById('engine-queued').innerText = eng.tasks.queued;
+                document.getElementById('engine-completed').innerText = eng.tasks.completed;
+                document.getElementById('engine-slots').innerText = eng.enrich_slots_available;
+
+            } catch (e) {
+                console.error("Monitor Error:", e);
+                document.getElementById('ch-status').innerText = "ERRO DE CONEXÃO";
+                document.getElementById('ch-status').style.color = "var(--danger)";
+            }
+        }
+
+        // Auto Refresh
+        setInterval(updateStats, 2000);
+        updateStats();
+    </script>
+</body>
+
+</html>

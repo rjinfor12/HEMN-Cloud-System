@@ -1,0 +1,23 @@
+import paramiko
+import os
+
+host = '129.121.45.136'
+port = 22022
+user = 'root'
+key_path = os.path.expanduser('~/.ssh/id_rsa')
+
+client = paramiko.SSHClient()
+client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+client.connect(host, port=port, username=user, key_filename=key_path)
+
+print("--- VPS GIT STATUS ---")
+cmd = 'cd /var/www/hemn_cloud && git status'
+stdin, stdout, stderr = client.exec_command(cmd)
+print(stdout.read().decode())
+
+print("\n--- UNTRACKED FILES ---")
+cmd = 'cd /var/www/hemn_cloud && git ls-files --others --exclude-standard'
+stdin, stdout, stderr = client.exec_command(cmd)
+print(stdout.read().decode())
+
+client.close()
