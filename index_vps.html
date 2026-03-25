@@ -1322,6 +1322,10 @@
                 <div id="admin-db-version-sidebar" class="status-badge-ip" style="display: none; padding-top: 4px; border-top: 1px solid rgba(255,255,255,0.05); margin-top: 4px; display: flex !important; align-items: center; gap: 4px; white-space: nowrap; color: var(--text-3) !important;">
                     Base da Receita: <span id="db-version-value" style="font-weight: 700; color: inherit !important;">Carregando...</span>
                 </div>
+                <div id="db-update-alert" class="status-badge-ip" style="display: none; color: #ffeb3b !important; font-weight: 700; padding-top: 4px; border-top: 1px solid rgba(255,255,255,0.1); margin-top: 4px; align-items: center; gap: 6px; cursor: help;" title="Uma nova base de dados foi detectada no portal da Receita Federal.">
+                    <i class="fas fa-circle-exclamation" style="font-size: 10px;"></i>
+                    <span>Upgrade Disponível</span>
+                </div>
             </div>
         </aside>
 
@@ -3563,7 +3567,16 @@
                                     .then(r => r.json())
                                     .then(data => {
                                         const valEl = document.getElementById('db-version-value');
-                                        if (valEl) valEl.innerText = data.version || 'Desconhecida';
+                                        if (valEl) {
+                                            const ver = data.version || 'Desconhecida';
+                                            valEl.innerText = ver;
+                                            
+                                            // Alerta de Atualização (Regra: Se Jan/2026, sinaliza que Março/Abril estão próximos)
+                                            const alertEl = document.getElementById('db-update-alert');
+                                            if (alertEl && (ver.includes('Janeiro') || ver.includes('01/2026'))) {
+                                                alertEl.style.setProperty('display', 'flex', 'important');
+                                            }
+                                        }
                                     })
                                     .catch(err => {
                                         console.error("Fail to fetch DB version", err);

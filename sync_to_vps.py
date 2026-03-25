@@ -9,7 +9,8 @@ key_path = r'C:\Users\Junior T.I\.ssh\id_rsa'
 files_to_upload = [
     "HEMN_Cloud_Server.py",
     "cloud_engine.py",
-    "index_vps.html"
+    "index_vps.html",
+    "vps_ingest_march_2026.py"
 ]
 
 client = paramiko.SSHClient()
