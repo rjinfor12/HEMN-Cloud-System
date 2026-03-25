@@ -121,23 +121,34 @@ def process_file(filename):
     
     # 2. Ingest
     log(f"Ingesting into {table}...")
+    
+    # ClickHouse Settings for robust parsing
+    ch_settings = "--input_format_allow_errors_num 1000 --input_format_allow_errors_ratio 0.05 --format_csv_delimiter ';'"
+    
+    success = False
     if table == "estabelecimento":
         cols = "cnpj_basico,cnpj_ordem,cnpj_dv,matriz_filial,nome_fantasia,situacao_cadastral,data_situacao_cadastral,motivo_situacao_cadastral,nome_cidade_exterior,pais,data_inicio_atividades,cnae_fiscal,cnae_fiscal_secundaria,tipo_logradouro,logradouro,numero,complemento,bairro,cep,uf,municipio,ddd1,telefone1,ddd2,telefone2,ddd_fax,fax,correio_eletronico,situacao_especial,data_situacao_especial"
-        # Calculate full CNPJ during insertion
-        pipe_cmd = f'unzip -p {zip_path} | clickhouse-client --format_csv_delimiter ";" --max_insert_block_size 100000 -q "INSERT INTO {TARGET_DB}.{table} ({cols}, cnpj) SELECT *, concat(cnpj_basico, cnpj_ordem, cnpj_dv) FROM input(\'{cols}\')"'
-        run_cmd(pipe_cmd)
+        # Fix v5.1.8: Added FORMAT CSV to input() function and explicit schema
+        pipe_cmd = f'unzip -p {zip_path} | clickhouse-client {ch_settings} --max_insert_block_size 100000 -q "INSERT INTO {TARGET_DB}.{table} ({cols}, cnpj) SELECT *, concat(cnpj_basico, cnpj_ordem, cnpj_dv) FROM input(\'{cols}\') FORMAT CSV"'
+        success, _ = run_cmd(pipe_cmd)
     elif table == "socios":
         cols = "cnpj_basico,identificador_de_socio,nome_socio,cnpj_cpf_socio,qualificacao_socio,data_entrada_sociedade,pais,representante_legal,nome_representante,qualificacao_representante_legal,faixa_etaria"
-        pipe_cmd = f'unzip -p {zip_path} | clickhouse-client --format_csv_delimiter ";" -q "INSERT INTO {TARGET_DB}.{table} ({cols}) FORMAT CSV"'
-        run_cmd(pipe_cmd)
+        # Otimização v5.1.8: Chave de busca pré-calculada para Sócios
+        pipe_cmd = f'unzip -p {zip_path} | clickhouse-client {ch_settings} -q "INSERT INTO {TARGET_DB}.{table} ({cols}, socio_chave) SELECT *, concat(nome_socio, \' ***\', substring(cnpj_cpf_socio, 4, 6), \'**\') FROM input(\'{cols}\') FORMAT CSV"'
+        success, _ = run_cmd(pipe_cmd)
     else:
-        # Standard CSV ingestion with semicolon delimiter
-        pipe_cmd = f'unzip -p {zip_path} | clickhouse-client --format_csv_delimiter ";" -q "INSERT INTO {TARGET_DB}.{table} FORMAT CSV"'
-        run_cmd(pipe_cmd)
+        # Standard CSV ingestion with robustness settings
+        pipe_cmd = f'unzip -p {zip_path} | clickhouse-client {ch_settings} -q "INSERT INTO {TARGET_DB}.{table} FORMAT CSV"'
+        success, _ = run_cmd(pipe_cmd)
         
     # 3. Cleanup
-    os.remove(zip_path)
-    log(f"Finished {filename}")
+    if os.path.exists(zip_path):
+        os.remove(zip_path)
+        
+    if success:
+        log(f"Finished {filename}")
+    else:
+        log(f"FAILED {filename}")
 
 if __name__ == "__main__":
     if not os.path.exists(DOWNLOAD_DIR):

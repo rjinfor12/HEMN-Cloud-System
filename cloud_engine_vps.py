@@ -9,6 +9,10 @@ import shutil
 import re
 import unicodedata
 from concurrent.futures import ThreadPoolExecutor
+try:
+    import clickhouse_connect
+except ImportError:
+    pass
 
 def remove_accents(input_str):
     if not input_str: return ""
@@ -43,12 +47,92 @@ class CloudEngine:
     def _get_ch_client(self):
         """Retorna uma nova instância de cliente ClickHouse (Thread-Safe)"""
         if not self.is_linux: return None
-        import clickhouse_connect
         try:
             return clickhouse_connect.get_client(host='localhost', port=8123, username='default', password='')
         except Exception as e:
             print(f"[ERROR] Falha ao conectar no ClickHouse: {e}")
             return None
+
+    def search_leads(self, search_type, search_term, scope, uf=None, regiao=None):
+        search_type = str(search_type).lower().strip()
+        client = self._get_ch_client()
+        if not client:
+            return {"error": "Conexão com ClickHouse indisponível (Ambiente Windows)"}
+        
+        where_clauses = []
+        params = {}
+
+        # Tipo de Busca
+        if search_type == 'cpf':
+            cpf_clean = ''.join(filter(str.isdigit, search_term))
+            where_clauses.append("cpf = {cpf:String}")
+            params['cpf'] = cpf_clean
+        elif search_type == 'nome':
+            where_clauses.append("nome LIKE {nome:String}")
+            params['nome'] = f"%{remove_accents(search_term).upper().strip()}%"
+        elif search_type == 'telefone':
+            tel_clean = ''.join(filter(str.isdigit, search_term))
+            where_clauses.append("(tel_fixo1 = {tel:String} OR celular1 = {tel:String})")
+            params['tel'] = tel_clean
+        
+        # Filtros de Escopo
+        if scope == 'ESTADO' and uf:
+            where_clauses.append("uf = {uf:String}")
+            params['uf'] = uf.upper()
+        elif scope == 'REGIAO' and regiao:
+            where_clauses.append("regiao = {regiao:String}")
+            params['regiao'] = regiao.upper()
+        
+        if not where_clauses:
+            return {"leads": [], "count": 0}
+
+        where_str = " AND ".join(where_clauses)
+        query = f"SELECT DISTINCT cpf, nome, dt_nascimento, uf, regiao FROM hemn.leads WHERE {where_str} LIMIT 100"
+        
+        try:
+            result = client.query(query, parameters=params)
+            columns = ['cpf', 'nome', 'dt_nascimento', 'uf', 'regiao']
+            leads = []
+            today = datetime.now()
+            for row in result.result_rows:
+                lead = dict(zip(columns, row))
+                # Calcular idade
+                idade = "N/A"
+                dt_nasc = lead.get('dt_nascimento', '')
+                if dt_nasc and '/' in dt_nasc:
+                    try:
+                        parts = dt_nasc.split('/')
+                        if len(parts) == 3:
+                            day, month, year = int(parts[0]), int(parts[1]), int(parts[2])
+                            birth_date = datetime(year, month, day)
+                            age = today.year - birth_date.year - ((today.month, today.day) < (birth_date.month, birth_date.day))
+                            idade = str(age)
+                    except Exception:
+                        pass
+                lead['idade'] = idade
+                leads.append(lead)
+            
+            return {"leads": leads, "count": len(leads)}
+        except Exception as e:
+            print(f"[ERROR] ClickHouse query failed: {e}")
+            return {"error": str(e)}
+        finally:
+            client.close()
+
+    def get_db_version(self):
+        """Busca a versão atual do banco de dados na tabela hemn._metadata"""
+        if not self.is_linux: return "Ambiente Windows (Local)"
+        client = self._get_ch_client()
+        if not client: return "Erro de Conexão (ClickHouse)"
+        try:
+            res = client.query("SELECT value FROM hemn._metadata WHERE key = 'db_version' LIMIT 1")
+            if res.result_rows:
+                return str(res.result_rows[0][0])
+            return "Versão Desconhecida"
+        except:
+            return "Tabela _metadata não encontrada"
+        finally:
+            client.close()
 
     def _load_carrier_assets(self):
         """Loads prefix tree and operator dictionary from data_assets folder"""
@@ -60,7 +144,11 @@ class CloudEngine:
             "55315": "TELECALL", "55322": "BRISANET"
         }
         
-        base_dir = "/var/www/hemn_cloud/data_assets"
+        if self.is_linux:
+            base_dir = "/var/www/hemn_cloud/data_assets"
+        else:
+            base_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data_assets")
+            
         prefix_path = os.path.join(base_dir, "prefix_anatel.csv")
         dict_path = os.path.join(base_dir, "cod_operadora.csv")
         
@@ -86,10 +174,23 @@ class CloudEngine:
     def get_op_name(self, code):
         """Helper to get operator name from RN1/Anatel code"""
         code = str(code).strip()
-        return self.anatel_dict.get(code, f"OUTRA ({code})" if code else "OUTRA")
+        name = self.anatel_dict.get(code, f"OUTRA ({code})" if code else "OUTRA")
+        # NORMALIZAÇÃO HEMN (Híbrida para clareza e filtros)
+        nu = name.upper().strip()
+        if "TELEFONICA" in nu or "VIVO" in nu: return "VIVO / TELEFONICA"
+        if "CLARO" in nu: return "CLARO"
+        if "TIM" in nu: return "TIM"
+        if nu == "OI" or nu.startswith("OI ") or "OI S.A" in nu or "OI MOVEL" in nu or "TELEMAR" in nu: 
+            return "OI"
+        if "ALGAR" in nu: return "ALGAR"
+        if "BRISANET" in nu: return "BRISANET"
+        if "TELECALL" in nu: return "TELECALL"
+        if "SERCOMTEL" in nu: return "SERCOMTEL"
+        return name
 
     def _init_db(self):
-        conn = sqlite3.connect(self.db_path)
+        conn = sqlite3.connect(self.db_path, timeout=30)
+        conn.execute("PRAGMA journal_mode=WAL")
         conn.execute("""
             CREATE TABLE IF NOT EXISTS background_tasks (
                 id TEXT PRIMARY KEY,
@@ -104,6 +205,18 @@ class CloudEngine:
                 created_at TEXT
             )
         """)
+        
+        # Migração: Adiciona coluna 'filters' se não existir (para bancos legados)
+        try:
+            cursor = conn.cursor()
+            cursor.execute("PRAGMA table_info(background_tasks)")
+            columns = [info[1] for info in cursor.fetchall()]
+            if 'filters' not in columns:
+                print("[MIGRATION] Adicionando coluna 'filters' em background_tasks")
+                conn.execute("ALTER TABLE background_tasks ADD COLUMN filters TEXT")
+        except Exception as e:
+            print(f"[MIGRATION ERROR] Erro ao migrar background_tasks: {e}")
+
         conn.execute("""
             CREATE TABLE IF NOT EXISTS asaas_payments (
                 id TEXT PRIMARY KEY,
@@ -134,7 +247,8 @@ class CloudEngine:
     def _create_task(self, module="ENRICH", username=None, filters=None):
         tid = str(uuid.uuid4())
         created_at = datetime.now().isoformat()
-        conn = sqlite3.connect(self.db_path)
+        conn = sqlite3.connect(self.db_path, timeout=30)
+        conn.execute("PRAGMA journal_mode=WAL")
         conn.execute(
             "INSERT INTO background_tasks (id, username, module, status, progress, message, filters, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
             (tid, username, module, "QUEUED", 0, "Aguardando início...", filters, created_at)
@@ -144,14 +258,16 @@ class CloudEngine:
         return tid
 
     def cancel_task(self, tid):
-        conn = sqlite3.connect(self.db_path)
+        conn = sqlite3.connect(self.db_path, timeout=30)
+        conn.execute("PRAGMA journal_mode=WAL")
         conn.execute("UPDATE background_tasks SET status = 'CANCELLED', message = 'Processo cancelado pelo usuário.' WHERE id = ?", (tid,))
         conn.commit()
         conn.close()
         return True
 
     def get_user_tasks(self, username):
-        conn = sqlite3.connect(self.db_path)
+        conn = sqlite3.connect(self.db_path, timeout=30)
+        conn.execute("PRAGMA journal_mode=WAL")
         conn.row_factory = sqlite3.Row
         # Include COMPLETED and FAILED tasks from the last 24 hours for UI persistence
         rows = conn.execute(
@@ -164,13 +280,15 @@ class CloudEngine:
     def _update_task(self, tid, **kwargs):
         if not kwargs: return
         cols = ", ".join([f"{k} = ?" for k in kwargs.keys()])
-        conn = sqlite3.connect(self.db_path)
+        conn = sqlite3.connect(self.db_path, timeout=30)
+        conn.execute("PRAGMA journal_mode=WAL")
         conn.execute(f"UPDATE background_tasks SET {cols} WHERE id = ?", list(kwargs.values()) + [tid])
         conn.commit()
         conn.close()
 
     def get_task_status(self, tid):
-        conn = sqlite3.connect(self.db_path)
+        conn = sqlite3.connect(self.db_path, timeout=30)
+        conn.execute("PRAGMA journal_mode=WAL")
         conn.row_factory = sqlite3.Row
         row = conn.execute("SELECT * FROM background_tasks WHERE id = ?", (tid,)).fetchone()
         conn.close()
@@ -179,17 +297,78 @@ class CloudEngine:
 
     def get_internal_stats(self):
         try:
-            conn = sqlite3.connect(self.db_path)
+            conn = sqlite3.connect(self.db_path, timeout=30)
+            conn.execute("PRAGMA journal_mode=WAL")
+            # Return data in the format expected by the frontend (index_vps.html)
             stats = {
-                "queued": conn.execute("SELECT COUNT(*) FROM background_tasks WHERE status = 'QUEUED'").fetchone()[0],
-                "processing": conn.execute("SELECT COUNT(*) FROM background_tasks WHERE status = 'PROCESSING'").fetchone()[0],
-                "completed_24h": conn.execute("SELECT COUNT(*) FROM background_tasks WHERE status = 'COMPLETED' AND created_at > datetime('now','-24 hours')").fetchone()[0],
-                "failed_24h": conn.execute("SELECT COUNT(*) FROM background_tasks WHERE status = 'FAILED' AND created_at > datetime('now','-24 hours')").fetchone()[0]
+                "tasks": {
+                    "active": conn.execute("SELECT COUNT(*) FROM background_tasks WHERE status = 'PROCESSING'").fetchone()[0],
+                    "queued": conn.execute("SELECT COUNT(*) FROM background_tasks WHERE status = 'QUEUED'").fetchone()[0],
+                    "completed": conn.execute("SELECT COUNT(*) FROM background_tasks WHERE status = 'COMPLETED' AND (date(created_at) = date('now') OR created_at > datetime('now','-24 hours'))").fetchone()[0],
+                },
+                "enrich_slots_available": 2, # Fallback value
+                "recent_activities": []
             }
+            
+            # Fetch recent activities
+            conn.row_factory = sqlite3.Row
+            recent = conn.execute("SELECT module, status, progress, message, created_at FROM background_tasks ORDER BY created_at DESC LIMIT 10").fetchall()
+            stats["recent_activities"] = [dict(r) for r in recent]
             conn.close()
+
+            # Add potential external ingestion progress (DB Update)
+            ingest_task = self._get_ingestion_progress()
+            if ingest_task:
+                stats["recent_activities"].insert(0, ingest_task)
+
             return stats
         except Exception as e:
-            return {"error": str(e), "queued": 0, "processing": 0, "completed_24h": 0, "failed_24h": 0}
+            return {
+                "tasks": {"active": 0, "queued": 0, "completed": 0},
+                "enrich_slots_available": 2,
+                "recent_activities": [],
+                "error": str(e)
+            }
+
+    def _get_ingestion_progress(self):
+        """Checks for external ingestion logs and returns a virtual task if active."""
+        log_path = "/var/www/hemn_cloud/ingest_march_2026.log"
+        if not os.path.exists(log_path): return None
+        
+        try:
+            # Check if log was updated recently (last 30 minutes)
+            mtime = os.path.getmtime(log_path)
+            if time.time() - mtime > 1800: return None
+            
+            with open(log_path, "r", encoding="utf-8", errors="ignore") as f:
+                lines = f.readlines()
+                if not lines: return None
+                
+                # Simple progress heuristic: find "Starting <file>..." and "Finished <file>..."
+                current_file = "Processando..."
+                completed_count = 0
+                for line in reversed(lines):
+                    if "Starting" in line and "..." in line:
+                        current_file = line.split("Starting")[-1].strip().replace("...", "")
+                        break
+                    if "Finished" in line:
+                        completed_count += 1 # This is not precise but gives a hint
+
+                # Calculate progress based on total FILES (40 files in the script)
+                total_files = 40
+                # Scan full log once to count "Finished" (expensive but 1170 lines is small)
+                all_finished = [l for l in lines if "Finished" in l]
+                prog = min(99, int((len(all_finished) / total_files) * 100))
+                
+                return {
+                    "module": "DATABASE_UPDATE",
+                    "status": "PROCESSING",
+                    "progress": prog,
+                    "message": f"Atualizando Base Mar/2026: {current_file}",
+                    "created_at": datetime.fromtimestamp(mtime).isoformat()
+                }
+        except:
+            return None
 
     def get_ch_metrics(self):
         client = self._get_ch_client()
@@ -206,7 +385,22 @@ class CloudEngine:
         except:
             return {"status": "OFFLINE", "uptime": "0", "active_queries": 0}
 
-    def _batch_query(self, sql_template, key_param, values, batch_size=2000, tid=None, base_prog=0, max_prog=0, msg_prefix=""):
+    def count_active_tasks(self, username):
+        """Retorna o número de tarefas QUEUED ou PROCESSING de um usuário."""
+        if not username: return 0
+        try:
+            conn = sqlite3.connect(self.db_path, timeout=30)
+            conn.execute("PRAGMA journal_mode=WAL")
+            count = conn.execute(
+                "SELECT COUNT(*) FROM background_tasks WHERE username = ? COLLATE NOCASE AND status IN ('QUEUED', 'PROCESSING')",
+                (username,)
+            ).fetchone()[0]
+            conn.close()
+            return count
+        except:
+            return 0
+
+    def _batch_query(self, sql_template, key_param, values, batch_size=3000, tid=None, base_prog=0, max_prog=0, msg_prefix="", extra_params=None):
         """Execute a query with a large IN() list in safe-sized batches with progress tracking."""
         ch_local = self._get_ch_client()
         if not ch_local: return [], []
@@ -223,14 +417,23 @@ class CloudEngine:
                 if status.get("status") == "CANCELLED": return [], []
 
             chunk = values[i:i + batch_size]
-            res = ch_local.query(sql_template, {key_param: chunk})
+            params = {key_param: chunk}
+            if extra_params: params.update(extra_params)
+            # Otimização v1.8.12: Limitar threads para permitir concorrência de usuários
+            res = ch_local.query(sql_template + " SETTINGS max_threads = 1", params)
             all_rows.extend(res.result_rows)
-            if not col_names and res.column_names:
-                col_names = res.column_names
+            # Log names once
+            if not col_names:
+                print(f"[DEBUG] _batch_query: col_names from res: {getattr(res, 'column_names', 'ATTR_NOT_FOUND')}")
+            
+            if not col_names and getattr(res, 'column_names', None):
+                col_names = list(res.column_names)
             
             if tid and max_prog > base_prog:
                 prog = base_prog + int((i / total) * (max_prog - base_prog))
                 self._update_task(tid, progress=prog, message=f"{msg_prefix} ({i:,}/{total:,})...")
+                # Yield to OS for concurrency in multi-user environments (High Priority v1.8.12)
+                time.sleep(0.1) 
 
         return all_rows, col_names
 
@@ -252,23 +455,29 @@ class CloudEngine:
         tel1 = str(row.get('telefone1', '')).strip()
         ddd2 = str(row.get('ddd2', '')).strip()
         tel2 = str(row.get('telefone2', '')).strip()
+        email = str(row.get('correio_eletronico', '')).strip()
         
-        def clean(d, t):
-            if not d or not t: return "", ""
-            return d, t
+        def format_tel(d, t):
+            t = ''.join(filter(str.isdigit, t))
+            d = ''.join(filter(str.isdigit, d))
+            if not t: return ""
+            # Adicionar 9º dígito se for celular (8 dígitos começando com 6-9)
+            if len(t) == 8 and t[0] in '6789':
+                t = '9' + t
+            return f"{d}{t}"
         
-        d1, t1 = clean(ddd1, tel1)
-        if t1: return [d1, t1, "FIXO/CEL", row.get('correio_eletronico', '')]
-        d2, t2 = clean(ddd2, tel2)
-        if t2: return [d2, t2, "FIXO/CEL", row.get('correio_eletronico', '')]
-        return ["", "", "", row.get('correio_eletronico', '')]
+        f1 = format_tel(ddd1, tel1)
+        if f1: return [f1, "FIXO/CEL", email]
+        f2 = format_tel(ddd2, tel2)
+        if f2: return [f2, "FIXO/CEL", email]
+        return ["", "", email]
 
-    def start_enrich(self, input_file, output_dir, name_col, cpf_col, username=None):
-        print(f"[DEBUG] start_enrich called: input={input_file}, name_col={name_col}, cpf_col={cpf_col}, user={username}")
+    def start_enrich(self, input_file, output_dir, name_col, cpf_col, username=None, perfil="TODOS"):
+        print(f"[DEBUG] start_enrich called: input={input_file}, name_col={name_col}, cpf_col={cpf_col}, user={username}, perfil={perfil}")
         fname = os.path.basename(input_file)
-        f_summary = f"Enriquecer: {fname} (Colunas: {name_col}, {cpf_col})"
+        f_summary = f"[v1.9.1] Enriquecer: {fname} (Perfil: {perfil})"
         tid = self._create_task(module="ENRICH", username=username, filters=f_summary)
-        threading.Thread(target=self._run_enrich, args=(tid, input_file, output_dir, name_col, cpf_col), daemon=True).start()
+        threading.Thread(target=self._run_enrich, args=(tid, input_file, output_dir, name_col, cpf_col, perfil), daemon=True).start()
         return tid
 
     def deep_search(self, name, cpf):
@@ -287,6 +496,10 @@ class CloudEngine:
                 res = ch_local.query("SELECT cnpj_basico FROM hemn.socios WHERE cnpj_cpf_socio IN (%(c1)s, %(c2)s) LIMIT 50", 
                                           {'c1': cpf_clean, 'c2': cpf_mask})
                 basics.extend([r[0] for r in res.result_rows])
+                # Add check for MEIs where Razão Social contains the CPF
+                res = ch_local.query("SELECT cnpj_basico FROM hemn.empresas WHERE razao_social LIKE %(c)s LIMIT 50",
+                                          {'c': f"%{cpf_clean}%"})
+                basics.extend([r[0] for r in res.result_rows])
         
         if name:
             name_clean = remove_accents(str(name).strip().upper())
@@ -301,47 +514,71 @@ class CloudEngine:
         if not basics:
             return pd.DataFrame()
             
-        basics = list(set(basics))[:50]
-        
+        basics = list(set(basics))
         # Filtro de impressão digital (Fingerprint): Nome + CPF se fornecidos
         socio_filters = []
-        params = basics[:]
+        empresa_filters = []
+        
+        params_socio = []
+        params_empresa = []
         
         if cpf:
             cpf_clean = ''.join(filter(str.isdigit, str(cpf)))
             if len(cpf_clean) >= 11:
                 cpf_mask = f"***{cpf_clean[3:9]}**"
-                socio_filters.append("s.cnpj_cpf_socio = %s")
-                params.append(cpf_mask)
+                socio_filters.append("s.cnpj_cpf_socio IN (%s, %s)")
+                params_socio.extend([cpf_clean, cpf_mask])
+                
+                # Permite que MEIs anonimizados pela RFB (que começam com o próprio CNPJ no nome) passem pelo filtro de CPF restrito, 
+                # desde que eles passem pelo filtro do NOME EXATO que adicionamos abaixo.
+                empresa_filters.append("(e.razao_social LIKE %s OR (e.natureza_juridica = '2135' AND startsWith(e.razao_social, concat(substring(e.cnpj_basico, 1, 2), '.', substring(e.cnpj_basico, 3, 3), '.', substring(e.cnpj_basico, 6, 3)))))")
+                params_empresa.append(f"%{cpf_clean}%")
         
         if name:
             name_norm = normalize_name(name)
             socio_filters.append("(s.nome_socio LIKE %s OR s.nome_socio LIKE %s)")
-            params.append(f"{name_norm}%")
-            params.append(f"%{name_norm}%")
+            params_socio.extend([f"{name_norm}%", f"%{name_norm}%"])
+            
+            empresa_filters.append("(e.razao_social LIKE %s OR e.razao_social LIKE %s)")
+            params_empresa.extend([f"{name_norm}%", f"%{name_norm}%"])
             
         socio_match_sql = " AND ".join(socio_filters) if socio_filters else "1=1"
+        company_name_match = " AND ".join(empresa_filters) if empresa_filters else "1=0"
         
-        # Filtro por nome de empresa (Cuidado: default 1=0 para evitar vazamentos por CPF)
-        company_name_match = "1=0"
-        if name:
-            company_name_match = "(e.razao_social LIKE %s OR e.razao_social LIKE %s)"
-            params.append(f"{name_norm}%")
-            params.append(f"%{name_norm}%")
+        # Combine the params strictly in the order they appear in the query string:
+        # WHERE ... IN (basics) AND ( socio_match_sql OR company_name_match )
+        params = basics[:] + params_socio + params_empresa
 
         query = f"""
             SELECT e.razao_social, 
                    concat(est.cnpj_basico, est.cnpj_ordem, est.cnpj_dv) AS cnpj_completo,
                    multiIf(est.situacao_cadastral = '02', 'ATIVA', 'BAIXADA/INATIVA') AS situacao,
-                   s.nome_socio, s.cnpj_cpf_socio,
+                   est.cnae_fiscal AS cnae_principal,
+                   multiIf(e.natureza_juridica = '2135', 'SIM', 'NÃO') AS cnpj_cpf_socio,
                    est.correio_eletronico AS email_novo,
                    concat(est.logradouro, ', ', est.numero, ' - ', est.bairro, ' - ', coalesce(m.descricao, 'N/A'), '/', est.uf) AS endereco_completo,
-                   est.cnae_fiscal AS nome_socio, 
-                   multiIf(e.natureza_juridica = '2135', 'SIM', 'NÃO') AS cnpj_cpf_socio,
                    multiIf(length(est.telefone1) = 8 AND substring(est.telefone1, 1, 1) IN ('6','7','8','9'), concat('9', est.telefone1), est.telefone1) AS telefone_novo,
                    est.ddd1 AS ddd_novo,
                    multiIf(length(est.telefone1) = 8 AND substring(est.telefone1, 1, 1) IN ('6','7','8','9'), 'CELULAR', 
-                           length(est.telefone1) = 9, 'CELULAR', 'FIXO') AS tipo_telefone
+                           length(est.telefone1) = 9, 'CELULAR', 'FIXO') AS tipo_telefone,
+                   coalesce(est.nome_fantasia, e.razao_social) AS nome_fantasia,
+                   multiIf(est.data_inicio_atividades != '', 
+                           concat(substring(est.data_inicio_atividades, 7, 2), '/', 
+                                  substring(est.data_inicio_atividades, 5, 2), '/', 
+                                  substring(est.data_inicio_atividades, 1, 4)), 
+                           'NÃO INFORMADA') AS data_abertura,
+                   coalesce(e.capital_social, 0.0) AS capital_social,
+                   multiIf(e.natureza_juridica = '2135', 'EMPRESÁRIO INDIVIDUAL (MEI)', 
+                           e.natureza_juridica = '2062', 'SOCIEDADE EMPRESÁRIA LIMITADA',
+                           e.natureza_juridica = '2305', 'ENTIDADE SINDICAL',
+                           e.natureza_juridica = '3999', 'ASSOCIAÇÃO PRIVADA',
+                           concat('CÓDIGO ', e.natureza_juridica)) AS natureza_juridica,
+                   multiIf(e.porte_empresa = '01', 'MICRO EMPRESA',
+                           e.porte_empresa = '03', 'PEQUENO PORTE',
+                           e.porte_empresa = '05', 'DEMAIS (MÉDIA/GRANDE)',
+                           'NÃO INFORMADO') AS porte,
+                   est.cnae_fiscal_secundaria AS cnae_secundario,
+                   coalesce(s.nome_socio, 'NÃO ENCONTRADO') AS socio_nome
             FROM hemn.empresas e
             JOIN hemn.estabelecimento est ON e.cnpj_basico = est.cnpj_basico
             LEFT JOIN hemn.socios s ON e.cnpj_basico = s.cnpj_basico
@@ -355,9 +592,9 @@ class CloudEngine:
         return pd.DataFrame(res.result_rows, columns=res.column_names)
 
 
-    def _run_enrich(self, tid, input_file, output_dir, name_col, cpf_col):
-        self._update_task(tid, status="PROCESSING", message="Iniciando Escaneamento Titanium-MT (Motor Paralelo)...")
+    def _run_enrich(self, tid, input_file, output_dir, name_col, cpf_col, perfil="TODOS"):
         try:
+            self._update_task(tid, status="PROCESSING", message="[v1.9.1] Iniciando Escaneamento Titanium-MT (Motor Paralelo)...")
             status = self.get_task_status(tid)
             if status.get("status") == "CANCELLED": return
             start_time = time.time()
@@ -441,183 +678,430 @@ class CloudEngine:
             df_in['titanium_nome'] = df_in[n_col].fillna('').astype(str).str.upper().str.strip().apply(remove_accents)
             df_in['titanium_cpf'] = df_in[c_col].fillna('').astype(str).str.replace(r'\D', '', regex=True).str.zfill(11)
 
+            # --- EXTRAÇÃO DE UF (DETERMINAÇÃO DA COLUNA) ---
+            # Prioridade: Coluna nomeada 'UF' ou 'Estado' -> Coluna C (Index 2)
+            uf_col = next((c for c in df_in.columns if str(c).upper() in ['UF', 'ESTADO', 'UF_CLIENTE']), None)
+            if not uf_col and len(df_in.columns) > 2:
+                uf_col = df_in.columns[2]
+            
+            if uf_col:
+                df_in['titanium_uf'] = df_in[uf_col].fillna('').astype(str).str.upper().str.strip().str[:2]
+            else:
+                df_in['titanium_uf'] = ''
+            
+            # Mapa de UF para conferência rápida
+            client_uf_map = {}
+            for _, row in df_in.iterrows():
+                u = str(row.get('titanium_uf', '')).strip()
+                c = str(row.get('titanium_cpf', '')).strip()
+                n = str(row.get('titanium_nome', '')).strip()
+                sc = f"{n} ***{c[3:9]}**" if len(c) >= 11 else ""
+                if c: client_uf_map[c] = u
+                if n: client_uf_map[n] = u
+                if sc: client_uf_map[sc] = u
+
             # --- PHASE 1: BATCH PROCESSING (EXTREME SPEED) ---
-            # Extract all CPFs and Names
-            # all_cpfs and all_names are already populated from chunked reading or full Excel load
-            
-            # Identify valid CPFs for bulk lookup
+            # Generar chaves combinadas (socio_chave) para busca ultra precisa
+            # Otimização v1.8.11: Vetorização de Chaves (Elimina iterrows/CPU spike)
+            mask_chave = (df_in['titanium_nome'] != '') & (df_in['titanium_cpf'].str.len() >= 11)
+            if mask_chave.any():
+                df_masked = df_in[mask_chave]
+                search_chaves = (df_masked['titanium_nome'] + " ***" + df_masked['titanium_cpf'].str[3:9] + "**").unique().tolist()
+            else:
+                search_chaves = []
+
+            # Mantemos CPF e Nome isolados apenas para fallbacks (se faltar um deles)
             valid_cpfs = [cpf for cpf in all_cpfs if len(cpf) >= 11]
-            valid_masks = [f"***{cpf[3:9]}**" for cpf in valid_cpfs]
+            search_cpfs = list(set(valid_cpfs))
             
-            # Combine exact CPFs and typical masks for MEI/Socios
-            search_terms = list(set(valid_cpfs + valid_masks))
-            
-            # --- PHASE 1.1: NAME VARIATIONS (NORMALIZED) ---
             valid_names = [normalize_name(n) for n in all_names if len(str(n)) > 3]
             search_names = list(set(valid_names))
             
-            # Prepare Global Cache
-            global_cache = {}
+            # Prepare Global Results
+            all_results = []
             found_count = 0
             
-            # --- PHASE 1: TITANIUM-TURBO JOIN (HIGH SPEED) ---
-            # Process in large batches for join efficiency
-            q_template = """
-                SELECT 
-                    s.lookup_key AS lookup_key,
-                    e.razao_social AS razao_social, 
-                    estab.cnpj_basico AS cnpj_basico, 
-                    estab.cnpj_ordem AS cnpj_ordem, 
-                    estab.cnpj_dv AS cnpj_dv, 
-                    estab.situacao_cadastral AS situacao_cadastral, 
-                    estab.uf AS uf, 
-                    mun.descricao AS municipio_nome, 
-                    estab.ddd1 AS ddd1, 
-                    estab.telefone1 AS telefone1, 
-                    estab.ddd2 AS ddd2, 
-                    estab.telefone2 AS telefone2, 
-                    estab.correio_eletronico AS correio_eletronico, 
-                    estab.tipo_logradouro AS tipo_logradouro, 
-                    estab.logradouro AS logradouro, 
-                    estab.numero AS numero, 
-                    estab.complemento AS complemento, 
-                    estab.bairro AS bairro, 
-                    estab.cep AS cep, 
-                    estab.cnae_fiscal AS cnae_fiscal, 
-                    estab.municipio AS municipio, 
-                    s.nome_socio AS nome_socio
-                FROM (
-                    SELECT cnpj_basico, {lookup_col} AS lookup_key, nome_socio
+            # --- PHASE 1: TITANIUM-TURBO DATA GATHERING ---
+            # 1. Perfil Configuration
+            p_val = str(perfil).upper().strip()
+            if p_val == "MEI":
+                perfil_cond_sql = "e.natureza_juridica = '2135'"
+                is_expansion_required = False
+            elif p_val == "NAO MEI":
+                perfil_cond_sql = "e.natureza_juridica != '2135'"
+                is_expansion_required = True
+            else:
+                perfil_cond_sql = "1=1"
+                is_expansion_required = True
+
+            # 2. Buscar dados em SÓCIOS
+            if search_chaves or search_cpfs or search_names:
+                self._update_task(tid, progress=10, message="Buscando Sócios...")
+                
+                # Queries para Sócios
+                q_socios_base = f"""
+                    SELECT cnpj_basico, nome_socio, socio_chave, {{lookup_col}} AS lookup_key 
                     FROM hemn.socios 
-                    WHERE {lookup_col} IN %(keys)s
-                ) AS s
-                INNER JOIN hemn.estabelecimento AS estab ON s.cnpj_basico = estab.cnpj_basico
-                INNER JOIN hemn.empresas AS e ON s.cnpj_basico = e.cnpj_basico
-                LEFT JOIN hemn.municipio AS mun ON estab.municipio = mun.codigo
-                ORDER BY (estab.situacao_cadastral = '02') DESC, estab.situacao_cadastral ASC
-                LIMIT 1 BY lookup_key
-            """
-
-            if search_terms:
-                self._update_task(tid, progress=10, message=f"Turbo v3.0: Cruzando {len(search_terms):,} CPFs/Máscaras...")
-                
-                # Socio lookup
-                q_cpf = q_template.format(lookup_col="cnpj_cpf_socio")
-                results_s, cols_s = self._batch_query(q_cpf, "keys", search_terms, batch_size=5000, tid=tid, base_prog=10, max_prog=35, msg_prefix="Cruzando Sócios")
-                
-                # Direct Empresa lookup (for MEIs/CNPJs)
-                q_mei = """
-                    SELECT 
-                        e.cnpj_basico AS lookup_key,
-                        e.razao_social AS razao_social, 
-                        estab.cnpj_basico AS cnpj_basico, 
-                        estab.cnpj_ordem AS cnpj_ordem, 
-                        estab.cnpj_dv AS cnpj_dv, 
-                        estab.situacao_cadastral AS situacao_cadastral, 
-                        estab.uf AS uf, 
-                        mun.descricao AS municipio_nome, 
-                        estab.ddd1 AS ddd1, 
-                        estab.telefone1 AS telefone1, 
-                        estab.ddd2 AS ddd2, 
-                        estab.telefone2 AS telefone2, 
-                        estab.correio_eletronico AS correio_eletronico, 
-                        estab.tipo_logradouro AS tipo_logradouro, 
-                        estab.logradouro AS logradouro, 
-                        estab.numero AS numero, 
-                        estab.complemento AS complemento, 
-                        estab.bairro AS bairro, 
-                        estab.cep AS cep, 
-                        estab.cnae_fiscal AS cnae_fiscal, 
-                        estab.municipio AS municipio, 
-                        '' AS nome_socio
-                    FROM (
-                        SELECT * FROM hemn.empresas WHERE cnpj_basico IN %(keys)s
-                    ) AS e
-                    INNER JOIN hemn.estabelecimento AS estab ON e.cnpj_basico = estab.cnpj_basico
-                    LEFT JOIN hemn.municipio AS mun ON estab.municipio = mun.codigo
-                    ORDER BY (estab.situacao_cadastral = '02') DESC, estab.situacao_cadastral ASC
-                    LIMIT 1 BY lookup_key
+                    WHERE {{lookup_col}} IN %(keys)s
+                    {"LIMIT 1 BY socio_chave" if not is_expansion_required else ""}
                 """
-                results_e, cols_e = self._batch_query(q_mei, "keys", search_terms, batch_size=5000, tid=tid, base_prog=35, max_prog=40, msg_prefix="Cruzando MEIs")
                 
-                for r in results_s + results_e:
-                    # Use appropriate columns for the result row
-                    curr_cols = cols_s if len(r) == len(cols_s) else cols_e
-                    d = dict(zip(curr_cols, r))
-                    k = d['lookup_key']
-                    if k not in global_cache:
-                        addr = self._parse_address_columns(d)
-                        cont = self._parse_contact_columns(d)
-                        mapping = {'01': 'NULA', '02': 'ATIVA', '03': 'SUSPENSA', '04': 'INAPTA', '08': 'BAIXADA'}
-                        global_cache[k] = {
-                            'CNPJ': f"{str(d['cnpj_basico']).zfill(8)}{str(d['cnpj_ordem']).zfill(4)}{str(d['cnpj_dv']).zfill(2)}",
-                            'RAZAO_SOCIAL': d['razao_social'], 
-                            'SITUACAO': mapping.get(str(d['situacao_cadastral']).zfill(2), 'ATIVA'),
-                            'SITUACAO_CODIGO': str(d['situacao_cadastral']).zfill(2),
-                            'CNAE': d['cnae_fiscal'], 'LOGRADOURO': addr[0], 'NUMERO': addr[1], 'COMPLEMENTO': addr[2],
-                            'BAIRRO': addr[3], 'CIDADE': str(addr[4]).upper(), 'UF_END': addr[5], 'CEP': addr[6],
-                            'DDD': cont[0], 'TELEFONE': cont[1], 'TIPO': cont[2], 'EMAIL': cont[3]
-                        }
+                results_s = []
+                cols_s = []
+                # Prioridade 1: Chave Combinada (Socio Chave) - Muito mais precisa
+                if search_chaves:
+                    r, c = self._batch_query(q_socios_base.format(lookup_col="socio_chave"), "keys", search_chaves, tid=tid, base_prog=10, max_prog=20)
+                    results_s += r
+                    if c: cols_s = c
+                
+                # Prioridade 2: CPF (Apenas CPFs reais, sem máscaras isoladas para evitar poluição)
+                if search_cpfs:
+                    r, c = self._batch_query(q_socios_base.format(lookup_col="cnpj_cpf_socio"), "keys", search_cpfs, tid=tid, base_prog=20, max_prog=30)
+                    results_s += r
+                    if c: cols_s = c
+                
+                # Prioridade 3: Nome (Se ainda não encontrou nada)
+                if search_names:
+                    r, c = self._batch_query(q_socios_base.format(lookup_col="nome_socio"), "keys", search_names, tid=tid, base_prog=30, max_prog=40)
+                    results_s += r
+                    if c: cols_s = c
+                
+                if results_s:
+                    df_socios = pd.DataFrame(results_s, columns=cols_s)
+                    
+                    # 3. Buscar dados de EMPRESAS e ESTABELECIMENTOS para os CNPJs encontrados
+                    unique_cnpjs = df_socios['cnpj_basico'].unique().tolist()
+                    self._update_task(tid, progress=45, message=f"Buscando Dados de {len(unique_cnpjs):,} Empresas...")
+                    
+                    # Otimização v1.9.2: Filtro Geográfico na Query (Somente UFs presentes na planilha)
+                    unique_ufs = [u for u in df_in['titanium_uf'].unique().tolist() if u and len(u) == 2]
+                    uf_filter_sql = " AND estab.uf IN %(ufs)s" if unique_ufs else ""
+                    
+                    q_info = f"""
+                        SELECT 
+                            e.cnpj_basico AS cnpj_basico, e.razao_social AS razao_social,
+                            estab.cnpj_ordem, estab.cnpj_dv, estab.situacao_cadastral, estab.uf,
+                            estab.ddd1, estab.telefone1, estab.ddd2, estab.telefone2, estab.correio_eletronico,
+                            estab.tipo_logradouro, estab.logradouro, estab.numero, estab.complemento,
+                            estab.bairro, estab.cep, estab.cnae_fiscal, estab.municipio,
+                            mun.descricao AS municipio_nome
+                        FROM hemn.empresas AS e
+                        INNER JOIN hemn.estabelecimento AS estab ON e.cnpj_basico = estab.cnpj_basico
+                        LEFT JOIN hemn.municipio AS mun ON estab.municipio = mun.codigo
+                        WHERE e.cnpj_basico IN %(keys)s AND {perfil_cond_sql} AND estab.situacao_cadastral = '02' {uf_filter_sql}
+                        ORDER BY (estab.cnpj_ordem = '0001') DESC
+                        LIMIT 1 BY e.cnpj_basico
+                    """
+                    
+                    params_info = {}
+                    if unique_ufs: params_info["ufs"] = unique_ufs
+                    results_info, cols_info = self._batch_query(q_info, "keys", unique_cnpjs, tid=tid, base_prog=45, max_prog=75, extra_params=params_info)
+                    
+                    if results_info:
+                        df_info = pd.DataFrame(results_info, columns=cols_info)
+                        
+                        # 4. Join Final (Socio + Info)
+                        df_final_lookup = pd.merge(df_socios, df_info, on='cnpj_basico', how='inner')
+                        
+                        # Pack into all_results
+                        # Pack into all_results (Otimização v1.8.12: to_dict em vez de iterrows)
+                        for d in df_final_lookup.to_dict('records'):
+                            addr = self._parse_address_columns(d)
+                            cont = self._parse_contact_columns(d)
+                            mapping = {'01': 'NULA', '02': 'ATIVA', '03': 'SUSPENSA', '04': 'INAPTA', '08': 'BAIXADA'}
+                            # Verificação Geográfica de Segurança (Garante que a UF bate com a solicitada para esse registro)
+                            l_key = str(d['lookup_key'])
+                            target_uf = client_uf_map.get(l_key, '')
+                            if target_uf and target_uf != str(d['uf']):
+                                continue
 
-            if search_names:
-                self._update_task(tid, progress=40, message=f"Turbo v3.0: Cruzando {len(search_names):,} Nomes...")
-                q_name = q_template.format(lookup_col="nome_socio")
-                results, cols = self._batch_query(q_name, "keys", search_names, batch_size=5000, tid=tid, base_prog=40, max_prog=75, msg_prefix="Cruzando Nomes")
-                
-                for r in results:
-                    d = dict(zip(cols, r))
-                    # Normalizamos a chave de volta caso o clickhouse tenha retornado com variacao minor
-                    k = normalize_name(d['lookup_key'])
-                    if k not in global_cache:
-                        addr = self._parse_address_columns(d)
-                        cont = self._parse_contact_columns(d)
-                        mapping = {'01': 'NULA', '02': 'ATIVA', '03': 'SUSPENSA', '04': 'INAPTA', '08': 'BAIXADA'}
-                        global_cache[k] = {
-                            'CNPJ': f"{str(d['cnpj_basico']).zfill(8)}{str(d['cnpj_ordem']).zfill(4)}{str(d['cnpj_dv']).zfill(2)}",
-                            'RAZAO_SOCIAL': d['razao_social'], 
-                            'SITUACAO': mapping.get(str(d['situacao_cadastral']).zfill(2), 'ATIVA'),
-                            'SITUACAO_CODIGO': str(d['situacao_cadastral']).zfill(2),
-                            'CNAE': d['cnae_fiscal'], 'LOGRADOURO': addr[0], 'NUMERO': addr[1], 'COMPLEMENTO': addr[2],
-                            'BAIRRO': addr[3], 'CIDADE': str(addr[4]).upper(), 'UF_END': addr[5], 'CEP': addr[6],
-                            'DDD': cont[0], 'TELEFONE': cont[1], 'TIPO': cont[2], 'EMAIL': cont[3]
-                        }
+                            mapping = {'01': 'NULA', '02': 'ATIVA', '03': 'SUSPENSA', '04': 'INAPTA', '08': 'BAIXADA'}
+                            all_results.append({
+                                'lookup_key': l_key,
+                                'CNPJ': f"{str(int(d['cnpj_basico'])).zfill(8)}{str(int(d['cnpj_ordem'])).zfill(4)}{str(int(d['cnpj_dv'])).zfill(2)}",
+                                'RAZAO_SOCIAL': d['razao_social'], 
+                                'SITUACAO': mapping.get(str(d['situacao_cadastral']).zfill(2), 'ATIVA'),
+                                'CNAE': d['cnae_fiscal'], 'LOGRADOURO': str(addr[0]).upper(), 'NÚMERO': addr[1], 'COMPLEMENTO': addr[2],
+                                'BAIRRO': addr[3], 'CIDADE': str(addr[4]).upper(), 'UF_END': addr[5], 'CEP': addr[6],
+                                'TELEFONE': cont[0], 'TIPO': cont[1], 'EMAIL': cont[2],
+                                'CHAVE_SOCIO': d.get('socio_chave', '')
+                            })
+
+                    # Motor One-Shot v5.1.4: Busca Híbrida Inteligente (CPF Flash-IN + Nome Aho-Scan)
+                    def run_mei_scan(search_cpfs, search_names, tid, base_p, max_p, ufs=None):
+                        results = []
+                        ch_local = self._get_ch_client()
+                        if not ch_local: return []
+
+                        uf_filter = " AND uf IN %(ufs)s" if ufs else ""
+                        params = {}
+                        if ufs: params['ufs'] = ufs
+
+                        # 1. BUSCA POR CPF (Modo Flash: IN Operator) - Resolve 99% dos casos em 1 seg
+                        if search_cpfs:
+                            cpfs = list(set([str(c).strip() for c in search_cpfs if len(str(c)) >= 11]))
+                            if cpfs:
+                                cpf_batch = 10000
+                                for idx in range(0, len(cpfs), cpf_batch):
+                                    block = cpfs[idx:idx + cpf_batch]
+                                    self._update_task(tid, progress=base_p + 1, message=f"MEI CPF Flash: {idx:,}/{len(cpfs):,}...")
+                                    # Otimização Crítica: substring(-11) extrai o CPF do final da Razão Social do MEI
+                                    # Fix v1.9.2: Join com estabelecimento para filtrar UF (já que UF não existe em empresas)
+                                    if ufs:
+                                        sql_cpf = f"""
+                                            SELECT e.cnpj_basico, e.razao_social 
+                                            FROM hemn.empresas AS e
+                                            INNER JOIN hemn.estabelecimento AS estab ON e.cnpj_basico = estab.cnpj_basico
+                                            PREWHERE e.natureza_juridica = '2135'
+                                            WHERE substring(e.razao_social, -11) IN %(cpfs)s AND estab.uf IN %(ufs)s
+                                        """
+                                    else:
+                                        sql_cpf = "SELECT cnpj_basico, razao_social FROM hemn.empresas PREWHERE natureza_juridica = '2135' WHERE substring(razao_social, -11) IN %(cpfs)s"
+                                    
+                                    p = params.copy()
+                                    p['cpfs'] = block
+                                    res_cpf = ch_local.query(sql_cpf, p)
+                                    results.extend(res_cpf.result_rows)
+
+                        # 2. BUSCA POR NOME (Rede de Segurança Total) - Varre tudo que não tiver CPF ou se falhou
+                        if search_names:
+                            names = list(set([str(n).upper().strip() for n in search_names if len(str(n)) > 5]))
+                            total_names = len(names)
+                            # Para evitar travamento, lotes cirúrgicos de 250 nomes.
+                            batch_size = 500
+                            for i in range(0, total_names, batch_size):
+                                block = names[i:min(i + batch_size, total_names)]
+                                self._update_task(tid, progress=base_p + 5 + int((i/total_names)*5), message=f"MEI Name Scan: {i:,}/{total_names:,}...")
+                                # Fix v1.9.2: Join com estabelecimento para filtrar UF
+                                if ufs:
+                                    sql_name = f"""
+                                        SELECT e.cnpj_basico, e.razao_social 
+                                        FROM hemn.empresas AS e
+                                        INNER JOIN hemn.estabelecimento AS estab ON e.cnpj_basico = estab.cnpj_basico
+                                        PREWHERE e.natureza_juridica = '2135'
+                                        WHERE multiSearchAny(e.razao_social, %(n)s) AND estab.uf IN %(ufs)s
+                                    """
+                                else:
+                                    sql_name = f"SELECT cnpj_basico, razao_social FROM hemn.empresas PREWHERE natureza_juridica = '2135' WHERE multiSearchAny(razao_social, %(n)s)"
+                                
+                                p = params.copy()
+                                p['n'] = block
+                                res_name = ch_local.query(sql_name, p)
+                                results.extend(res_name.result_rows)
+                        
+                        return results
+
+                    # Otimização v1.8.9: Recalcula listas para Phase 2 MEI
+                    # Se tem CPF, ignoramos o NOME (Pois o CPF já existe na razão social do MEI e é 100x mais rápido)
+                    # Otimização v1.8.11: Vetorização de Listas MEI
+                    has_cpf = df_in['titanium_cpf'].str.len() >= 11
+                    search_cpfs_mei = set(df_in.loc[has_cpf, 'titanium_cpf'].tolist())
+                    
+                    # Nomes apenas para quem não tem CPF válido
+                    search_names_mei = set(df_in.loc[~has_cpf & (df_in['titanium_nome'].str.len() > 5), 'titanium_nome'].tolist())
+
+                    # Sincronização v1.8.10: Só executa MEI Scan se perfil for TODOS ou MEI
+                    if p_val in ["TODOS", "MEI"] and (search_cpfs_mei or search_names_mei):
+                        found_meis = run_mei_scan(list(search_cpfs_mei), list(search_names_mei), tid, 40, 55, ufs=unique_ufs)
+                    else:
+                        found_meis = []
+
+                    # 2. Busca de Detalhes (Apenas para os encontrados)
+                    if found_meis:
+                        found_cnpjs = list(set([str(r[0]) for r in found_meis]))
+                        self._update_task(tid, progress=55, message=f"Buscando detalhes de {len(found_cnpjs)} MEIs...")
+                        
+                        ch_local = self._get_ch_client()
+                        all_mei_results = []
+                        cols_mei = []
+                        
+                        # Otimização v5.1.2: Lotes de 5.000 para evitar 'Max query size exceeded'
+                        cnpj_batch = 10000
+                        for idx in range(0, len(found_cnpjs), cnpj_batch):
+                            block = found_cnpjs[idx:idx + cnpj_batch]
+                            sql_details = """
+                            SELECT 
+                                e.cnpj_basico AS cnpj_basico, e.razao_social AS razao_social,
+                                estab.cnpj_ordem AS cnpj_ordem, estab.cnpj_dv AS cnpj_dv, 
+                                estab.situacao_cadastral AS situacao_cadastral, estab.uf AS uf,
+                                estab.ddd1 AS ddd1, estab.telefone1 AS telefone1, 
+                                estab.ddd2 AS ddd2, estab.telefone2 AS telefone2, 
+                                estab.correio_eletronico AS correio_eletronico,
+                                estab.logradouro AS logradouro, estab.numero AS numero, 
+                                estab.complemento AS complemento, estab.bairro AS bairro, 
+                                estab.cep AS cep, estab.cnae_fiscal AS cnae_fiscal, 
+                                mun.descricao AS municipio_nome
+                            FROM hemn.estabelecimento estab
+                            INNER JOIN (SELECT cnpj_basico, razao_social FROM hemn.empresas WHERE cnpj_basico IN %(cnpjs)s) e 
+                              ON estab.cnpj_basico = e.cnpj_basico
+                            LEFT JOIN hemn.municipio mun ON estab.municipio = mun.codigo
+                            WHERE estab.situacao_cadastral = '02'
+                            """
+                            res_details = ch_local.query(sql_details, {'cnpjs': block})
+                            all_mei_results.extend(res_details.result_rows)
+                            if not cols_mei: cols_mei = res_details.column_names
+
+                        # 3. Filtragem Geográfica Final (Precisão v1.8.6)
+                        # Identifica coluna de UF para isolamento regional
+                        uf_col = next((c for c in df_in.columns if c.upper() in ['UF', 'ESTADO', 'UF_CLIENTE']), None)
+                        if uf_col:
+                            # Criar mapa CPF -> UF do Cliente para filtragem cirúrgica
+                            client_uf_map = {}
+                            for _, row in df_in.iterrows():
+                                c = str(row.get('titanium_cpf', '')).strip()
+                                n = str(row.get('titanium_nome', '')).upper().strip()
+                                u = str(row[uf_col]).upper().strip() if pd.notna(row[uf_col]) else ""
+                                if c: client_uf_map[c] = u
+                                if n: client_uf_map[n] = u
+
+                            final_filtered = []
+                            for d in all_mei_results:
+                                r_social = str(d[1])
+                                r_uf = str(d[5])
+                                # O MEI deve bater na UF do cliente que originou a busca
+                                # Checamos se o CPF ou Nome do MEI e a UF batem com o cliente
+                                is_match = False
+                                for pattern, uf in client_uf_map.items():
+                                    if pattern in r_social and uf == r_uf:
+                                        is_match = True
+                                        break
+                                if is_match: final_filtered.append(d)
+                            all_mei_results = final_filtered
+
+                    if all_mei_results:
+                        df_mei = pd.DataFrame(all_mei_results, columns=cols_mei).drop_duplicates(subset=['cnpj_basico'])
+                        
+                        # OTIMIZAÇÃO CRÍTICA: Criar mapas para lookup O(1) em vez de loop O(N^2)
+                        # Sincronizado com v1.8.10 (search_cpfs_mei / search_names_mei)
+                        cpf_lookup = {str(c).strip(): c for c in search_cpfs_mei}
+                        mask_lookup = {f"***{str(c)[3:9]}**": c for c in search_cpfs_mei if len(str(c)) >= 9}
+                        name_lookup = {str(n).upper().strip(): n for n in search_names_mei}
+
+                        # OTIMIZAÇÃO v1.8.12: RegEx para busca O(N) em vez de O(N*M)
+                        import re
+                        name_pattern = re.compile('|'.join([re.escape(n) for n in name_lookup.keys() if len(n) > 5])) if name_lookup else None
+                        
+                        for d in df_mei.to_dict('records'):
+                            addr = self._parse_address_columns(d)
+                            cont = self._parse_contact_columns(d)
+                            mapping = {'01': 'NULA', '02': 'ATIVA', '03': 'SUSPENSA', '04': 'INAPTA', '08': 'BAIXADA'}
+                            
+                            r_social = str(d['razao_social']).upper()
+                            matched_key = None
+                            
+                            # 1. Tentar extrair o CPF/Mascara do final da Razão Social (Padrão MEI 2135)
+                            parts = r_social.split()
+                            if parts:
+                                last_p = parts[-1].replace('.', '').replace('-', '')
+                                if last_p in cpf_lookup:
+                                    matched_key = cpf_lookup[last_p]
+                                elif last_p in mask_lookup:
+                                    matched_key = mask_lookup[last_p]
+                            
+                            # 2. Fallback: Busca por Nome via RegEx (Otimização Ultra v1.8.12)
+                            if not matched_key and name_pattern:
+                                match = name_pattern.search(r_social)
+                                if match:
+                                    matched_key = name_lookup.get(match.group())
+                            
+                            if matched_key:
+                                all_results.append({
+                                    'lookup_key': matched_key,
+                                    'CNPJ': f"{str(int(d['cnpj_basico'])).zfill(8)}{str(int(d['cnpj_ordem'])).zfill(4)}{str(int(d['cnpj_dv'])).zfill(2)}",
+                                    'RAZAO_SOCIAL': d['razao_social'], 
+                                    'SITUACAO': mapping.get(str(d['situacao_cadastral']).zfill(2), 'ATIVA'),
+                                    'CNAE': d['cnae_fiscal'], 'LOGRADOURO': str(addr[0]).upper(), 'NÚMERO': addr[1], 'COMPLEMENTO': addr[2],
+                                    'BAIRRO': addr[3], 'CIDADE': str(addr[4]).upper(), 'UF_END': addr[5], 'CEP': addr[6],
+                                    'TELEFONE': cont[0], 'TIPO': cont[1], 'EMAIL': cont[2],
+                                    'CHAVE_SOCIO': 'MEI (BUSCA DIRETA)'
+                                })
 
             # --- PHASE 2: IN-MEMORY MAPPING & FALLBACKS ---
-            self._update_task(tid, progress=80, message="Estruturando resultados finais (C-Level Array Vectorization)...")
+            self._update_task(tid, progress=80, message="Consolidando base de dados...")
             
-            if global_cache:
-                # Converter o cache em DataFrame para merge imediato
-                df_cache = pd.DataFrame.from_dict(global_cache, orient='index')
-                df_cache.index.name = 'lookup_key'
-                df_cache.reset_index(inplace=True)
+            if all_results:
+                df_cache = pd.DataFrame(all_results)
                 
-                # Preparar coluna de lookup no DataFrame original (tenta CPF exato primeiro, senao a mascara)
-                df_in['mask_calc'] = df_in['titanium_cpf'].apply(lambda x: f"***{x[3:9]}**" if len(str(x)) >= 11 else "")
-                df_in['lookup_key'] = df_in['titanium_cpf']
+                # Preparar colunas de lookup no DataFrame original
+                df_in['socio_chave_lookup'] = df_in.apply(lambda r: f"{str(r['titanium_nome']).strip()} ***{str(r['titanium_cpf'])[3:9]}**" if len(str(r['titanium_cpf'])) >= 11 else "", axis=1)
                 
-                # Merge tenta bater a chave primaria primeiro (CPF Exato)
+                # Detectar coluna de UF no input para regra de desempate
+                uf_input_col = next((c for c in df_in.columns if c.upper() in ['UF', 'ESTADO', 'UF_CLIENTE']), None)
+                if uf_input_col:
+                    df_in[uf_input_col] = df_in[uf_input_col].astype(str).str.strip().str.upper()
+
+                # Merge 1: Chave Combinada (Socio Chave) - PRIORIDADE MÁXIMA
+                df_in['lookup_key'] = df_in['socio_chave_lookup']
                 df_merged = pd.merge(df_in, df_cache, on='lookup_key', how='left')
                 
-                # Se ainda tem nulos, tenta bater a mascara
-                if 'mask_calc' in df_in.columns:
-                    mask_rows = df_merged['CNPJ'].isna()
-                    if mask_rows.any():
-                        df_masks_only = df_in[mask_rows].copy()
-                        df_masks_only['lookup_key'] = df_masks_only['mask_calc']
-                        df_merged_masks = pd.merge(df_masks_only.drop(columns=df_cache.columns.drop('lookup_key'), errors='ignore'), df_cache, on='lookup_key', how='left')
-                        # Update original merged results with mask hits
-                        df_merged.update(df_merged_masks, overwrite=False)
+                # Merge 2: CPF Exato (Fallback se não houver nome ou se houver erro na chave)
+                null_rows = df_merged['CNPJ'].isna()
+                if null_rows.any():
+                    df_no_match_cpf = df_in[null_rows].copy()
+                    df_no_match_cpf['lookup_key'] = df_no_match_cpf['titanium_cpf']
+                    df_merged_cpf = pd.merge(df_no_match_cpf.drop(columns=df_cache.columns.drop('lookup_key'), errors='ignore'), df_cache, on='lookup_key', how='left')
+                    df_merged = pd.concat([df_merged[~null_rows], df_merged_cpf], ignore_index=True)
 
-                    # Se AINDA tem nulos, tenta bater pelo Nome Normalizado
-                    null_rows = df_merged['CNPJ'].isna()
-                    if null_rows.any():
-                        df_names_only = df_in[null_rows].copy()
-                        df_names_only['lookup_key'] = df_names_only['titanium_nome'].apply(normalize_name)
-                        df_merged_names = pd.merge(df_names_only.drop(columns=df_cache.columns.drop('lookup_key'), errors='ignore'), df_cache, on='lookup_key', how='left')
-                        df_merged.update(df_merged_names, overwrite=False)
+                # Merge 3: Nomes (apenas onde ainda não houve match)
+                null_rows = df_merged['CNPJ'].isna()
+                if null_rows.any() and not df_cache.empty:
+                    # Normalizar chaves no cache para comparação de nomes
+                    df_cache['titanium_nome'] = df_cache['lookup_key'].apply(normalize_name)
+                    df_cache_names = df_cache.drop_duplicates(subset=['titanium_nome', 'CNPJ'])
+                    
+                    df_no_match = df_merged[null_rows].drop(columns=df_cache.columns.drop('titanium_nome', errors='ignore'), errors='ignore').copy()
+                    df_no_match['titanium_nome'] = df_no_match['titanium_nome'].apply(normalize_name)
+                    df_merged_names = pd.merge(df_no_match, df_cache_names, on='titanium_nome', how='left')
+                    
+                    df_merged = pd.concat([df_merged[~null_rows], df_merged_names], ignore_index=True)
+
+                # Merge 4: MEI Fallback (onde lookup_key era o Nome diretamente da busca de empresas)
+                null_rows = df_merged['CNPJ'].isna()
+                if null_rows.any() and not df_cache.empty:
+                    df_no_match_mei = df_merged[null_rows].copy()
+                    
+                    # Tentar merge por CPF bruto (O(1) no lookup do cache)
+                    df_no_match_mei['lookup_key'] = df_no_match_mei['titanium_cpf']
+                    df_merged_mei_cpf = pd.merge(df_no_match_mei.drop(columns=df_cache.columns.drop('lookup_key'), errors='ignore'), df_cache, on='lookup_key', how='left')
+                    
+                    # Onde ainda sobrar nulo, tentar por Nome bruto
+                    null_still = df_merged_mei_cpf['CNPJ'].isna()
+                    if null_still.any():
+                        df_no_match_name = df_merged_mei_cpf[null_still].copy()
+                        df_no_match_name['lookup_key'] = df_no_match_name['titanium_nome']
+                        df_merged_mei_name = pd.merge(df_no_match_name.drop(columns=df_cache.columns.drop('lookup_key'), errors='ignore'), df_cache, on='lookup_key', how='left')
+                        df_merged_mei_cpf = pd.concat([df_merged_mei_cpf[~null_still], df_merged_mei_name], ignore_index=True)
+                    
+                    df_merged = pd.concat([df_merged[~null_rows], df_merged_mei_cpf], ignore_index=True)
+
+                # --- LÓGICA DE FILTRO INTELIGENTE POR UF (REGRA DO CLIENTE) ---
+                if uf_input_col and not df_merged.empty and 'CNPJ' in df_merged.columns:
+                    # 1. Contar ocorrências globais por chave no cache (Unicidade Nacional)
+                    counts = df_cache['lookup_key'].value_counts().rename('total_brazil')
+                    df_merged = df_merged.merge(counts, on='lookup_key', how='left')
+                    
+                    # 2. Aplicar Regras de Descarte
+                    # Regra 1: Se total_brazil == 1 (MANTÉM SEMPRE)
+                    # Regra 2: Se total_brazil > 1 E UF_END == UF_INPUT (MANTÉM)
+                    # Regra 3: Se total_brazil > 1 E UF_END != UF_INPUT (DESCARTA)
+                    mask_discard = (df_merged['total_brazil'] > 1) & (df_merged['UF_END'] != df_merged[uf_input_col]) & df_merged['CNPJ'].notna()
+                    
+                    # Remover linhas descartadas
+                    df_merged = df_merged[~mask_discard].copy()
+                    df_merged = df_merged.drop(columns=['total_brazil'], errors='ignore')
                         
-                found_count = df_merged['CNPJ'].notna().sum()
-                df_final = df_merged.drop(columns=['titanium_cpf', 'titanium_nome', 'mask_calc', 'lookup_key'], errors='ignore')
+                # 3. Remover registros que não foram encontrados (limpar linhas vazias no retorno)
+                df_merged = df_merged.dropna(subset=['CNPJ'])
+                found_count = len(df_merged)
+                df_final = df_merged.drop(columns=['titanium_cpf', 'titanium_nome', 'socio_chave_lookup', 'lookup_key'], errors='ignore')
+                
+                # Reordenar colunas e renomear chave
+                cols = list(df_final.columns)
+                if 'CHAVE_SOCIO' in cols:
+                    cols.insert(0, cols.pop(cols.index('CHAVE_SOCIO')))
+                    df_final = df_final[cols]
+                
+                df_final = df_final.rename(columns={'CHAVE_SOCIO': 'CHAVE DO SOCIO'})
             else:
                 found_count = 0
                 df_final = df_in.drop(columns=['titanium_cpf', 'titanium_nome'], errors='ignore')
@@ -658,10 +1142,14 @@ class CloudEngine:
         return tid
 
     def _run_extraction(self, tid, filters, output_dir):
-        self._update_task(tid, status="PROCESSING", progress=1, message="Iniciando motores ClickHouse...")
+        print(f"[DEBUG] Starting _run_extraction for tid: {tid}")
         try:
+            self._update_task(tid, status="PROCESSING", progress=1, message="Iniciando motores ClickHouse...")
+            print(f"[DEBUG] [_run_extraction] Task {tid} set to PROCESSING")
             status = self.get_task_status(tid)
-            if status.get("status") == "CANCELLED": return
+            if status.get("status") == "CANCELLED":
+                print(f"[DEBUG] [_run_extraction] Task {tid} was CANCELLED before start")
+                return
             output_file = os.path.join(output_dir, f"Extracao_{tid[:8]}.xlsx")
             
             estab_conds = []
@@ -694,6 +1182,21 @@ class CloudEngine:
             elif perfil == "NAO MEI":
                 empresas_conds.append("natureza_juridica != '2135'")
 
+            # Filtro de Órgãos Governamentais
+            if filters.get("sem_governo"):
+                gov_keywords = [
+                    "FEDERAL", "GOVERNO", "PUBLICO", "PUBLICA", "ESTADUAL", "ESTADO", 
+                    "MUNICIPIO", "MUNICIPAL", "POLICIA", "BOMBEIRO", "BANCO DO BRASIL", "CORREIOS", 
+                    "MINISTERIO", "ADVOCACIA-GERAL", "BANCO CENTRAL", "CASA CIVIL", "CONTROLADORIA-GERAL",
+                    "GABINETE DE SEGURANCA", "SECRETARIA"
+                ]
+                # Filter in companies table (natureza_juridica check is also good, but name is what user asked)
+                # Grouping keywords to avoid huge query, using multiSearchAny for performance
+                empresas_conds.append("NOT multiSearchAnyCaseInsensitive(razao_social, %(gov_keys)s)")
+                params['gov_keys'] = gov_keywords
+
+            print(f"[DEBUG] [_run_extraction] filters built: estab_conds={len(estab_conds)}, empresas_conds={len(empresas_conds)}")
+
             tipo_req = filters.get("tipo_tel", "TODOS")
             if tipo_req == "CELULAR":
                 estab_conds.append("((length(estab_inner.telefone1) >= 8 AND substring(estab_inner.telefone1, 1, 1) IN ('6','7','8','9')) OR (length(estab_inner.telefone2) >= 8 AND substring(estab_inner.telefone2, 1, 1) IN ('6','7','8','9')))")
@@ -701,7 +1204,7 @@ class CloudEngine:
                 estab_conds.append("((length(estab_inner.telefone1) >= 8 AND substring(estab_inner.telefone1, 1, 1) IN ('2','3','4','5')) OR (length(estab_inner.telefone2) >= 8 AND substring(estab_inner.telefone2, 1, 1) IN ('2','3','4','5')))")
             elif tipo_req == "AMBOS":
                 estab_conds.append("((length(estab_inner.telefone1) >= 8 AND substring(estab_inner.telefone1, 1, 1) IN ('6','7','8','9') AND length(estab_inner.telefone2) >= 8 AND substring(estab_inner.telefone2, 1, 1) IN ('2','3','4','5')) OR (length(estab_inner.telefone1) >= 8 AND substring(estab_inner.telefone1, 1, 1) IN ('2','3','4','5') AND length(estab_inner.telefone2) >= 8 AND substring(estab_inner.telefone2, 1, 1) IN ('6','7','8','9')))")
-            else:
+            elif filters.get("somente_com_telefone"):
                 estab_conds.append("(estab_inner.telefone1 != '' OR estab_inner.telefone2 != '')")
 
             cep_file = filters.get("cep_file")
@@ -712,16 +1215,20 @@ class CloudEngine:
                 try:
                     if cep_file.lower().endswith('.csv'):
                         try:
-                            cep_df = pd.read_csv(cep_file, sep=';', dtype=str, on_bad_lines='skip')
-                            if len(cep_df.columns) == 1 and ',' in str(cep_df.columns[0]):
-                                cep_df = pd.read_csv(cep_file, sep=',', dtype=str, on_bad_lines='skip')
+                            # Tenta com utf-8-sig para ignorar BOM
+                            cep_df = pd.read_csv(cep_file, sep=';', dtype=str, on_bad_lines='skip', encoding='utf-8-sig')
+                            if len(cep_df.columns) <= 1:
+                                cep_df = pd.read_csv(cep_file, sep=',', dtype=str, on_bad_lines='skip', encoding='utf-8-sig')
                         except Exception:
-                            cep_df = pd.read_csv(cep_file, sep=None, engine='python', dtype=str, on_bad_lines='skip')
+                            cep_df = pd.read_csv(cep_file, sep=None, engine='python', dtype=str, on_bad_lines='skip', encoding='utf-8-sig')
                     else:
                         cep_df = pd.read_excel(cep_file, dtype=str)
                         
+                    print(f"[DEBUG] [_run_extraction] CEP file loaded. Columns: {list(cep_df.columns)}")
+                    
                     cep_col = next((c for c in cep_df.columns if "CEP" in str(c).upper()), None)
                     num_col = next((c for c in cep_df.columns if "NUMERO" in str(c).upper().replace('Ú', 'U')), None)
+                    print(f"[DEBUG] [_run_extraction] Detected: cep_col='{cep_col}', num_col='{num_col}'")
                     
                     if cep_col:
                         local_df = cep_df.dropna(subset=[cep_col]).copy()
@@ -780,150 +1287,210 @@ class CloudEngine:
                 SETTINGS join_algorithm = 'auto'
             """
             
-            # FASE 9: MOTOR DE LOTES HEMN (CHUNKED PROCESSING) - Estabilidade Total de RAM
-            batch_size = 100000
-            offset = 0
+            # FASE 9: MOTOR DE LOTES HEMN (SINGLE OU MULTI QUERY)
             total_records_final = 0
             header_written = False
             
             import xlsxwriter
-            # Workbook em modo streaming para RAM zero no Excel
             workbook = xlsxwriter.Workbook(output_file, {'constant_memory': True, 'tmpdir': '/tmp'})
             sheet = workbook.add_worksheet("Extração Hemn")
             header_fmt = workbook.add_format({'bold': True, 'bg_color': '#3a7bd5', 'font_color': 'white'})
 
-            self._update_task(tid, progress=20, message="Iniciando extração em lotes de 100k...")
             ch_local = self._get_ch_client()
 
-            while True:
-                # 1. Busca Lote do ClickHouse
-                q_batch = q.replace("SETTINGS", f"LIMIT {batch_size} OFFSET {offset} SETTINGS")
-                df = ch_local.query_df(q_batch, params)
+            # Caso especial: Otimização CEP + Número
+            if cep_df is not None and num_col and '_match_num' in cep_df.columns:
+                self._update_task(tid, progress=15, message="Otimizando consulta CEP+Número...")
+                pairs = [tuple(x) for x in cep_df[['_match_cep', '_match_num']].drop_duplicates().values]
+                batch_size_sql = 10000
+                total_batches = (len(pairs) + batch_size_sql - 1) // batch_size_sql
                 
-                if df.empty:
-                    break
-                
-                self._update_task(tid, progress=round(20 + (offset/1000000 * 5), 1), message=f"Processando lote {offset//batch_size + 1}...")
+                for b_idx in range(0, len(pairs), batch_size_sql):
+                    status = self.get_task_status(tid)
+                    if status.get("status") == "CANCELLED":
+                        workbook.close()
+                        return
 
-                # 2. Cruzamento com Planilha (se existir)
-                if cep_df is not None and '_match_cep' in cep_df.columns:
-                    df['_match_cep'] = df['CEP'].astype(str).str.replace(r'\D', '', regex=True).str.zfill(8)
-                    df['_match_num'] = df['NUMERO'].astype(str).str.strip().str.upper().str.lstrip('0').apply(lambda x: x if x else '0')
-                    if num_col and num_col in cep_df.columns and '_match_num' in cep_df.columns:
-                        valid_sheet = cep_df[['_match_cep', '_match_num']].drop_duplicates()
-                        df = df.merge(valid_sheet, on=['_match_cep', '_match_num'], how='inner')
-                    else:
+                    batch_pairs = pairs[b_idx : b_idx + batch_size_sql]
+                    # ClickHouse Tuple IN: (cep, numero) IN [(c1, n1), (c2, n2)]
+                    current_params = params.copy()
+                    current_params['pairs'] = batch_pairs
+                    
+                    # Injetar a condição de tupla
+                    batch_estab_where = estab_where.replace("estab_inner.cep IN %(ceps)s", "(estab_inner.cep, estab_inner.numero) IN %(pairs)s")
+                    if "(estab_inner.cep, estab_inner.numero) IN %(pairs)s" not in batch_estab_where:
+                         # Caso não tivesse o IN ceps original:
+                         batch_estab_where += " AND (estab_inner.cep, estab_inner.numero) IN %(pairs)s"
+
+                    batch_q = q.replace(f"WHERE {estab_where}", f"WHERE {batch_estab_where}")
+                    
+                    prog_val = min(95, round(15 + (b_idx / len(pairs) * 80), 1))
+                    self._update_task(tid, progress=prog_val, message=f"Consultando lote { (b_idx//batch_size_sql)+1 } / {total_batches}...")
+                    
+                    result = ch_local.query(batch_q, current_params)
+                    df_batch = pd.DataFrame(result.result_rows, columns=result.column_names)
+                    
+                    if not df_batch.empty:
+                        df_processed = self._process_extraction_dataframe(tid, df_batch, filters, workbook, sheet, header_fmt, header_written, total_records_final)
+                        total_records_final += len(df_processed)
+                        header_written = True
+                
+            else:
+                # Caso padrão (Extração normal ou CEP sem Número)
+                self._update_task(tid, progress=15, message="Executando consulta no ClickHouse...")
+                result = ch_local.query(q, params)
+                rows = result.result_rows
+                cols = result.column_names
+                total_rows_found = len(rows)
+                
+                self._update_task(tid, progress=20, message=f"Iniciando processamento de {total_rows_found:,} registros...")
+
+                batch_size = 100000
+                for i in range(0, total_rows_found, batch_size):
+                    status = self.get_task_status(tid)
+                    if status.get("status") == "CANCELLED":
+                        workbook.close()
+                        return
+
+                    chunk = rows[i:i + batch_size]
+                    df = pd.DataFrame(chunk, columns=cols)
+                    
+                    self._update_task(tid, progress=min(95, round(20 + (i/max(1, total_rows_found) * 75), 1)), 
+                                      message=f"Processando: {i:,} / {total_rows_found:,} registros...")
+
+                    if cep_df is not None and '_match_cep' in cep_df.columns:
+                        df['_match_cep'] = df['CEP'].astype(str).str.replace(r'\D', '', regex=True).str.zfill(8)
                         valid_sheet_ceps = cep_df[['_match_cep']].drop_duplicates()
                         df = df.merge(valid_sheet_ceps, on='_match_cep', how='inner')
-                    df = df.drop(columns=[c for c in ['_match_cep', '_match_num'] if c in df.columns])
+                        df = df.drop(columns=[c for c in ['_match_cep'] if c in df.columns])
 
-                if df.empty:
-                    offset += batch_size
-                    continue
-
-                # 3. Filtragem de Telefones e Operadora
-                def check_tel(t):
-                    if not t or str(t).upper() in ['NAN', 'NONE']: return None
-                    num = re.sub(r'\D', '', str(t).strip().replace('.0', ''))
-                    if not num: return None
-                    return "CELULAR" if (len(num) == 9 or (len(num) == 8 and num[0] in '6789')) else "FIXO"
-
-                def get_full(d, t):
-                    if not t or str(t).upper() in ['NAN', 'NONE']: return ""
-                    full = re.sub(r'\D', '', (str(d).replace('.0', '') if pd.notna(d) else "") + str(t).replace('.0', ''))
-                    if len(full) == 10 and full[2] in '6789': full = full[:2] + '9' + full[2:]
-                    return full
-
-                df['full_t1'] = df.apply(lambda x: get_full(x['DDD1'], x['TEL1']), axis=1)
-                df['full_t2'] = df.apply(lambda x: get_full(x['DDD2'], x['TEL2']), axis=1)
-                df['t1_tipo'] = df['TEL1'].apply(check_tel)
-                df['t2_tipo'] = df['TEL2'].apply(check_tel)
-
-                tipo_req = filters.get("tipo_tel", "TODOS")
-                if tipo_req == "AMBOS":
-                    mask = ((df['t1_tipo'] == "CELULAR") & (df['t2_tipo'] == "FIXO")) | ((df['t1_tipo'] == "FIXO") & (df['t2_tipo'] == "CELULAR"))
-                    df = df[mask].copy()
-                elif tipo_req != "TODOS":
-                    df = df[(df['t1_tipo'] == tipo_req) | (df['t2_tipo'] == tipo_req)].copy()
-
-                if df.empty:
-                    offset += batch_size
-                    continue
-
-                def select_phone(row):
-                    t1, t2 = row.get('full_t1', ''), row.get('full_t2', '')
-                    tipo1, tipo2 = row.get('t1_tipo'), row.get('t2_tipo')
-                    if tipo_req in ["CELULAR", "FIXO"]:
-                        if tipo1 == tipo_req: return t1
-                        return t2
-                    elif tipo_req == "AMBOS":
-                        parts = []
-                        if t1: parts.append(f"{tipo1}: {t1}")
-                        if t2: parts.append(f"{tipo2}: {t2}")
-                        return " | ".join(parts)
-                    if tipo1 == "CELULAR": return t1
-                    if tipo2 == "CELULAR": return t2
-                    return t1 if t1 else t2
+                    if df.empty: continue
                     
-                df['TELEFONE SOLICITADO'] = df.apply(select_phone, axis=1)
-                df = df.drop(columns=[c for c in ['DDD1', 'TEL1', 'DDD2', 'TEL2', 't1_tipo', 't2_tipo', 'full_t1', 'full_t2'] if c in df.columns])
-                
-                # Enriquecimento de Operadora (em lotes)
-                df = self._append_operator_column(tid, df)
-
-                # Filtro de Operadora
-                op_inc = filters.get("operadora_inc", "TODAS")
-                op_exc = filters.get("operadora_exc", "NENHUMA")
-                if op_exc != "NENHUMA" and 'OPERADORA DO TELEFONE' in df.columns:
-                    df = df[~df['OPERADORA DO TELEFONE'].astype(str).str.upper().str.contains(op_exc.upper(), na=False)]
-                if op_inc != "TODAS" and 'OPERADORA DO TELEFONE' in df.columns:
-                    df = df[df['OPERADORA DO TELEFONE'].astype(str).str.upper().str.contains(op_inc.upper(), na=False)]
-
-                if df.empty:
-                    offset += batch_size
-                    continue
-
-                # 4. Mapeamento Final e Escrita no Excel
-                df.columns = [str(c).upper().replace('_', ' ').strip() for c in df.columns]
-                final_mapping = {'NOME': 'NOME DA EMPRESA', 'SITUACAO': 'SITUACAO CADASTRAL', 'RUA': 'LOGRADOURO', 'NUMERO': 'NUMERO DA FAIXADA'}
-                df = df.rename(columns=final_mapping)
-                
-                sit_map = {'01':'NULA','02':'ATIVA','03':'SUSPENSA','04':'INAPTA','08':'BAIXADA'}
-                if 'SITUACAO CADASTRAL' in df.columns:
-                    df['SITUACAO CADASTRAL'] = df['SITUACAO CADASTRAL'].astype(str).str.zfill(2).map(sit_map).fillna(df['SITUACAO CADASTRAL'])
-
-                final_columns = ['CNPJ', 'NOME DA EMPRESA', 'SITUACAO CADASTRAL', 'CNAE', 'LOGRADOURO', 'NUMERO DA FAIXADA', 'BAIRRO', 'CIDADE', 'UF', 'CEP', 'TELEFONE SOLICITADO', 'OPERADORA DO TELEFONE']
-                for c in final_columns:
-                    if c not in df.columns: df[c] = ""
-                    else: df[c] = df[c].astype(str).replace(['nan', 'NaN', 'None', '<NA>'], "")
-                
-                df_final = df[final_columns].fillna("")
-
-                # Escreve o Cabeçalho apenas uma vez
-                if not header_written:
-                    for col_idx, col_name in enumerate(df_final.columns):
-                        sheet.write(0, col_idx, col_name, header_fmt)
+                    df_processed = self._process_extraction_dataframe(tid, df, filters, workbook, sheet, header_fmt, header_written, total_records_final)
+                    total_records_final += len(df_processed)
                     header_written = True
-                
-                # Escreve os Dados do Lote
-                data_matrix = df_final.values
-                for r_idx, row in enumerate(data_matrix):
-                    current_row = total_records_final + r_idx + 1
-                    for c_idx, val in enumerate(row):
-                        sheet.write(current_row, c_idx, val)
-
-                total_records_final += len(df_final)
-                offset += batch_size
-                
-                if offset >= 20000000: # Limite de segurança de 20M registros
-                    break
 
             workbook.close()
             # Fim da FASE 9
 
             self._update_task(tid, status="COMPLETED", progress=100, message=f"Extração Pronta! {total_records_final:,} encontrados.", result_file=output_file, record_count=total_records_final)
         except Exception as e:
-            self._update_task(tid, status="FAILED", message=f"Erro: {str(e)}")
+            import traceback
+            err_msg = traceback.format_exc()
+            print(f"[CRITICAL] EXTRACTION THREAD FAILED for {tid}: {e}\n{err_msg}")
+            try:
+                self._update_task(tid, status="FAILED", message=f"TITANIUM-MT ERROR: {str(e)}")
+            except:
+                pass
+
+    def _process_extraction_dataframe(self, tid, df, filters, workbook, sheet, header_fmt, header_written, start_row_count):
+        """
+        Sub-motor de processamento de dataframe para extração.
+        Normaliza telefones, filtra operadoras e escreve no Excel.
+        """
+        if df.empty: return df
+
+        # 1. Normalização de Telefones
+        def check_tel(t):
+            if not t or str(t).upper() in ['NAN', 'NONE']: return None
+            num = re.sub(r'\D', '', str(t).strip().replace('.0', ''))
+            if not num: return None
+            return "CELULAR" if (len(num) == 9 or (len(num) == 8 and num[0] in '6789')) else "FIXO"
+
+        def get_full(d, t):
+            if not t or str(t).upper() in ['NAN', 'NONE']: return ""
+            full = re.sub(r'\D', '', (str(d).replace('.0', '') if pd.notna(d) else "") + str(t).replace('.0', ''))
+            if len(full) == 10 and full[2] in '6789': full = full[:2] + '9' + full[2:]
+            return full
+
+        df['full_t1'] = df.apply(lambda x: get_full(x['DDD1'], x['TEL1']), axis=1)
+        df['full_t2'] = df.apply(lambda x: get_full(x['DDD2'], x['TEL2']), axis=1)
+        df['t1_tipo'] = df['TEL1'].apply(check_tel)
+        df['t2_tipo'] = df['TEL2'].apply(check_tel)
+
+        tipo_req = filters.get("tipo_tel", "TODOS")
+        if tipo_req == "AMBOS":
+            mask = ((df['t1_tipo'] == "CELULAR") & (df['t2_tipo'] == "FIXO")) | ((df['t1_tipo'] == "FIXO") & (df['t2_tipo'] == "CELULAR"))
+            df = df[mask].copy()
+        elif tipo_req != "TODOS":
+            df = df[(df['t1_tipo'] == tipo_req) | (df['t2_tipo'] == tipo_req)].copy()
+
+        if df.empty: return df
+
+        def select_phone(row):
+            t1, t2 = row.get('full_t1', ''), row.get('full_t2', '')
+            tipo1, tipo2 = row.get('t1_tipo'), row.get('t2_tipo')
+            if tipo_req in ["CELULAR", "FIXO"]:
+                if tipo1 == tipo_req: return t1
+                return t2
+            elif tipo_req == "AMBOS":
+                parts = []
+                if t1: parts.append(f"{tipo1}: {t1}")
+                if t2: parts.append(f"{tipo2}: {t2}")
+                return " | ".join(parts)
+            if tipo1 == "CELULAR": return t1
+            if tipo2 == "CELULAR": return t2
+            return t1 if t1 else t2
+            
+        df['TELEFONE SOLICITADO'] = df.apply(select_phone, axis=1)
+        df = df.drop(columns=[c for c in ['DDD1', 'TEL1', 'DDD2', 'TEL2', 't1_tipo', 't2_tipo', 'full_t1', 'full_t2'] if c in df.columns])
+        
+        # Enriquecimento de Operadora (em lotes)
+        df = self._append_operator_column(tid, df)
+
+        # Filtros de Operadora
+        op_inc = str(filters.get("operadora_inc", "TODAS")).upper()
+        op_exc = str(filters.get("operadora_exc", "NENHUMA")).upper()
+        
+        def check_op(row_val, target_op):
+            if not row_val: return False
+            rv = str(row_val).upper()
+            to = str(target_op).upper()
+            if to == "VIVO": return "VIVO" in rv or "TELEFONICA" in rv
+            return to in rv
+
+        if 'OPERADORA DO TELEFONE' in df.columns:
+            if op_exc != "NENHUMA":
+                df = df[~df['OPERADORA DO TELEFONE'].apply(lambda x: check_op(x, op_exc))]
+            if op_inc != "TODAS":
+                df = df[df['OPERADORA DO TELEFONE'].apply(lambda x: check_op(x, op_inc))]
+
+        if df.empty: return df
+
+        # Formatação Final
+        df.columns = [str(c).upper().replace('_', ' ').strip() for c in df.columns]
+        final_mapping = {'NOME': 'NOME DA EMPRESA', 'SITUACAO': 'SITUACAO CADASTRAL', 'RUA': 'LOGRADOURO', 'NUMERO': 'NUMERO DA FAIXADA'}
+        df = df.rename(columns=final_mapping)
+        
+        sit_map = {'01':'NULA','02':'ATIVA','03':'SUSPENSA','04':'INAPTA','08':'BAIXADA'}
+        if 'SITUACAO CADASTRAL' in df.columns:
+            df['SITUACAO CADASTRAL'] = df['SITUACAO CADASTRAL'].astype(str).str.zfill(2).map(sit_map).fillna(df['SITUACAO CADASTRAL'])
+
+        final_columns = ['CNPJ', 'NOME DA EMPRESA', 'SITUACAO CADASTRAL', 'CNAE', 'LOGRADOURO', 'NUMERO DA FAIXADA', 'BAIRRO', 'CIDADE', 'UF', 'CEP', 'TELEFONE SOLICITADO', 'OPERADORA DO TELEFONE']
+        for c in final_columns:
+            if c not in df.columns: df[c] = ""
+            else: df[c] = df[c].astype(str).replace(['nan', 'NaN', 'None', '<NA>'], "")
+        
+        df_final = df[final_columns].fillna("")
+
+        # Escrita no Excel
+        EXCEL_LIMIT = 1000000 
+        current_sheet_row = (start_row_count % EXCEL_LIMIT) + 1
+        # Se for o primeiro lote de todos
+        if not header_written:
+            for col_idx, col_name in enumerate(df_final.columns):
+                sheet.write(0, col_idx, col_name, header_fmt)
+            current_sheet_row = 1
+
+        data_matrix = df_final.values
+        for r_idx, row_data in enumerate(data_matrix):
+            # Nota: O controle de nova aba aqui é simplificado, 
+            # assumimos que um único lote não estoura 1M se processado corretamente.
+            for c_idx, val in enumerate(row_data):
+                sheet.write(current_sheet_row, c_idx, val)
+            current_sheet_row += 1
+            
+        return df_final
 
     # --- UNIFY ---
     def start_unify(self, file_paths, output_dir, username=None):
@@ -933,8 +1500,8 @@ class CloudEngine:
         return tid
 
     def _run_unify(self, tid, file_paths, output_dir):
-        self._update_task(tid, status="PROCESSING", message="Unificando arquivos...")
         try:
+            self._update_task(tid, status="PROCESSING", message="Unificando arquivos...")
             status = self.get_task_status(tid)
             if status.get("status") == "CANCELLED": return
             output_file = os.path.join(output_dir, f"Unificado_{tid[:8]}.xlsx")
@@ -1088,19 +1655,74 @@ class CloudEngine:
         return tid
 
     def _run_split(self, tid, input_file, output_dir):
-        self._update_task(tid, status="PROCESSING", message="Dividindo arquivo...")
+        print(f"[SPLIT] Iniciando tarefa {tid} para arquivo: {input_file}")
+        self._update_task(tid, status="PROCESSING", message="Iniciando fatiamento...")
         try:
             output_file = os.path.join(output_dir, f"Dividido_{tid[:8]}.xlsx")
-            df = pd.read_csv(input_file, sep=None, engine='python', dtype=str) if input_file.endswith('.csv') else pd.read_excel(input_file, dtype=str)
             import xlsxwriter
+            
+            # Se for Excel, usamos o modo padrão (Excel gigante é raro, o limite é 1M de linhas)
+            # Se for CSV, usamos chunks para evitar estourar a RAM
+            is_csv = not input_file.lower().endswith(('.xlsx', '.xls', '.xlsm'))
+            
             writer = pd.ExcelWriter(output_file, engine='xlsxwriter', engine_kwargs={'options': {'constant_memory': True}})
+            total_rows = 0
             chunk_size = 1000000
-            for i in range(0, len(df), chunk_size):
-                chunk = df.iloc[i : i + chunk_size]
-                chunk.to_excel(writer, sheet_name=f"Lote_{(i//chunk_size)+1}", index=False)
+
+            if is_csv:
+                self._update_task(tid, message="Lendo CSV em blocos (otimizado)...")
+                # Detectar separador e encoding de forma robusta
+                sep = ','
+                enc = 'utf-8'
+                try:
+                    with open(input_file, 'rb') as f:
+                        raw = f.read(10240) # Aumentado para 10KB para amostragem melhor
+                        # Tenta utf-8
+                        try:
+                            sample = raw.decode('utf-8')
+                            enc = 'utf-8'
+                        except:
+                            sample = raw.decode('latin-1')
+                            enc = 'latin-1'
+                        
+                        delims = [';', ',', '\t', '|']
+                        max_count = 0
+                        for d in delims:
+                            count = sample.count(d)
+                            if count > max_count:
+                                max_count = count
+                                sep = d
+                    print(f"[SPLIT] Detecção: sep='{sep}', enc='{enc}'")
+                except Exception as e:
+                    print(f"[SPLIT] Erro na detecção: {e}")
+
+                total_rows = sum(1 for _ in open(input_file, 'rb'))
+                processed_rows = 0
+                reader = pd.read_csv(input_file, sep=sep, chunksize=chunk_size, dtype=str, encoding=enc, on_bad_lines='skip', header=None, engine='c')
+                
+                for i, chunk in enumerate(reader):
+                    sheet_name = f"Lote_{i+1}"
+                    chunk.to_excel(writer, sheet_name=sheet_name, index=False)
+                    processed_rows += len(chunk)
+                    prog = min(99, int((processed_rows / (total_rows or 1)) * 100))
+                    self._update_task(tid, progress=prog, message=f"Fatiando: {processed_rows:,}/{total_rows:,} linhas...")
+                    print(f"[SPLIT] {tid} -> Processadas {processed_rows:,} linhas")
+                total_rows = processed_rows
+            else:
+                self._update_task(tid, message="Lendo Excel gigante...")
+                df = pd.read_excel(input_file, dtype=str)
+                total_rows = len(df)
+                for i in range(0, total_rows, chunk_size):
+                    chunk = df.iloc[i : i + chunk_size]
+                    sheet_name = f"Lote_{(i//chunk_size)+1}"
+                    chunk.to_excel(writer, sheet_name=sheet_name, index=False)
+                    self._update_task(tid, progress=int((i/total_rows)*100), message=f"Escrevendo {sheet_name}...")
+            
             writer.close()
-            self._update_task(tid, status="COMPLETED", progress=100, message="Arquivo dividido!", result_file=output_file)
+            print(f"[SPLIT] Sucesso: {output_file} ({total_rows} linhas)")
+            self._update_task(tid, status="COMPLETED", progress=100, message=f"Dividido com sucesso! {total_rows:,} linhas.", result_file=output_file, record_count=total_rows)
         except Exception as e:
+            print(f"[SPLIT ERROR] {tid}: {str(e)}")
             self._update_task(tid, status="FAILED", message=f"Erro: {str(e)}")
 
     def _get_carrier_map(self):
@@ -1174,7 +1796,25 @@ class CloudEngine:
             "55975":"Vulcanet", "55984":"FTTH Telecom"
         }
         op_map.update(full_map)
-        return op_map
+        
+        # MERGE WITH DYNAMICALLY LOADED ANATEL DICT (From CSV)
+        if hasattr(self, 'anatel_dict'):
+            op_map.update(self.anatel_dict)
+            
+        # NORMALIZAÇÃO HEMN PARA FILTROS ROBUSTOS
+        normalized = {}
+        for k, v in op_map.items():
+            vu = str(v).upper().strip()
+            # Identificação Específica (evita que "VOICE/VOIP" seja detectado como "OI")
+            if "TELEFONICA" in vu or "VIVO" in vu: normalized[k] = "VIVO / TELEFONICA"
+            elif "CLARO" in vu: normalized[k] = "CLARO"
+            elif "TIM" in vu: normalized[k] = "TIM"
+            elif vu == "OI" or vu.startswith("OI ") or "OI S.A" in vu or "OI MOVEL" in vu or "TELEMAR" in vu: 
+                normalized[k] = "OI"
+            elif "ALGAR" in vu: normalized[k] = "ALGAR"
+            elif "BRISANET" in vu: normalized[k] = "BRISANET"
+            else: normalized[k] = vu
+        return normalized
 
     def _append_operator_column(self, tid, df):
         self._update_task(tid, progress=90, message="Identificando operadoras...")

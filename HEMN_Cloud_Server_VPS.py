@@ -126,6 +126,8 @@ class EnrichRequest(BaseModel):
     manual: Optional[bool] = False
     name: Optional[str] = None
     cpf: Optional[str] = None
+    cnpj: Optional[str] = None
+    phone: Optional[str] = None
     perfil: Optional[str] = "TODOS"
 
 
@@ -306,10 +308,12 @@ def search_leads(req: LeadSearchRequest, user: dict = Depends(check_clinicas_acc
 @app.post("/tasks/enrich")
 def start_enrich(req: EnrichRequest, user: dict = Depends(get_current_user)):
     if req.manual:
-        # ... (Deep search logic)
         # Limpeza básica do CPF
         cpf_clean = ''.join(filter(str.isdigit, str(req.cpf or "")))
-        res = engine.deep_search(req.name, cpf_clean)
+        cnpj_clean = ''.join(filter(str.isdigit, str(req.cnpj or "")))
+        phone_clean = ''.join(filter(str.isdigit, str(req.phone or "")))
+        
+        res = engine.deep_search(req.name, cpf_clean, cnpj=cnpj_clean, phone=phone_clean)
         
         # Débito de Consulta Manual se não for ilimitado ou MAYK
         if user["total_limit"] < 9000000 and user["role"] != "MAYK":
@@ -485,6 +489,7 @@ def get_monitor_stats(user: dict = Depends(get_current_user)):
         "system": sys_stats,
         "engine": engine_stats,
         "clickhouse": ch_stats,
+        "recent_activities": engine_stats.get("recent_activities", []),
         "timestamp": datetime.now().isoformat()
     }
 

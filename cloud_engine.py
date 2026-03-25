@@ -299,16 +299,76 @@ class CloudEngine:
         try:
             conn = sqlite3.connect(self.db_path, timeout=30)
             conn.execute("PRAGMA journal_mode=WAL")
+            # Return data in the format expected by the frontend (index_vps.html)
             stats = {
-                "queued": conn.execute("SELECT COUNT(*) FROM background_tasks WHERE status = 'QUEUED'").fetchone()[0],
-                "processing": conn.execute("SELECT COUNT(*) FROM background_tasks WHERE status = 'PROCESSING'").fetchone()[0],
-                "completed_24h": conn.execute("SELECT COUNT(*) FROM background_tasks WHERE status = 'COMPLETED' AND created_at > datetime('now','-24 hours')").fetchone()[0],
-                "failed_24h": conn.execute("SELECT COUNT(*) FROM background_tasks WHERE status = 'FAILED' AND created_at > datetime('now','-24 hours')").fetchone()[0]
+                "tasks": {
+                    "active": conn.execute("SELECT COUNT(*) FROM background_tasks WHERE status = 'PROCESSING'").fetchone()[0],
+                    "queued": conn.execute("SELECT COUNT(*) FROM background_tasks WHERE status = 'QUEUED'").fetchone()[0],
+                    "completed": conn.execute("SELECT COUNT(*) FROM background_tasks WHERE status = 'COMPLETED' AND (date(created_at) = date('now') OR created_at > datetime('now','-24 hours'))").fetchone()[0],
+                },
+                "enrich_slots_available": 2, # Fallback value
+                "recent_activities": []
             }
+            
+            # Fetch recent activities
+            conn.row_factory = sqlite3.Row
+            recent = conn.execute("SELECT module, status, progress, message, created_at FROM background_tasks ORDER BY created_at DESC LIMIT 10").fetchall()
+            stats["recent_activities"] = [dict(r) for r in recent]
             conn.close()
+
+            # Add potential external ingestion progress (DB Update)
+            ingest_task = self._get_ingestion_progress()
+            if ingest_task:
+                stats["recent_activities"].insert(0, ingest_task)
+
             return stats
         except Exception as e:
-            return {"error": str(e), "queued": 0, "processing": 0, "completed_24h": 0, "failed_24h": 0}
+            return {
+                "tasks": {"active": 0, "queued": 0, "completed": 0},
+                "enrich_slots_available": 2,
+                "recent_activities": [],
+                "error": str(e)
+            }
+
+    def _get_ingestion_progress(self):
+        """Checks for external ingestion logs and returns a virtual task if active."""
+        log_path = "/var/www/hemn_cloud/ingest_march_2026.log"
+        if not os.path.exists(log_path): return None
+        
+        try:
+            # Check if log was updated recently (last 30 minutes)
+            mtime = os.path.getmtime(log_path)
+            if time.time() - mtime > 1800: return None
+            
+            with open(log_path, "r", encoding="utf-8", errors="ignore") as f:
+                lines = f.readlines()
+                if not lines: return None
+                
+                # Simple progress heuristic: find "Starting <file>..." and "Finished <file>..."
+                current_file = "Processando..."
+                completed_count = 0
+                for line in reversed(lines):
+                    if "Starting" in line and "..." in line:
+                        current_file = line.split("Starting")[-1].strip().replace("...", "")
+                        break
+                    if "Finished" in line:
+                        completed_count += 1 # This is not precise but gives a hint
+
+                # Calculate progress based on total FILES (40 files in the script)
+                total_files = 40
+                # Scan full log once to count "Finished" (expensive but 1170 lines is small)
+                all_finished = [l for l in lines if "Finished" in l]
+                prog = min(99, int((len(all_finished) / total_files) * 100))
+                
+                return {
+                    "module": "DATABASE_UPDATE",
+                    "status": "PROCESSING",
+                    "progress": prog,
+                    "message": f"Atualizando Base Mar/2026: {current_file}",
+                    "created_at": datetime.fromtimestamp(mtime).isoformat()
+                }
+        except:
+            return None
 
     def get_ch_metrics(self):
         client = self._get_ch_client()
@@ -418,9 +478,7 @@ class CloudEngine:
         f_summary = f"[v1.9.1] Enriquecer: {fname} (Perfil: {perfil})"
         tid = self._create_task(module="ENRICH", username=username, filters=f_summary)
         threading.Thread(target=self._run_enrich, args=(tid, input_file, output_dir, name_col, cpf_col, perfil), daemon=True).start()
-        return tid
-
-    def deep_search(self, name, cpf):
+    def deep_search(self, name=None, cpf=None, cnpj=None, phone=None):
         """Busca rápida unitária no ClickHouse"""
         ch_local = self._get_ch_client()
         if not ch_local:
@@ -436,11 +494,34 @@ class CloudEngine:
                 res = ch_local.query("SELECT cnpj_basico FROM hemn.socios WHERE cnpj_cpf_socio IN (%(c1)s, %(c2)s) LIMIT 50", 
                                           {'c1': cpf_clean, 'c2': cpf_mask})
                 basics.extend([r[0] for r in res.result_rows])
-                # Add check for MEIs where Razão Social contains the CPF
+                # Add check for MEIs where Razão Social contains the CPF
                 res = ch_local.query("SELECT cnpj_basico FROM hemn.empresas WHERE razao_social LIKE %(c)s LIMIT 50",
                                           {'c': f"%{cpf_clean}%"})
                 basics.extend([r[0] for r in res.result_rows])
         
+        if cnpj:
+            cnpj_clean = ''.join(filter(str.isdigit, str(cnpj)))
+            if len(cnpj_clean) >= 8:
+                basics.append(cnpj_clean[:8])
+
+        if phone:
+            tel_clean = ''.join(filter(str.isdigit, str(phone)))
+            if len(tel_clean) >= 10:
+                ddd = tel_clean[:2]
+                num_8 = tel_clean[-8:]
+                nums = [num_8]
+                if len(tel_clean) == 11:
+                    # Inclui o número completo de 9 dígitos se fornecido
+                    nums.append(tel_clean[2:])
+                
+                res1 = ch_local.query("SELECT cnpj_basico FROM hemn.estabelecimento WHERE ddd1 = %(ddd)s AND telefone1 IN %(nums)s LIMIT 50", 
+                                           {'ddd': ddd, 'nums': nums})
+                basics.extend([r[0] for r in res1.result_rows])
+                
+                res2 = ch_local.query("SELECT cnpj_basico FROM hemn.estabelecimento WHERE ddd2 = %(ddd)s AND telefone2 IN %(nums)s LIMIT 50", 
+                                           {'ddd': ddd, 'nums': nums})
+                basics.extend([r[0] for r in res2.result_rows])
+
         if name:
             name_clean = remove_accents(str(name).strip().upper())
             # Try both prefix for speed and contains for flexibility
@@ -518,14 +599,31 @@ class CloudEngine:
                            e.porte_empresa = '05', 'DEMAIS (MÉDIA/GRANDE)',
                            'NÃO INFORMADO') AS porte,
                    est.cnae_fiscal_secundaria AS cnae_secundario,
-                   coalesce(s.nome_socio, 'NÃO ENCONTRADO') AS socio_nome
+                   arrayStringConcat(groupUniqArray(coalesce(s.nome_socio, 'NÃO ENCONTRADO')), ' / ') AS socio_nome
             FROM hemn.empresas e
             JOIN hemn.estabelecimento est ON e.cnpj_basico = est.cnpj_basico
             LEFT JOIN hemn.socios s ON e.cnpj_basico = s.cnpj_basico
             LEFT JOIN hemn.municipio m ON est.municipio = m.codigo
             WHERE e.cnpj_basico IN ({','.join(['%s' for _ in basics])})
               AND ({socio_match_sql} OR {company_name_match})
-            ORDER BY multiIf(est.situacao_cadastral = '02', 1, 2)
+            GROUP BY 
+                e.razao_social, 
+                cnpj_completo,
+                situacao,
+                cnae_principal,
+                cnpj_cpf_socio,
+                email_novo,
+                endereco_completo,
+                telefone_novo,
+                ddd_novo,
+                tipo_telefone,
+                nome_fantasia,
+                data_abertura,
+                capital_social,
+                natureza_juridica,
+                porte,
+                cnae_secundario
+            ORDER BY multiIf(situacao = 'ATIVA', 1, 2)
             LIMIT 50
         """
         res = ch_local.query(query, params)
@@ -800,8 +898,14 @@ class CloudEngine:
                                     
                                     p = params.copy()
                                     p['cpfs'] = block
-                                    res_cpf = ch_local.query(sql_cpf, p)
-                                    results.extend(res_cpf.result_rows)
+                                    print(f"[DEBUG] [MEI-CPF] Query: {sql_cpf}")
+                                    print(f"[DEBUG] [MEI-CPF] Params Keys: {list(p.keys())}")
+                                    try:
+                                        res_cpf = ch_local.query(sql_cpf, p)
+                                        results.extend(res_cpf.result_rows)
+                                    except Exception as e:
+                                        print(f"[ERROR] [MEI-CPF] ClickHouse Error: {e}")
+                                        raise
 
                         # 2. BUSCA POR NOME (Rede de Segurança Total) - Varre tudo que não tiver CPF ou se falhou
                         if search_names:
@@ -826,8 +930,14 @@ class CloudEngine:
                                 
                                 p = params.copy()
                                 p['n'] = block
-                                res_name = ch_local.query(sql_name, p)
-                                results.extend(res_name.result_rows)
+                                print(f"[DEBUG] [MEI-NAME] Query: {sql_name}")
+                                print(f"[DEBUG] [MEI-NAME] Params Keys: {list(p.keys())}")
+                                try:
+                                    res_name = ch_local.query(sql_name, p)
+                                    results.extend(res_name.result_rows)
+                                except Exception as e:
+                                    print(f"[ERROR] [MEI-NAME] ClickHouse Error: {e}")
+                                    raise
                         
                         return results
 
@@ -868,18 +978,23 @@ class CloudEngine:
                                 estab.ddd2 AS ddd2, estab.telefone2 AS telefone2, 
                                 estab.correio_eletronico AS correio_eletronico,
                                 estab.logradouro AS logradouro, estab.numero AS numero, 
-                                estab.complemento AS complemento, estab.bairro AS bairro, 
+                                estab.complemento AS complementos, estab.bairro AS bairro, 
                                 estab.cep AS cep, estab.cnae_fiscal AS cnae_fiscal, 
                                 mun.descricao AS municipio_nome
-                            FROM hemn.estabelecimento estab
-                            INNER JOIN (SELECT cnpj_basico, razao_social FROM hemn.empresas WHERE cnpj_basico IN %(cnpjs)s) e 
-                              ON estab.cnpj_basico = e.cnpj_basico
-                            LEFT JOIN hemn.municipio mun ON estab.municipio = mun.codigo
-                            WHERE estab.situacao_cadastral = '02'
+                            FROM hemn.estabelecimento AS estab
+                            INNER JOIN hemn.empresas AS e ON estab.cnpj_basico = e.cnpj_basico
+                            LEFT JOIN hemn.municipio AS mun ON estab.municipio = mun.codigo
+                            WHERE e.cnpj_basico IN %(cnpjs)s AND estab.situacao_cadastral = '02'
                             """
-                            res_details = ch_local.query(sql_details, {'cnpjs': block})
-                            all_mei_results.extend(res_details.result_rows)
-                            if not cols_mei: cols_mei = res_details.column_names
+                            # Log detalhado v5.1.5: Captura possível ambiguidade de UF
+                            # print(f"[DEBUG] [MEI-DETAILS] Batch {idx}: {len(block)} CNPJs")
+                            try:
+                                res_details = ch_local.query(sql_details, {'cnpjs': block})
+                                all_mei_results.extend(res_details.result_rows)
+                                if not cols_mei: cols_mei = res_details.column_names
+                            except Exception as e:
+                                print(f"[ERROR] [MEI-DETAILS] ClickHouse Error: {e}")
+                                raise
 
                         # 3. Filtragem Geográfica Final (Precisão v1.8.6)
                         # Identifica coluna de UF para isolamento regional

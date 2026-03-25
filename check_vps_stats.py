@@ -1,33 +1,46 @@
 import paramiko
+import os
+import sys
 
-HOST = '129.121.45.136'
-PORT = 22022
-USER = 'root'
-KEY_PATH = r'C:\Users\Junior T.I\.ssh\id_rsa'
+host = '129.121.45.136'
+port = 22022
+user = 'root'
+key_path = r'C:\Users\Junior T.I\.ssh\id_rsa'
 
 client = paramiko.SSHClient()
 client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-client.connect(HOST, port=PORT, username=USER, key_filename=KEY_PATH)
+client.connect(host, port=port, username=user, key_filename=key_path)
 
-python_script = """import clickhouse_connect
-client = clickhouse_connect.get_client(host='localhost', username='default', password='', port=8123)
-res = client.query('SELECT count() FROM hemn.empresas')
-print(f"Total Empresas: {res.result_rows[0][0]}")
+# This script will run on the VPS to check the ACTUAL engine output
+vps_script = """
+import sys
+import os
+import sqlite3
+from datetime import datetime
+import json
 
-res2 = client.query('SHOW CREATE TABLE hemn.empresas')
-print(f"Schema:\\n{res2.result_rows[0][0]}")
+# Add app dir to path
+sys.path.append('/var/www/hemn_cloud')
+from cloud_engine import CloudEngine
+
+engine = CloudEngine(db_path='/var/www/hemn_cloud/hemn_cloud.db')
+stats = engine.get_internal_stats()
+
+print("--- INTERNAL STATS FROM VPS ---")
+print(json.dumps(stats, indent=2))
 """
 
-sftp = client.open_sftp()
-with sftp.file('/tmp/check_stats.py', 'w') as f:
-    f.write(python_script)
-sftp.close()
+def run_vps_python(py_code):
+    print(f"\n--- RUNNING REMOTE PYTHON SCRIPT ---")
+    # Escape quotes for shell
+    escaped_code = py_code.replace('"', '\\"').replace('$', '\\$')
+    stdin, stdout, stderr = client.exec_command(f'python3 -c "{escaped_code}"')
+    out = stdout.read().decode('utf-8', errors='replace')
+    err = stderr.read().decode('utf-8', errors='replace')
+    if out: print(f"STDOUT:\n{out}")
+    if err: print(f"STDERR:\n{err}")
+    return out, err
 
-cmd = "/var/www/hemn_cloud/venv/bin/python /tmp/check_stats.py"
-stdin, stdout, stderr = client.exec_command(cmd)
+run_vps_python(vps_script)
 
-print("STDOUT:")
-print(stdout.read().decode('utf-8'))
-print("STDERR:")
-print(stderr.read().decode('utf-8'))
 client.close()

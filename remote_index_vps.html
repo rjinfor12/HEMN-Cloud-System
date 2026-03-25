@@ -1040,7 +1040,7 @@
     <!-- Icons and Fonts -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- Premium Design System -->
-    <link rel="stylesheet" href="/areadocliente/static/design-system.css?v=1.6.0">
+    <link rel="stylesheet" href="/areadocliente/static/design-system.css?v=1.6.5">
     <!-- Charts -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
@@ -1230,6 +1230,76 @@
             .menu-toggle {
                 display: flex !important;
             }
+        }
+
+        /* High-End Toggle Switch - HEMN Premium Design */
+        .hemn-switch {
+            position: relative;
+            display: inline-block;
+            width: 48px;
+            height: 24px;
+            cursor: pointer;
+        }
+
+        .hemn-switch input { 
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .hemn-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0.1);
+            transition: .4s cubic-bezier(0.4, 0, 0.2, 1);
+            border-radius: 34px;
+            border: 1.5px solid rgba(255, 255, 255, 0.1);
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        [data-theme="dark"] .hemn-slider {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .hemn-slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 3px;
+            bottom: 2.5px;
+            background: white;
+            transition: .4s cubic-bezier(0.4, 0, 0.2, 1);
+            border-radius: 50%;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+
+        input:checked + .hemn-slider {
+            background: linear-gradient(135deg, #3b82f6, #2563eb);
+            border-color: rgba(59, 130, 246, 0.5);
+        }
+
+        input:checked + .hemn-slider:before {
+            transform: translateX(24px);
+        }
+
+        /* Toggle Label Styling */
+        .toggle-label {
+            font-size: 11px;
+            font-weight: 800;
+            color: var(--text-3);
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            opacity: 0.6;
+            cursor: pointer;
+        }
+
+        .toggle-label.active {
+            color: #3b82f6;
+            opacity: 1;
+            text-shadow: 0 0 10px rgba(59, 130, 246, 0.2);
         }
     </style>
 </head>
@@ -1639,7 +1709,7 @@
                     </div>
 
                     <div class="glass-card" style="margin-bottom: var(--s-6);">
-                        <div class="form-grid">
+                        <div id="manual-fields-pf" class="form-grid">
                             <div class="form-group">
                                 <label>NOME COMPLETO</label>
                                 <input type="text" id="manual-name" placeholder="Ex: JOAO DA SILVA">
@@ -1649,7 +1719,27 @@
                                 <input type="text" id="manual-cpf" placeholder="000.000.000-00">
                             </div>
                         </div>
-                        <div style="margin-top: var(--s-5); display: flex; justify-content: flex-end;">
+
+                        <div id="manual-fields-pj" class="form-grid" style="display: none;">
+                            <div class="form-group">
+                                <label>CNPJ <span style="font-size: 10px; opacity: 0.6;">(Somente números)</span></label>
+                                <input type="text" id="manual-cnpj" placeholder="Ex: 00000000000191">
+                            </div>
+                            <div class="form-group">
+                                <label>NÚMERO DE TELEFONE <span style="font-size: 10px; opacity: 0.6;">(DDD + NÚMERO)</span></label>
+                                <input type="text" id="manual-phone" placeholder="Ex: 11999999999">
+                            </div>
+                        </div>
+
+                        <div class="manual-search-actions">
+                            <div class="hemn-toggle-container">
+                                <span id="label-pf" class="toggle-label active"><span class="desktop-text">Pessoa Física</span><span class="mobile-text">PF</span></span>
+                                <label class="hemn-switch">
+                                    <input type="checkbox" id="manual-mode-switch" onchange="app.toggleManualMode(this.checked)">
+                                    <span class="hemn-slider"></span>
+                                </label>
+                                <span id="label-pj" class="toggle-label"><span class="desktop-text">Pessoa Jurídica</span><span class="mobile-text">PJ</span></span>
+                            </div>
                             <button class="btn-primary" onclick="app.runManualSearch()">
                                 <i class="fas fa-bolt"></i> Realizar Consulta (0.5 Cr)
                             </button>
@@ -4966,16 +5056,50 @@
                 }
             },
 
-            async runManualSearch() {
-                const name = document.getElementById('manual-name').value;
-                const cpf = document.getElementById('manual-cpf').value;
-                const resultsContainer = document.getElementById('manual-results');
-
-                if (!name && !cpf) {
-                    this.showToast("Preencha Nome ou CPF/CNPJ", "warning");
-                    return;
+            toggleManualMode(isPJ) {
+                document.getElementById('manual-fields-pf').style.display = isPJ ? 'none' : 'grid';
+                document.getElementById('manual-fields-pj').style.display = isPJ ? 'grid' : 'none';
+                
+                // Highlight Labels
+                if (isPJ) {
+                    document.getElementById('label-pj').classList.add('active');
+                    document.getElementById('label-pf').classList.remove('active');
+                } else {
+                    document.getElementById('label-pf').classList.add('active');
+                    document.getElementById('label-pj').classList.remove('active');
                 }
 
+                // Limpar campos ao trocar
+                if (isPJ) {
+                    document.getElementById('manual-name').value = '';
+                    document.getElementById('manual-cpf').value = '';
+                } else {
+                    document.getElementById('manual-cnpj').value = '';
+                    document.getElementById('manual-phone').value = '';
+                }
+            },
+
+            async runManualSearch() {
+                const isPJ = document.getElementById('manual-mode-switch').checked;
+                let name = '', cpf = '', cnpj = '', phone = '';
+                
+                if (isPJ) {
+                    cnpj = document.getElementById('manual-cnpj').value;
+                    phone = document.getElementById('manual-phone').value;
+                    if (!cnpj && !phone) {
+                        this.showToast("Preencha CNPJ ou Telefone", "warning");
+                        return;
+                    }
+                } else {
+                    name = document.getElementById('manual-name').value;
+                    cpf = document.getElementById('manual-cpf').value;
+                    if (!name && !cpf) {
+                        this.showToast("Preencha Nome ou CPF/CNPJ", "warning");
+                        return;
+                    }
+                }
+
+                const resultsContainer = document.getElementById('manual-results');
                 resultsContainer.style.display = 'block';
                 resultsContainer.innerHTML = `
                     <div class="empty-state">
@@ -4984,11 +5108,14 @@
                     </div>
                 `;
 
+                const searchLabel = isPJ ? (cnpj || phone) : (cpf || name);
                 const data = await this.startTask('/tasks/enrich', { 
                     manual: true, 
                     name, 
                     cpf,
-                    filterSummary: `Busca: ${cpf || name}`
+                    cnpj,
+                    phone,
+                    filterSummary: `Busca: ${searchLabel}`
                 }, 'manual');
 
                 if (data && Array.isArray(data)) {

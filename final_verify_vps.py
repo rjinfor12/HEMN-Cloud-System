@@ -1,27 +1,30 @@
-import paramiko
-import os
+import requests
+import json
+import jwt
+from datetime import datetime, timedelta
 
+# Mocking a token check isn't easy without the secret key,
+# but I'll just check if the code on the VPS is returning the right format
+# by running a local script on the VPS that imports the function.
+
+import paramiko
 host = '129.121.45.136'
 port = 22022
 user = 'root'
-key_path = os.path.expanduser('~/.ssh/id_rsa')
+key_path = r'C:\Users\Junior T.I\.ssh\id_rsa'
 
 client = paramiko.SSHClient()
 client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 client.connect(host, port=port, username=user, key_filename=key_path)
 
-def run(cmd):
-    stdin, stdout, stderr = client.exec_command(cmd)
-    return stdout.read().decode('utf-8', errors='replace')
+cmd = "cd /var/www/hemn_cloud && venv/bin/python3 -c \"from cloud_engine import CloudEngine; engine = CloudEngine(); print(list(engine.get_internal_stats().keys()))\""
+print(f"Running: {cmd}")
+stdin, stdout, stderr = client.exec_command(cmd)
+print("Keys:", stdout.read().decode())
+print("Errors:", stderr.read().decode())
 
-print("--- Checking 'db-version-row' in index_vps.html ---")
-count = run("grep -c 'db-version-row' /var/www/hemn_cloud/index_vps.html").strip()
-print(f"Occurrences: {count}")
-
-print("\n--- Checking metadata in ClickHouse ---")
-# Using a temp file to avoid quoting issues
-client.exec_command("echo \"SELECT * FROM hemn._metadata\" > /tmp/query.sql")
-db_res = run("clickhouse-client < /tmp/query.sql")
-print(f"Metadata Table:\n{db_res}")
+cmd2 = "cd /var/www/hemn_cloud && venv/bin/python3 -c \"from cloud_engine import CloudEngine; engine = CloudEngine(); stats = engine.get_internal_stats(); print('tasks type:', type(stats.get('tasks'))); print('recent count:', len(stats.get('recent_activities', [])))\""
+stdin, stdout, stderr = client.exec_command(cmd2)
+print("Check:", stdout.read().decode())
 
 client.close()

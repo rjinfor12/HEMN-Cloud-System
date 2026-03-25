@@ -230,6 +230,8 @@ class EnrichRequest(BaseModel):
     manual: Optional[bool] = False
     name: Optional[str] = None
     cpf: Optional[str] = None
+    cnpj: Optional[str] = None
+    phone: Optional[str] = None
     perfil: Optional[str] = "TODOS"
 
 
@@ -649,7 +651,10 @@ def start_enrich(req: EnrichRequest, user: dict = Depends(get_current_user)):
     if req.manual:
         # Limpeza básica do CPF
         cpf_clean = ''.join(filter(str.isdigit, str(req.cpf or "")))
-        res = engine.deep_search(req.name, cpf_clean)
+        cnpj_clean = ''.join(filter(str.isdigit, str(req.cnpj or "")))
+        phone_clean = ''.join(filter(str.isdigit, str(req.phone or "")))
+        
+        res = engine.deep_search(req.name, cpf_clean, cnpj=cnpj_clean, phone=phone_clean)
         
         # Débito de Consulta Manual conforme plano do usuário
         plan = get_user_plan(user["total_limit"])
@@ -663,7 +668,8 @@ def start_enrich(req: EnrichRequest, user: dict = Depends(get_current_user)):
             conn.close()
         
         # Logar transação SEMPRE
-        log_transaction(user["username"], "DEBIT", unit_cost, "MANUAL", f"Busca Unitária: {req.name or req.cpf}")
+        search_desc = req.cnpj or req.phone or req.cpf or req.name
+        log_transaction(user["username"], "DEBIT", unit_cost, "MANUAL", f"Busca Unitária: {search_desc}")
             
         return res.to_dict(orient="records")
     
@@ -960,6 +966,7 @@ def get_monitor_stats(user: dict = Depends(get_current_user)):
         "system": sys_stats,
         "engine": engine_stats,
         "clickhouse": ch_stats,
+        "recent_activities": engine_stats.get("recent_activities", []),
         "timestamp": datetime.now().isoformat()
     }
 

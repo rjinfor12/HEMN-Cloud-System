@@ -921,6 +921,46 @@ input::placeholder {
     gap: var(--s-4);
 }
 
+.manual-search-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: var(--s-4);
+    margin-top: var(--s-5);
+}
+
+@media (max-width: 600px) {
+    .manual-search-actions {
+        flex-direction: row;
+        align-items: center;
+        justify-content: space-between;
+    }
+}
+
+.mobile-text {
+    display: none !important;
+}
+
+.hemn-toggle-container {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 4px 12px;
+    background: var(--bg-hover);
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    transition: all 0.3s ease;
+}
+
+@media (max-width: 600px) {
+    .desktop-text { display: none !important; }
+    .mobile-text { display: inline !important; }
+    .hemn-toggle-container {
+        gap: 6px !important;
+        padding: 4px 8px !important;
+    }
+}
+
 /* ─────────────────────────────────────────────
    12. TABLES
 ───────────────────────────────────────────── */
