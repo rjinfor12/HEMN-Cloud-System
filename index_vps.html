@@ -3600,7 +3600,11 @@
                         // Update Sidebar Role
                         const sidebarRole = document.getElementById('sidebar-role-display');
                         if (sidebarRole) {
-                            if (user.role === 'ADMIN') sidebarRole.innerText = 'Admin';
+                            if (user.role === 'ADMIN') {
+                                sidebarRole.innerText = 'Admin';
+                                // Chamar verificação de operadora para admins logo no login
+                                if (typeof this.checkCarrierUpdate === 'function') this.checkCarrierUpdate();
+                            }
                             else if (user.role === 'CLINICAS') sidebarRole.innerText = 'Clínicas';
                             else sidebarRole.innerText = 'Bronze';
                         }
@@ -3917,6 +3921,13 @@
                     if (!res.ok) throw new Error("Unauthorized");
                     const data = await res.json();
 
+                    // Verificação de operadora (Throttle: apenas se não verificado nos últimos 60s)
+                    const now = Date.now();
+                    if (!this.lastCarrierCheck || (now - this.lastCarrierCheck > 60000)) {
+                        this.checkCarrierUpdate();
+                        this.lastCarrierCheck = now;
+                    }
+
                     document.getElementById('mon-cpu-val').innerText = data.system.cpu;
                     document.getElementById('mon-ram-val').innerText = data.system.ram;
                     document.getElementById('mon-ram-progress').style.width = data.system.ram + '%';
@@ -4022,26 +4033,26 @@
                         this.renderAdminTable(users);
                         this.updateAdminStats(users);
                     }
-                    
-                    // Fetch Carrier Status (v1.8.12)
-                    fetch(`${API}/admin/monitor/carrier-status`, { headers: { 'Authorization': `Bearer ${this.token}` } })
-                        .then(r => r.json())
-                        .then(data => {
-                            const badge = document.getElementById('carrier-update-status');
-                            if (badge) {
-                                if (data.update_available) {
-                                    badge.style.setProperty('display', 'flex', 'important');
-                                    // Tooltip opcional
-                                    badge.title = `Nova base detectada no FTP: ${data.last_ftp}`;
-                                } else {
-                                    badge.style.display = 'none';
-                                }
-                            }
-                        }).catch(e => console.error("Fail to fetch carrier status", e));
-
                 } catch (e) {
                     this.showToast("Falha ao carregar dados admin", "error");
                 }
+            },
+
+            checkCarrierUpdate() {
+                // Fetch Carrier Status (v1.8.12)
+                fetch(`${API}/admin/monitor/carrier-status`, { headers: { 'Authorization': `Bearer ${this.token}` } })
+                    .then(r => r.json())
+                    .then(data => {
+                        const badge = document.getElementById('carrier-update-status');
+                        if (badge) {
+                            if (data.update_available) {
+                                badge.style.setProperty('display', 'flex', 'important');
+                                badge.title = `Nova base detectada no FTP: ${data.last_ftp}`;
+                            } else {
+                                badge.style.display = 'none';
+                            }
+                        }
+                    }).catch(e => console.error("Fail to fetch carrier status", e));
             },
 
             renderAdminTable(users) {
