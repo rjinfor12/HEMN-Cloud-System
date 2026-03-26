@@ -1293,7 +1293,7 @@ class CloudEngine:
             
             import xlsxwriter
             workbook = xlsxwriter.Workbook(output_file, {'constant_memory': True, 'tmpdir': '/tmp'})
-            sheet = workbook.add_worksheet("Extração Hemn")
+            sheet = workbook.add_worksheet("Extracao Hemn")
             header_fmt = workbook.add_format({'bold': True, 'bg_color': '#3a7bd5', 'font_color': 'white'})
 
             ch_local = self._get_ch_client()
