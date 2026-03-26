@@ -135,8 +135,6 @@ class CarrierRequest(BaseModel):
     file_id: str
     phone_col: str
 
-class SplitRequest(BaseModel):
-    file_id: str
 
 class LeadSearchRequest(BaseModel):
     search_type: str # 'cpf', 'nome', 'telefone'
@@ -386,11 +384,6 @@ def get_single_carrier(phone: str, user: dict = Depends(get_current_user)):
         
     return engine.get_single_carrier(phone)
 
-@app.post("/tasks/split")
-def start_split(req: SplitRequest, user: dict = Depends(get_current_user)):
-    path = os.path.join(UPLOAD_DIR, req.file_id)
-    tid = engine.start_split(path, RESULT_DIR, username=user["username"])
-    return {"task_id": tid}
 
 @app.get("/tasks/active")
 def get_active_tasks(user: dict = Depends(get_current_user)):

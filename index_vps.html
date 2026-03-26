@@ -1391,10 +1391,6 @@
                     <i class="icon fas fa-layer-group"></i>
                     <span>Unificar Bases</span>
                 </a>
-                <a href="#" class="nav-link" id="nav-split" onclick="app.showModule('split', this)">
-                    <i class="icon fas fa-cut"></i>
-                    <span>Dividir Arquivo</span>
-                </a>
                 <a href="#" class="nav-link" id="nav-carrier" onclick="app.showModule('carrier', this)">
                     <i class="icon fas fa-signal"></i>
                     <span>Consulta Operadora</span>
@@ -1472,26 +1468,7 @@
                     </div>
                 </div>
                 <div class="header-tools">
-                    <div class="notification-wrapper" id="notification-wrapper">
-                        <button class="icon-btn" title="Notificações" id="btn-notifications" onclick="app.toggleNotifications()">
-                            <i class="fas fa-bell"></i>
-                            <span id="notification-badge">0</span>
-                        </button>
-
-                        <!-- Notification Dropdown -->
-                        <div id="notification-dropdown">
-                            <div class="notif-header">
-                                <h3>NOTIFICAÇÕES</h3>
-                                <button onclick="app.clearNotifications()">Limpar Tudo</button>
-                            </div>
-                            <div id="notification-list">
-                                <div class="notif-empty-state">
-                                    <i class="fas fa-bell-slash"></i>
-                                    Nenhuma notificação por enquanto.
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                        <!-- Notification Wrapper Removed -->
 
                     <!-- Real-Time Balance Display -->
                     <div class="balance-menu-wrapper" id="balance-menu-wrapper">
@@ -2042,26 +2019,6 @@
                 </section>
 
                 <!-- MODULE: SPLIT -->
-                <section id="module-split" class="module-view" style="display:none;">
-                    <div class="page-header">
-                        <div>
-                            <h1 class="page-title">PESQUISA: Divisor de Arquivos Heavy</h1>
-                            <p class="page-subtitle">Quebre arquivos massivos em pedaços de 1M de linhas.</p>
-                        </div>
-                    </div>
-                    <div class="glass-card">
-                        <div class="drop-zone" onclick="document.getElementById('file-input-split').click()">
-                            <i class="fas fa-cut" style="font-size: 30px; margin-bottom: 12px;"></i>
-                            <p>Suba o arquivo CSV ou Excel gigante</p>
-                            <input type="file" id="file-input-split" hidden onchange="app.handleFiles(this, 'split')">
-                        </div>
-                        <div id="file-list-split" style="margin: var(--s-4) 0;"></div>
-                        <button class="btn-primary" onclick="app.startSplit()"
-                            style="width: 100%; justify-content: center;">Fatiar Arquivo</button>
-                        <h3 id="title-split" style="display:none; margin-top: 25px; margin-bottom: 10px; font-size: 14px; font-weight: 700; color: var(--text-1); border-left: 3px solid var(--accent); padding-left: 10px;">Pesquisas:</h3>
-                        <div id="tasks-split" style="margin-top: var(--s-2);"></div>
-                    </div>
-                </section>
 
                 <!-- MODULE: CLINICAS -->
                 <section id="module-clinicas" class="module-view" style="display:none;">
@@ -3068,7 +3025,7 @@
         const API = "/areadocliente";
         const app = {
             token: localStorage.getItem("hemn_token"),
-            uploadedFiles: { unify: [], enrich: [], carrier: [], split: [], cep: [] },
+            uploadedFiles: { unify: [], enrich: [], carrier: [], cep: [] },
             tasks: [],
             adminUsers: [], // Store users for edit lookup
             theme: localStorage.getItem("hemn_theme") || "dark",
@@ -3089,7 +3046,6 @@
                 'EXTRACTION': 'EXTRA\u00c7\u00c3O',
                 'CARRIER': 'OPERADORA',
                 'UNIFY': 'UNIFICA\u00c7\u00c3O',
-                'SPLIT': 'DIVIS\u00c3O',
                 'DOWNLOAD': 'DOWNLOAD',
                 'MANUAL': 'MANUAL'
             },
@@ -3104,29 +3060,7 @@
 
                 // Universal Robust Closer (Always Active)
                 const handleGlobalClick = (e) => {
-                    // Notification dropdown closer
-                    const dropdown = document.getElementById('notification-dropdown');
-                    const bellBtn = document.getElementById('btn-notifications');
-                    if (dropdown) {
-                        const isVisible = dropdown.style.display === 'block' || getComputedStyle(dropdown).display === 'block';
-                        if (isVisible) {
-                            const rect = dropdown.getBoundingClientRect();
-                            const isInside = e.clientX >= rect.left && e.clientX <= rect.right && 
-                                             e.clientY >= rect.top && e.clientY <= rect.bottom;
-
-                            let onButton = false;
-                            if (bellBtn) {
-                                const bRect = bellBtn.getBoundingClientRect();
-                                onButton = e.clientX >= bRect.left && e.clientX <= bRect.right &&
-                                           e.clientY >= bRect.top && e.clientY <= bRect.bottom;
-                                if (!onButton) onButton = bellBtn.contains(e.target);
-                            }
-
-                            if (!isInside && !onButton && !dropdown.contains(e.target)) {
-                                dropdown.style.display = 'none';
-                            }
-                        }
-                    }
+                    // Dropdown closers
 
                     // User menu robust closer
                     const userWrapper = document.getElementById('user-menu-wrapper');
@@ -5778,16 +5712,6 @@
                     btn.disabled = false;
                     btn.innerHTML = '<i class="fas fa-search"></i> Consultar';
                 }
-            },
-            startSplit() { 
-                if (!this.uploadedFiles.split || this.uploadedFiles.split.length === 0) {
-                    this.showToast("Nenhum arquivo submetido para fatiamento", "warning");
-                    return;
-                }
-                this.startTask('/tasks/split', { 
-                    file_id: this.uploadedFiles.split[0],
-                    filterSummary: "Divisão de Arquivo Heavy"
-                }, 'split'); 
             },
             startExtract() {
                 const uf = document.getElementById('extract-uf').value.toUpperCase();
