@@ -5123,12 +5123,18 @@
                 if (gel) gel.remove();
                 
                 try {
+                    // Além de esconder, cancela o processo no backend
+                    fetch(`${API}/tasks/${tid}/cancel`, {
+                        method: 'POST',
+                        headers: { 'Authorization': `Bearer ${this.token}` }
+                    });
+
                     await fetch(`${API}/tasks/${tid}/hide`, {
                         method: 'POST',
                         headers: { 'Authorization': `Bearer ${this.token}` }
                     });
                 } catch (e) {
-                    console.error("Failed to persist dismissal", e);
+                    console.error("Failed to cancel/hide task", e);
                 }
 
                 // Se não houver mais cards, esconde o título
