@@ -3083,6 +3083,16 @@
                 'FAILED': 'FALHOU',
                 'CANCELLED': 'CANCELADO'
             },
+            moduleMap: {
+                'ENRICH': 'ENRIQUECIMENTO',
+                'EXTRACT': 'EXTRA\u00c7\u00c3O',
+                'EXTRACTION': 'EXTRA\u00c7\u00c3O',
+                'CARRIER': 'OPERADORA',
+                'UNIFY': 'UNIFICA\u00c7\u00c3O',
+                'SPLIT': 'DIVIS\u00c3O',
+                'DOWNLOAD': 'DOWNLOAD',
+                'MANUAL': 'MANUAL'
+            },
             currentPixPayload: null,
             currentModule: null,
             lastInteraction: Date.now(),
@@ -3216,9 +3226,18 @@
                 }, 50);
             },
             addNotification(title, message, type = 'info') {
+                // Autolocalization of module names in titles (Extra defense)
+                let localTitle = title;
+                if (this.moduleMap) {
+                    Object.entries(this.moduleMap).forEach(([en, pt]) => {
+                        const regex = new RegExp(`\\b${en}\\b`, 'gi');
+                        localTitle = localTitle.replace(regex, pt);
+                    });
+                }
+
                 const notif = {
                     id: Date.now(),
-                    title,
+                    title: localTitle,
                     message,
                     type,
                     time: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
@@ -3229,7 +3248,7 @@
                 localStorage.setItem("hemn_notifications", JSON.stringify(this.notifications));
                 this.renderNotifications();
                 this.showBadge();
-                this.showToast(`🔔 ${title}`, type);
+                this.showToast(`🔔 ${localTitle}`, type);
             },
 
             renderNotifications() {
@@ -4878,19 +4897,8 @@
                         }
                     }
 
-                    const typeMap = { 'DEBIT': 'DÉBITO', 'CREDIT': 'CRÉDITO' };
-                    const moduleMap = {
-                        'ENRICH': 'ENRIQUECIMENTO',
-                        'EXTRACT': 'EXTRAÇÃO',
-                        'EXTRACTION': 'EXTRAÇÃO',
-                        'CARRIER': 'OPERADORA',
-                        'UNIFY': 'UNIFICAÇÃO',
-                        'SPLIT': 'DIVISÃO',
-                        'DOWNLOAD': 'DOWNLOAD',
-                        'MANUAL': 'MANUAL'
-                    };
                     const typeLabel = typeMap[l.type] || l.type;
-                    const moduleLabel = moduleMap[l.module] || l.module;
+                    const moduleLabel = this.moduleMap[l.module] || l.module;
 
                     row.innerHTML = `
                         <td style="font-size: 11px; font-weight: 500;">${dateStr}</td>
@@ -5044,16 +5052,7 @@
 
                         this.showToast("Tarefa iniciada na nuvem", "success");
 
-                        const moduleLabels = {
-                            'enrich': 'ENRIQUECIMENTO',
-                            'extract': 'EXTRAÇÃO',
-                            'extraction': 'EXTRAÇÃO',
-                            'carrier': 'OPERADORA',
-                            'unify': 'UNIFICAÇÃO',
-                            'split': 'DIVISÃO',
-                            'manual': 'BUSCA UNITÁRIA'
-                        };
-                        const moduleName = moduleLabels[mid] || mid.toUpperCase();
+                        const moduleName = this.moduleMap[mid.toUpperCase()] || mid.toUpperCase();
                         console.log(`[DEBUG] Task ${data.task_id} initiated for module ${mid} (${moduleName})`);
                         this.addNotification("Novo Processo", `Sua tarefa de ${moduleName} (TI-${data.task_id.substring(0, 6)}) foi encaminhada para a nuvem.`, "info");
 
@@ -5105,15 +5104,7 @@
                     container.prepend(card);
                 }
 
-                const moduleLabels = {
-                    'enrich': 'ENRIQUECIMENTO',
-                    'extract': 'EXTRAÇÃO',
-                    'extraction': 'EXTRAÇÃO',
-                    'carrier': 'OPERADORA',
-                    'unify': 'UNIFICAÇÃO',
-                    'split': 'DIVISÃO'
-                };
-                const moduleLabel = moduleLabels[mid] || mid.toUpperCase();
+                const moduleLabel = this.moduleMap[mid.toUpperCase()] || mid.toUpperCase();
 
                 // Use saved data for instant UI or defaults
                 const rawStatus = savedData?.status?.toUpperCase() || "QUEUED";
@@ -5568,7 +5559,7 @@
                                             timeLabel.style.color = "var(--g-success)";
                                         }
                                         t.done = true;
-                                        const modName = t.mid ? t.mid.toUpperCase() : 'Processo';
+                                        const modName = t.mid ? (this.moduleMap[t.mid.toUpperCase()] || t.mid.toUpperCase()) : 'Processo';
                                         this.addNotification(`${modName} Concluído`, `Processamento do lote (TI-${t.id.substring(0, 6)}) finalizado. Foram encontrados ${count} registros prontos para download.`, "success");
                                         this.refreshUser();
                                     }
