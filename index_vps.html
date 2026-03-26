@@ -4007,8 +4007,19 @@
                         headers: { 'Authorization': `Bearer ${this.token}` }
                     });
                     const data = await res.json();
-                    if (data.status === 'ok') {
+                    if (res.ok) {
+                        const task = { id: data.task_id || data.id, mid: 'carrier', startTime: Date.now(), done: false };
+                        this.tasks.push(task);
+                        localStorage.setItem('hemn_active_tasks', JSON.stringify(this.tasks));
                         this.showToast("Tarefa de atualização iniciada com sucesso!", "success");
+                        
+                        // Atualizar badge para "Atualizando"
+                        const badge = document.getElementById('carrier-update-status');
+                        if (badge) {
+                            badge.style.display = 'flex';
+                            badge.style.color = '#3b82f6';
+                            badge.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Atualização em curso...';
+                        }
                     } else {
                         this.showToast("Erro: " + (data.detail || "Falha ao iniciar"), "error");
                     }
@@ -4047,7 +4058,20 @@
                         if (badge) {
                             if (data.update_available) {
                                 badge.style.setProperty('display', 'flex', 'important');
-                                badge.title = `Nova base detectada no FTP: ${data.last_ftp}`;
+                                badge.style.color = "#000000"; // Preto solicitado pelo usuário
+                                badge.innerHTML = `<i class="fas fa-exclamation-circle" style="color:#d97706"></i> NOVA BASE DISPONÍVEL`;
+                                badge.title = `Nova base detectada no FTP em: ${data.last_ftp}`;
+                            } else if (data.last_update) {
+                                badge.style.setProperty('display', 'flex', 'important');
+                                badge.style.color = "#10b981"; // Verde para atualizado
+                                try {
+                                    const dt = new Date(data.last_update);
+                                    const fmt = dt.toLocaleString('pt-BR');
+                                    badge.innerHTML = `<i class="fas fa-check-circle"></i> Base Atualizada: ${fmt}`;
+                                } catch(e) {
+                                    badge.innerHTML = `<i class="fas fa-check-circle"></i> Base Atualizada`;
+                                }
+                                badge.title = "A base de operadoras está sincronizada com a última versão disponível.";
                             } else {
                                 badge.style.display = 'none';
                             }
@@ -5530,6 +5554,10 @@
                                         const modName = t.mid ? (this.moduleMap[t.mid.toUpperCase()] || t.mid.toUpperCase()) : 'Processo';
                                         this.addNotification(`${modName} Concluído`, `Processamento do lote (TI-${t.id.substring(0, 6)}) finalizado. Foram encontrados ${count} registros prontos para download.`, "success");
                                         this.refreshUser();
+                                        // Se for atualização de operadora, atualizar o badge de status (v1.8.15)
+                                        if (t.mid === 'carrier') {
+                                            this.checkCarrierUpdate();
+                                        }
                                     }
                                 }
                                 else if (data.status === 'FAILED' || data.status === 'CANCELLED') {
