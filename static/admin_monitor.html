@@ -200,6 +200,32 @@
         .live-indicator {
             animation: pulse 2s infinite;
         }
+
+        .btn-action {
+            padding: 8px 16px;
+            background: var(--accent);
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: 0.2s;
+        }
+
+        .btn-action:hover {
+            filter: brightness(1.2);
+            box-shadow: 0 0 15px var(--accent-glow);
+        }
+        
+        .btn-action:disabled {
+            background: var(--border);
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
     </style>
 </head>
 
@@ -211,9 +237,15 @@
                 <a href="../static/admin.html" class="btn-back">← Voltar ao Painel</a>
                 <h1 style="margin-top: 20px;">Monitoramento <span>Real-Time</span></h1>
             </div>
-            <div class="status-badge">
-                <div class="status-dot live-indicator"></div>
-                SISTEMA OPERACIONAL
+            <div style="display: flex; align-items: center; gap: 15px;">
+                <button id="btn-update-carrier" onclick="triggerCarrierUpdate()" class="btn-action">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                    ATUALIZAR BASE OPERADORA
+                </button>
+                <div class="status-badge">
+                    <div class="status-dot live-indicator"></div>
+                    SISTEMA OPERACIONAL
+                </div>
             </div>
         </div>
 
@@ -367,10 +399,69 @@
                 document.getElementById('engine-completed').innerText = eng.tasks.completed;
                 document.getElementById('engine-slots').innerText = eng.enrich_slots_available;
 
+                // Update Logs & Tasks
+                const logsCont = document.getElementById('task_logs') || document.getElementById('task-logs');
+                if (logsCont && data.recent_activities) {
+                    if (data.recent_activities.length === 0) {
+                        logsCont.innerHTML = '<div style="color: var(--text-muted); text-align: center; margin-top: 40px;">Sem atividades recentes.</div>';
+                    } else {
+                        logsCont.innerHTML = data.recent_activities.map(task => {
+                            const isSystem = task.module === 'CARRIER_UPDATE';
+                            const color = isSystem ? 'var(--accent)' : 'var(--text-main)';
+                            const progressHtml = task.status === 'PROCESSING' ? `
+                                <div class="progress-bar" style="height: 4px; margin-top: 5px;">
+                                    <div class="progress-fill" style="width: ${task.progress || 0}%"></div>
+                                </div>
+                            ` : '';
+                            
+                            return `
+                                <div class="list-item" style="flex-direction: column; align-items: flex-start; gap: 4px;">
+                                    <div style="display: flex; justify-content: space-between; width: 100%; font-size: 11px;">
+                                        <span style="font-weight: 700; color: ${color}">${task.module} [${task.id.substring(0,8)}]</span>
+                                        <span style="color: var(--text-muted)">${task.status}</span>
+                                    </div>
+                                    <div style="font-size: 12px; color: var(--text-main)">${task.message || 'Sem detalhes'}</div>
+                                    ${progressHtml}
+                                </div>
+                            `;
+                        }).join('');
+                    }
+                }
+
             } catch (e) {
                 console.error("Monitor Error:", e);
                 document.getElementById('ch-status').innerText = "ERRO DE CONEXÃO";
                 document.getElementById('ch-status').style.color = "var(--danger)";
+            }
+        }
+
+        async function triggerCarrierUpdate() {
+            const btn = document.getElementById('btn-update-carrier');
+            if (!confirm("Deseja iniciar a atualização da base de operadoras via FTP?\nEste processo pode demorar alguns minutos.")) return;
+            
+            try {
+                btn.disabled = true;
+                btn.innerText = "INICIANDO...";
+                const res = await fetch(`monitor/update-carrier`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await res.json();
+                if (data.status === 'ok') {
+                    alert("Tarefa de atualização iniciada! Acompanhe o progresso no resumo de atividades.");
+                } else {
+                    alert("Erro ao iniciar: " + (data.detail || "Erro desconhecido"));
+                }
+            } catch (e) {
+                alert("Falha na comunicação com o servidor.");
+            } finally {
+                setTimeout(() => {
+                    btn.disabled = false;
+                    btn.innerHTML = `
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                        ATUALIZAR BASE OPERADORA
+                    `;
+                }, 3000);
             }
         }
 

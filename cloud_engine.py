@@ -8,6 +8,9 @@ import uuid
 import shutil
 import re
 import unicodedata
+import ftplib
+import tarfile
+import bzip2
 from concurrent.futures import ThreadPoolExecutor
 try:
     import clickhouse_connect
@@ -488,6 +491,99 @@ class CloudEngine:
         tid = self._create_task(module="ENRICH", username=username, filters=f_summary)
         threading.Thread(target=self._run_enrich, args=(tid, input_file, output_dir, name_col, cpf_col, perfil), daemon=True).start()
         return tid
+
+    def start_carrier_update(self, username="admin"):
+        """Inicia atualização da base de operadoras via FTP"""
+        tid = self._create_task(module="CARRIER_UPDATE", username=username, filters="[ADMIN] Atualizar Base Operadoras")
+        threading.Thread(target=self._run_carrier_update, args=(tid,), daemon=True).start()
+        return tid
+
+    def _run_carrier_update(self, tid):
+        """Thread que executa o download e ingestão do FTP"""
+        host = "ftp.portabilidadecelular.com"
+        port = 2157
+        user = "MAYK"
+        passwd = "Mayk@2025"
+        filename = "portabilidade.tar.bz2"
+        local_zip = os.path.join(os.getcwd(), "portabilidade.tar.bz2")
+        
+        try:
+            self._update_task(tid, progress=5, message="Conectando ao FTP...")
+            ftp = ftplib.FTP()
+            ftp.connect(host, port, timeout=60)
+            ftp.login(user, passwd)
+            
+            # Obter tamanho para progresso
+            size = ftp.size(filename)
+            downloaded = 0
+            
+            def ftp_callback(data):
+                nonlocal downloaded
+                downloaded += len(data)
+                if size > 0:
+                    pct = int((downloaded / size) * 40) + 5 # 5% a 45% é download
+                    self._update_task(tid, progress=pct, message=f"Baixando base... {downloaded/1024/1024:.1f}MB")
+
+            with open(local_zip, 'wb') as f:
+                ftp.retrbinary(f"RETR {filename}", ftp_callback)
+            ftp.quit()
+            
+            self._update_task(tid, progress=50, message="Extraindo arquivos...")
+            # Extração tar.bz2
+            extracted_file = None
+            with tarfile.open(local_zip, "r:bz2") as tar:
+                tar.extractall(path=os.getcwd())
+                # Procurar o arquivo extraído (geralmente portabilidade.csv ou similar)
+                for member in tar.getmembers():
+                    if member.isfile():
+                        extracted_file = os.path.join(os.getcwd(), member.name)
+                        break
+            
+            if not extracted_file or not os.path.exists(extracted_file):
+                raise Exception("Arquivo extraído não encontrado.")
+
+            self._update_task(tid, progress=60, message="Iniciando ingestão SQLite...")
+            
+            # Ingestão no SQLite hemn_carrier.db
+            conn = sqlite3.connect(self.db_carrier)
+            conn.execute("PRAGMA journal_mode=OFF") # Performance
+            conn.execute("DROP TABLE IF EXISTS portabilidade_new")
+            conn.execute("CREATE TABLE portabilidade_new (telefone TEXT, operadora_id INTEGER)")
+            
+            batch = []
+            count = 0
+            with open(extracted_file, 'r') as f:
+                for line in f:
+                    parts = line.strip().split(',') # Formato esperado: telefone,operadora_id
+                    if len(parts) >= 2:
+                        batch.append((parts[0], parts[1]))
+                        count += 1
+                    
+                    if len(batch) >= 50000:
+                        conn.executemany("INSERT INTO portabilidade_new VALUES (?,?)", batch)
+                        batch = []
+                        # 60% a 95% é ingestão
+                        self._update_task(tid, progress=60 + int((count / 1000000) * 35) % 35, message=f"Importando: {count:,} registros")
+
+            if batch:
+                conn.executemany("INSERT INTO portabilidade_new VALUES (?,?)", batch)
+            
+            self._update_task(tid, progress=95, message="Finalizando transação...")
+            conn.execute("DROP TABLE IF EXISTS portabilidade")
+            conn.execute("ALTER TABLE portabilidade_new RENAME TO portabilidade")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_tel ON portabilidade (telefone)")
+            conn.commit()
+            conn.close()
+            
+            # Limpeza
+            if os.path.exists(local_zip): os.remove(local_zip)
+            if extracted_file and os.path.exists(extracted_file): os.remove(extracted_file)
+            
+            self._update_task(tid, progress=100, message="Base atualizada com sucesso!", status="COMPLETED")
+            
+        except Exception as e:
+            print(f"Error in carrier update: {e}")
+            self._update_task(tid, status="FAILED", message=f"Erro: {str(e)}")
     def deep_search(self, name=None, cpf=None, cnpj=None, phone=None):
         """Busca rápida unitária no ClickHouse"""
         ch_local = self._get_ch_client()

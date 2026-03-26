@@ -974,13 +974,16 @@ def get_monitor_stats(user: dict = Depends(get_current_user)):
     # 3. ClickHouse Stats
     ch_stats = engine.get_ch_metrics()
     
-    return {
-        "system": sys_stats,
-        "engine": engine_stats,
-        "clickhouse": ch_stats,
         "recent_activities": engine_stats.get("recent_activities", []),
         "timestamp": datetime.now().isoformat()
     }
+
+@router.post("/admin/monitor/update-carrier")
+def post_update_carrier(user: dict = Depends(get_current_user)):
+    if user["role"] != "ADMIN":
+        raise HTTPException(status_code=403, detail="Acesso restrito.")
+    tid = engine.start_carrier_update(user["username"])
+    return {"status": "ok", "task_id": tid}
 
 @router.put("/admin/users/{username}")
 def update_user(username: str, data: dict, user: dict = Depends(get_current_user)):
