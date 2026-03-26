@@ -1,4 +1,4 @@
-import os
+import os as os_native
 import sqlite3
 import pandas as pd
 import threading
@@ -150,13 +150,13 @@ class CloudEngine:
         if self.is_linux:
             base_dir = "/var/www/hemn_cloud/data_assets"
         else:
-            base_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data_assets")
+            base_dir = os_native.path.join(os_native.path.dirname(os_native.path.abspath(__file__)), "data_assets")
             
-        prefix_path = os.path.join(base_dir, "prefix_anatel.csv")
-        dict_path = os.path.join(base_dir, "cod_operadora.csv")
+        prefix_path = os_native.path.join(base_dir, "prefix_anatel.csv")
+        dict_path = os_native.path.join(base_dir, "cod_operadora.csv")
         
         # Load Operadora Dictionary from CSV if available
-        if os.path.exists(dict_path):
+        if os_native.path.exists(dict_path):
             try:
                 import csv
                 with open(dict_path, mode='r', encoding='latin1') as f:
@@ -166,7 +166,7 @@ class CloudEngine:
             except: pass
             
         # Load Prefix Tree (Standard ANATEL Base)
-        if os.path.exists(prefix_path):
+        if os_native.path.exists(prefix_path):
             try:
                 df = pd.read_csv(prefix_path, sep=';', dtype=str)
                 if 'number' in df.columns and 'company' in df.columns:
@@ -345,11 +345,11 @@ class CloudEngine:
     def _get_ingestion_progress(self):
         """Checks for external ingestion logs and returns a virtual task if active."""
         log_path = "/var/www/hemn_cloud/ingest_march_2026.log"
-        if not os.path.exists(log_path): return None
+        if not os_native.path.exists(log_path): return None
         
         try:
             # Check if log was updated recently (last 30 minutes)
-            mtime = os.path.getmtime(log_path)
+            mtime = os_native.path.getmtime(log_path)
             if time.time() - mtime > 1800: return None
             
             with open(log_path, "r", encoding="utf-8", errors="ignore") as f:
@@ -486,7 +486,7 @@ class CloudEngine:
 
     def start_enrich(self, input_file, output_dir, name_col, cpf_col, username=None, perfil="TODOS"):
         print(f"[DEBUG] start_enrich called: input={input_file}, name_col={name_col}, cpf_col={cpf_col}, user={username}, perfil={perfil}")
-        fname = os.path.basename(input_file)
+        fname = os_native.path.basename(input_file)
         f_summary = f"[v1.9.1] Enriquecer: {fname} (Perfil: {perfil})"
         tid = self._create_task(module="ENRICH", username=username, filters=f_summary)
         threading.Thread(target=self._run_enrich, args=(tid, input_file, output_dir, name_col, cpf_col, perfil), daemon=True).start()
@@ -499,72 +499,109 @@ class CloudEngine:
         return tid
 
     def _run_carrier_update(self, tid):
-        """Thread que executa o download e ingestão do FTP"""
-        host = "ftp.portabilidadecelular.com"
-        port = 2157
-        user = "MAYK"
-        passwd = "Mayk@2025"
-        filename = "portabilidade.tar.bz2"
-        local_zip = os.path.join(os.getcwd(), "portabilidade.tar.bz2")
-        
+        import sys
+        print(f"[CRITICAL DEBUG] _run_carrier_update started for TID: {tid}")
+        sys.stdout.flush()
         try:
+            # Definir caminhos absolutos para evitar erros de CWD
+            base_dir = "/var/www/hemn_cloud"
+            local_zip = os_native.path.join(base_dir, "portabilidade.tar.bz2")
+            print(f"[CRITICAL DEBUG] local_zip set to: {local_zip}")
+            sys.stdout.flush()
+            
+            host = "ftp.portabilidadecelular.com"
+            port = 2157
+            user = "MAYK"
+            passwd = "Mayk@2025"
+            filename = "portabilidade.tar.bz2"
+            
+            print(f"[CRITICAL DEBUG] Attempting to update task status to 5%...")
+            self._update_task(tid, progress=5, message="Baixando base de dados (CURL)...")
+            print(f"[CRITICAL DEBUG] Task status updated to 5%.")
+            
             # Tentar obter o tamanho do arquivo para progresso
+            size = 467616948 # Default
             try:
+                print(f"[CRITICAL DEBUG] Connecting to FTP for size check...")
                 ftp_size = ftplib.FTP()
                 ftp_size.connect(host, port, timeout=10)
                 ftp_size.login(user, passwd)
                 size = ftp_size.size(filename)
                 ftp_size.quit()
-            except:
-                size = 467616948 # Fallback tamanho conhecido se falhar
+                print(f"[CRITICAL DEBUG] FTP size obtained: {size}")
+            except Exception as fe:
+                print(f"[CRITICAL DEBUG] FTP size fail: {fe}")
             
-            self._update_task(tid, progress=5, message="Iniciando download (WGET)...")
+            self._update_task(tid, progress=5, message="Baixando base de dados (CURL)...")
             
-            # Executar wget via subprocesso para performance máxima
+            # Usar curl para máxima estabilidade no download FTP
             import subprocess
             import time
+            import os
             
-            process = subprocess.Popen([
-                "wget", 
-                f"--ftp-user={user}", 
-                f"--ftp-password={passwd}", 
-                f"ftp://{host}:{port}/{filename}", 
-                "-O", local_zip, 
-                "-q"
-            ])
+            # Garantir que o diretório atual é o correto
+            os_native.chdir("/var/www/hemn_cloud")
             
-            # Monitorar progresso do download
+            # Download usando CURL (mais robusto)
+            cmd = [
+                "/usr/bin/curl", "-u", f"{user}:{passwd}",
+                f"ftp://{host}:{port}/{filename}",
+                "-o", local_zip,
+                "--silent", "--show-error",
+                "--retry", "3", "--retry-delay", "5"
+            ]
+            print(f"[CRITICAL DEBUG] CurL command prepared: {' '.join(cmd)}")
+            sys.stdout.flush()
+            process = subprocess.Popen(cmd, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+            
+            # Monitorar progresso (simples via tamanho do arquivo em disco)
             start_time = time.time()
+            print(f"[CRITICAL DEBUG] Monitoring download of {local_zip}...")
+            sys.stdout.flush()
+            
             while process.poll() is None:
-                if os.path.exists(local_zip):
-                    curr = os.path.getsize(local_zip)
-                    pct = int((curr / size) * 40) + 5
-                    self._update_task(tid, progress=pct, message=f"Baixando base: {curr/1024/1024:.1f} MB")
-                time.sleep(2)
-                # Timeout de segurança 10 min
-                if time.time() - start_time > 600:
-                    process.terminate()
-                    raise Exception("Timeout no download da base.")
-
+                if os_native.path.exists(local_zip):
+                    current_size = os_native.path.getsize(local_zip)
+                    p = int((current_size / size) * 45) + 5
+                    if p > 50: p = 50
+                    self._update_task(tid, progress=p, message=f"Baixando base... ({current_size//1024//1024}MB)")
+                    if int(time.time() - start_time) % 10 == 0:
+                        print(f"[CRITICAL DEBUG] Download Progress: {p}% ({current_size} bytes)")
+                        sys.stdout.flush()
+                time.sleep(1)
+            
+            print(f"[CRITICAL DEBUG] Curl finished. Return code: {process.returncode}")
+            sys.stdout.flush()
+            
             if process.returncode != 0:
-                raise Exception(f"Wget falhou com código {process.returncode}")
+                stdout, stderr = process.communicate()
+                print(f"[CRITICAL ERROR] Download failed: {stderr.decode() if stderr else 'Unknown error'}")
+                sys.stdout.flush()
+                raise Exception(f"Download falhou: {stderr.decode() if stderr else 'Unknown error'}")
             
-            if not os.path.exists(local_zip) or os.path.getsize(local_zip) < 1000:
-                raise Exception("Arquivo baixado é inválido ou muito pequeno.")
+            if not os_native.path.exists(local_zip) or os_native.path.getsize(local_zip) < 10000000: # 10MB min
+                raise Exception("Arquivo inexistente ou muito pequeno após download.")
             
-            self._update_task(tid, progress=50, message="Extraindo arquivos...")
-            # Extração tar.bz2
+            self._update_task(tid, progress=55, message="Extraindo dados (bzip2)...")
+            print(f"[CRITICAL DEBUG] Extracting {local_zip}...")
+            sys.stdout.flush()
+            
+            import tarfile
             extracted_file = None
             with tarfile.open(local_zip, "r:bz2") as tar:
-                tar.extractall(path=os.getcwd())
-                # Procurar o arquivo extraído (geralmente portabilidade.csv ou similar)
+                tar.extractall(path="/var/www/hemn_cloud")
                 for member in tar.getmembers():
-                    if member.isfile():
-                        extracted_file = os.path.join(os.getcwd(), member.name)
+                    if member.name.endswith(".csv"):
+                        extracted_file = os_native.path.join("/var/www/hemn_cloud", member.name)
                         break
             
-            if not extracted_file or not os.path.exists(extracted_file):
-                raise Exception("Arquivo extraído não encontrado.")
+            if not extracted_file or not os_native.path.exists(extracted_file):
+                print(f"[CRITICAL ERROR] Extracted CSV NOT FOUND after bz2 extraction.")
+                sys.stdout.flush()
+                raise Exception("Arquivo extraído não encontrado!")
+            
+            print(f"[CRITICAL DEBUG] Extraction SUCCESS. File: {extracted_file}")
+            sys.stdout.flush()
 
             self._update_task(tid, progress=60, message="Iniciando ingestão SQLite...")
             
@@ -576,34 +613,51 @@ class CloudEngine:
             
             batch = []
             count = 0
+            ingested = 0
+            print(f"[CRITICAL DEBUG] Starting ingestion from {extracted_file}...")
+            sys.stdout.flush()
+            
             with open(extracted_file, 'r') as f:
                 for line in f:
-                    parts = line.strip().split(',') # Formato esperado: telefone,operadora_id
-                    if len(parts) >= 2:
-                        batch.append((parts[0], parts[1]))
+                    parts = line.strip().split(';') # Formato: ID;TELEFONE;OP_ID;DATA
+                    if len(parts) >= 3:
+                        # parts[1] is phone, parts[2] is operator_id
+                        batch.append((parts[1], parts[2]))
                         count += 1
+                        ingested += 1
                     
                     if len(batch) >= 50000:
                         conn.executemany("INSERT INTO portabilidade_new VALUES (?,?)", batch)
                         batch = []
-                        # 60% a 95% é ingestão
-                        self._update_task(tid, progress=60 + int((count / 1000000) * 35) % 35, message=f"Importando: {count:,} registros")
-
+                        p = 60 + int((ingested / 50000000) * 35) # Estimativa de 50M records
+                        if p > 95: p = 95
+                        self._update_task(tid, progress=p, message=f"Ingerindo dados... ({ingested//1000000}M)")
+                        if ingested % 1000000 == 0:
+                            print(f"[CRITICAL DEBUG] Ingested: {ingested} records")
+                            sys.stdout.flush()
+            
             if batch:
                 conn.executemany("INSERT INTO portabilidade_new VALUES (?,?)", batch)
             
-            self._update_task(tid, progress=95, message="Finalizando transação...")
+            print(f"[CRITICAL DEBUG] Ingestion finished. Total: {ingested} records. Optimizing...")
+            sys.stdout.flush()
+            self._update_task(tid, progress=96, message="Finalizando e otimizando base...")
+            
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_port_tel_new ON portabilidade_new (telefone)")
             conn.execute("DROP TABLE IF EXISTS portabilidade")
             conn.execute("ALTER TABLE portabilidade_new RENAME TO portabilidade")
-            conn.execute("CREATE INDEX IF NOT EXISTS idx_tel ON portabilidade (telefone)")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_port_tel ON portabilidade (telefone)")
+            
             conn.commit()
             conn.close()
             
-            # Limpeza
-            if os.path.exists(local_zip): os.remove(local_zip)
-            if extracted_file and os.path.exists(extracted_file): os.remove(extracted_file)
+            # Limpeza final
+            if os_native.path.exists(local_zip): os_native.remove(local_zip)
+            if extracted_file and os_native.path.exists(extracted_file): os_native.remove(extracted_file)
             
             self._update_task(tid, progress=100, message="Base atualizada com sucesso!", status="COMPLETED")
+            print(f"[CRITICAL DEBUG] CARRIER UPDATE COMPLETED SUCCESSFULLY for TID: {tid}")
+            sys.stdout.flush()
             
         except Exception as e:
             print(f"Error in carrier update: {e}")
@@ -766,7 +820,7 @@ class CloudEngine:
             status = self.get_task_status(tid)
             if status.get("status") == "CANCELLED": return
             start_time = time.time()
-            output_file = os.path.join(output_dir, f"Enriquecido_{tid[:8]}.xlsx")
+            output_file = os_native.path.join(output_dir, f"Enriquecido_{tid[:8]}.xlsx")
             
             # Memory Optimized: Determine row count without loading full file
             if input_file.endswith('.csv'):
@@ -1335,7 +1389,7 @@ class CloudEngine:
             if status.get("status") == "CANCELLED":
                 print(f"[DEBUG] [_run_extraction] Task {tid} was CANCELLED before start")
                 return
-            output_file = os.path.join(output_dir, f"Extracao_{tid[:8]}.xlsx")
+            output_file = os_native.path.join(output_dir, f"Extracao_{tid[:8]}.xlsx")
             
             estab_conds = []
             empresas_conds = []
@@ -1395,7 +1449,7 @@ class CloudEngine:
             cep_file = filters.get("cep_file")
             cep_df = None
             cep_col, num_col = None, None
-            if cep_file and os.path.exists(cep_file):
+            if cep_file and os_native.path.exists(cep_file):
                 self._update_task(tid, progress=2, message="Lendo planilha de filtro de CEPs...")
                 try:
                     if cep_file.lower().endswith('.csv'):
@@ -1689,7 +1743,7 @@ class CloudEngine:
             self._update_task(tid, status="PROCESSING", message="Unificando arquivos...")
             status = self.get_task_status(tid)
             if status.get("status") == "CANCELLED": return
-            output_file = os.path.join(output_dir, f"Unificado_{tid[:8]}.xlsx")
+            output_file = os_native.path.join(output_dir, f"Unificado_{tid[:8]}.xlsx")
             dfs = []
             for i, p in enumerate(file_paths):
                 if p.endswith('.csv'):
@@ -1715,7 +1769,7 @@ class CloudEngine:
         try:
             status = self.get_task_status(tid)
             if status.get("status") == "CANCELLED": return
-            output_file = os.path.join(output_dir, f"Portabilidade_{tid[:8]}.xlsx")
+            output_file = os_native.path.join(output_dir, f"Portabilidade_{tid[:8]}.xlsx")
             
             # Load Data
             if input_file.endswith('.csv'):
@@ -1833,7 +1887,7 @@ class CloudEngine:
 
     # --- SPLIT ---
     def start_split(self, input_file, output_dir, username=None):
-        fname = os.path.basename(input_file)
+        fname = os_native.path.basename(input_file)
         f_summary = f"Fatiar: {fname}"
         tid = self._create_task(module="SPLIT", username=username, filters=f_summary)
         threading.Thread(target=self._run_split, args=(tid, input_file, output_dir), daemon=True).start()
@@ -1843,7 +1897,7 @@ class CloudEngine:
         print(f"[SPLIT] Iniciando tarefa {tid} para arquivo: {input_file}")
         self._update_task(tid, status="PROCESSING", message="Iniciando fatiamento...")
         try:
-            output_file = os.path.join(output_dir, f"Dividido_{tid[:8]}.xlsx")
+            output_file = os_native.path.join(output_dir, f"Dividido_{tid[:8]}.xlsx")
             import xlsxwriter
             
             # Se for Excel, usamos o modo padrão (Excel gigante é raro, o limite é 1M de linhas)
