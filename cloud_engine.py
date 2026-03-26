@@ -265,13 +265,22 @@ class CloudEngine:
         conn.close()
         return True
 
+    def hide_task(self, tid):
+        conn = sqlite3.connect(self.db_path, timeout=30)
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("UPDATE background_tasks SET hidden = 1 WHERE id = ?", (tid,))
+        conn.commit()
+        conn.close()
+        return True
+
     def get_user_tasks(self, username):
         conn = sqlite3.connect(self.db_path, timeout=30)
         conn.execute("PRAGMA journal_mode=WAL")
         conn.row_factory = sqlite3.Row
         # Include COMPLETED and FAILED tasks from the last 24 hours for UI persistence
+        # Only show tasks that are NOT hidden
         rows = conn.execute(
-            "SELECT * FROM background_tasks WHERE username = ? AND (status IN ('QUEUED', 'PROCESSING') OR (created_at > datetime('now','-24 hours'))) ORDER BY created_at DESC", 
+            "SELECT * FROM background_tasks WHERE username = ? COLLATE NOCASE AND hidden = 0 AND (status IN ('QUEUED', 'PROCESSING') OR (status = 'COMPLETED' AND created_at > datetime('now','-24 hours')) OR (status = 'FAILED' AND created_at > datetime('now','-24 hours'))) ORDER BY created_at DESC", 
             (username,)
         ).fetchall()
         conn.close()
@@ -478,6 +487,7 @@ class CloudEngine:
         f_summary = f"[v1.9.1] Enriquecer: {fname} (Perfil: {perfil})"
         tid = self._create_task(module="ENRICH", username=username, filters=f_summary)
         threading.Thread(target=self._run_enrich, args=(tid, input_file, output_dir, name_col, cpf_col, perfil), daemon=True).start()
+        return tid
     def deep_search(self, name=None, cpf=None, cnpj=None, phone=None):
         """Busca rápida unitária no ClickHouse"""
         ch_local = self._get_ch_client()

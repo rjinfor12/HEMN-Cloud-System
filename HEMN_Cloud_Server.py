@@ -631,6 +631,12 @@ def download_direct(task_id: str, user: dict = Depends(get_current_user)):
 
 # --- ENDPOINTS DE TAREFAS (HEMN SUITE) ---
 
+
+@app.get("/tasks/active")
+@router.get("/tasks/active")
+def get_active_tasks(user: dict = Depends(get_current_user)):
+    return engine.get_user_tasks(user["username"])
+
 @app.get("/tasks/{task_id}")
 @router.get("/tasks/{task_id}")
 def get_task(task_id: str, user: dict = Depends(get_current_user)):
@@ -756,10 +762,6 @@ def start_split(req: SplitRequest, user: dict = Depends(get_current_user)):
     print(f"[API] Tarefa de fatiamento criada: {tid}")
     return JSONResponse(content={"task_id": tid})
 
-@app.get("/tasks/active")
-@router.get("/tasks/active")
-def get_active_tasks(user: dict = Depends(get_current_user)):
-    return engine.get_user_tasks(user["username"])
 
 @app.post("/tasks/{task_id}/cancel")
 @router.post("/tasks/{task_id}/cancel")
@@ -769,6 +771,16 @@ def cancel_task(task_id: str, user: dict = Depends(get_current_user)):
     if status.get("username") != user["username"] and user["role"] != "ADMIN":
         raise HTTPException(status_code=403, detail="Não autorizado a cancelar esta tarefa.")
     success = engine.cancel_task(task_id)
+    return {"status": "ok" if success else "error"}
+
+@app.post("/tasks/{task_id}/hide")
+@router.post("/tasks/{task_id}/hide")
+def hide_task(task_id: str, user: dict = Depends(get_current_user)):
+    # Verify ownership
+    status = engine.get_task_status(task_id)
+    if status.get("username") != user["username"] and user["role"] != "ADMIN":
+        raise HTTPException(status_code=403, detail="Não autorizado a ocultar esta tarefa.")
+    success = engine.hide_task(task_id)
     return {"status": "ok" if success else "error"}
 
 # --- AUTH & ADMIN (LEGACY COMPAT) ---

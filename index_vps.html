@@ -3728,7 +3728,7 @@
                             const btnExtract = document.querySelector('#module-extract .btn-primary');
                             if (btnExtract) btnExtract.innerHTML = '<i class="fas fa-rocket"></i> Iniciar Processamento Massivo';
 
-                            [...manualEls, ...extractEls, ...unifyEls, ...splitEls, ...carrierEls].forEach(el => {
+                            [...manualEls, ...enrichEls, ...extractEls, ...unifyEls, ...splitEls, ...carrierEls].forEach(el => {
                                 if (el) el.style.display = el.classList.contains('action-card') ? 'flex' : 'flex';
                             });
                             if (processingLabel) processingLabel.style.display = 'block';
@@ -3740,7 +3740,7 @@
                             if (clinCard) clinCard.style.display = 'none';
                             
                             // Standard users see everything except Admin and Clinicas
-                            [...manualEls, ...extractEls, ...unifyEls, ...splitEls, ...carrierEls, ...dashboardEls].forEach(el => {
+                            [...manualEls, ...enrichEls, ...extractEls, ...unifyEls, ...splitEls, ...carrierEls, ...dashboardEls].forEach(el => {
                                 if (el) el.style.display = el.classList.contains('action-card') ? 'flex' : 'flex';
                             });
                             if (processingLabel) processingLabel.style.display = 'block';
@@ -4927,6 +4927,7 @@
                             'manual': 'BUSCA UNITÁRIA'
                         };
                         const moduleName = moduleLabels[mid] || mid.toUpperCase();
+                        console.log(`[DEBUG] Task ${data.task_id} initiated for module ${mid} (${moduleName})`);
                         this.addNotification("Novo Processo", `Sua tarefa de ${moduleName} (TI-${data.task_id.substring(0, 6)}) foi encaminhada para a nuvem.`, "info");
 
                         // Passa o resumo dos filtros para renderização imediata
@@ -5003,7 +5004,7 @@
                         <div class="gtask-bar" id="gprog-${tid}" style="width: ${progress}%"></div>
                     </div>
                     <div style="position: absolute; top: 10px; right: 10px; display: flex; gap: 8px;">
-                        <button class="gtask-dismiss" onclick="this.closest('.glass-card').remove()" title="Remover Card" style="background:none; border:none; color:var(--text-3); cursor:pointer; font-size:14px; opacity:0.6; transition:opacity 0.2s;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.6'">
+                        <button class="gtask-dismiss" onclick="app.dismissTask('${tid}', '${mid}')" title="Remover Card" style="background:none; border:none; color:var(--text-3); cursor:pointer; font-size:14px; opacity:0.6; transition:opacity 0.2s;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.6'">
                             <i class="fas fa-times"></i>
                         </button>
                         <button class="gtask-cancel" id="cancel-zone-${tid}" onclick="app.cancelTask('${tid}')" title="Cancelar Processo" style="${(rawStatus === 'COMPLETED' || rawStatus === 'FAILED' || rawStatus === 'CANCELLED') ? 'display:none' : ''}">
@@ -5030,8 +5031,14 @@
             },
 
             renderTaskCard(tid, mid, savedData = null) {
-                const container = document.getElementById(`tasks-${mid}`);
-                if (!container) return;
+                // Harmonização de IDs: 'extraction' vindo do backend deve usar container 'tasks-extract'
+                const effectiveMid = (mid === 'extraction') ? 'extract' : mid.toLowerCase();
+                const container = document.getElementById(`tasks-${effectiveMid}`);
+                
+                if (!container) {
+                    console.warn(`[DEBUG] Container tasks-${effectiveMid} not found for task ${tid}. Skipping render.`);
+                    return;
+                }
 
                 // Evita duplicar se já foi renderizado (ex: pelo recovery)
                 if (document.getElementById(`task-${tid}`)) return;
@@ -5049,7 +5056,7 @@
                 const filterText = savedData?.filters || savedData?.filterSummary || '';
 
                 card.innerHTML = `
-                    <button onclick="this.closest('.glass-card').remove()" style="position:absolute; top:8px; right:8px; background:rgba(0,0,0,0.1); border:none; color:var(--text-2); cursor:pointer; width:22px; height:22px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:10px; z-index:10; transition:all 0.2s;" onmouseover="this.style.background='rgba(239,68,68,0.2)'; this.style.color='#ef4444'" onmouseout="this.style.background='rgba(0,0,0,0.1)'; this.style.color='var(--text-2)'">
+                    <button onclick="app.dismissTask('${tid}', '${mid}')" style="position:absolute; top:8px; right:8px; background:rgba(0,0,0,0.1); border:none; color:var(--text-2); cursor:pointer; width:22px; height:22px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:10px; z-index:10; transition:all 0.2s;" onmouseover="this.style.background='rgba(239,68,68,0.2)'; this.style.color='#ef4444'" onmouseout="this.style.background='rgba(0,0,0,0.1)'; this.style.color='var(--text-2)'">
                         <i class="fas fa-times"></i>
                     </button>
                     <div style="display:flex; justify-content:space-between; align-items:center; padding-right:30px">
@@ -5109,10 +5116,21 @@
                 }
             },
 
-            dismissTask(tid, mid) {
+            async dismissTask(tid, mid) {
                 const el = document.getElementById(`task-${tid}`);
+                const gel = document.getElementById(`gtask-${tid}`);
                 if (el) el.remove();
+                if (gel) gel.remove();
                 
+                try {
+                    await fetch(`${API}/tasks/${tid}/hide`, {
+                        method: 'POST',
+                        headers: { 'Authorization': `Bearer ${this.token}` }
+                    });
+                } catch (e) {
+                    console.error("Failed to persist dismissal", e);
+                }
+
                 // Se não houver mais cards, esconde o título
                 const container = document.getElementById(`tasks-${mid}`);
                 if (container && container.children.length === 0) {
