@@ -508,25 +508,49 @@ class CloudEngine:
         local_zip = os.path.join(os.getcwd(), "portabilidade.tar.bz2")
         
         try:
-            self._update_task(tid, progress=5, message="Conectando ao FTP...")
-            ftp = ftplib.FTP()
-            ftp.connect(host, port, timeout=60)
-            ftp.login(user, passwd)
+            # Tentar obter o tamanho do arquivo para progresso
+            try:
+                ftp_size = ftplib.FTP()
+                ftp_size.connect(host, port, timeout=10)
+                ftp_size.login(user, passwd)
+                size = ftp_size.size(filename)
+                ftp_size.quit()
+            except:
+                size = 467616948 # Fallback tamanho conhecido se falhar
             
-            # Obter tamanho para progresso
-            size = ftp.size(filename)
-            downloaded = 0
+            self._update_task(tid, progress=5, message="Iniciando download (WGET)...")
             
-            def ftp_callback(data):
-                nonlocal downloaded
-                downloaded += len(data)
-                if size > 0:
-                    pct = int((downloaded / size) * 40) + 5 # 5% a 45% é download
-                    self._update_task(tid, progress=pct, message=f"Baixando base... {downloaded/1024/1024:.1f}MB")
+            # Executar wget via subprocesso para performance máxima
+            import subprocess
+            import time
+            
+            process = subprocess.Popen([
+                "wget", 
+                f"--ftp-user={user}", 
+                f"--ftp-password={passwd}", 
+                f"ftp://{host}:{port}/{filename}", 
+                "-O", local_zip, 
+                "-q"
+            ])
+            
+            # Monitorar progresso do download
+            start_time = time.time()
+            while process.poll() is None:
+                if os.path.exists(local_zip):
+                    curr = os.path.getsize(local_zip)
+                    pct = int((curr / size) * 40) + 5
+                    self._update_task(tid, progress=pct, message=f"Baixando base: {curr/1024/1024:.1f} MB")
+                time.sleep(2)
+                # Timeout de segurança 10 min
+                if time.time() - start_time > 600:
+                    process.terminate()
+                    raise Exception("Timeout no download da base.")
 
-            with open(local_zip, 'wb') as f:
-                ftp.retrbinary(f"RETR {filename}", ftp_callback)
-            ftp.quit()
+            if process.returncode != 0:
+                raise Exception(f"Wget falhou com código {process.returncode}")
+            
+            if not os.path.exists(local_zip) or os.path.getsize(local_zip) < 1000:
+                raise Exception("Arquivo baixado é inválido ou muito pequeno.")
             
             self._update_task(tid, progress=50, message="Extraindo arquivos...")
             # Extração tar.bz2
