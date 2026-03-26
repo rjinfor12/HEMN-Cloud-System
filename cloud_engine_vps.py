@@ -156,7 +156,15 @@ class CloudEngine:
         if os.path.exists(dict_path):
             try:
                 import csv
-                with open(dict_path, mode='r', encoding='latin1') as f:
+                # Robust encoding check: try utf-8, fallback to latin1
+                try:
+                    with open(dict_path, mode='r', encoding='utf-8') as f:
+                        content = f.read()
+                    f_encoding = 'utf-8'
+                except UnicodeDecodeError:
+                    f_encoding = 'latin1'
+                
+                with open(dict_path, mode='r', encoding=f_encoding) as f:
                     reader = csv.reader(f)
                     for row in reader:
                         if len(row) >= 2: self.anatel_dict[row[0].strip()] = row[1].strip()
@@ -165,7 +173,12 @@ class CloudEngine:
         # Load Prefix Tree (Standard ANATEL Base)
         if os.path.exists(prefix_path):
             try:
-                df = pd.read_csv(prefix_path, sep=';', dtype=str)
+                # Try utf-8 first, then latin1 for pandas
+                try:
+                    df = pd.read_csv(prefix_path, sep=';', dtype=str, encoding='utf-8')
+                except UnicodeDecodeError:
+                    df = pd.read_csv(prefix_path, sep=';', dtype=str, encoding='latin1')
+                
                 if 'number' in df.columns and 'company' in df.columns:
                     for _, row in df.iterrows():
                         self.prefix_tree[row['number'].strip()] = row['company'].strip()
@@ -1599,7 +1612,7 @@ class CloudEngine:
                     if pref in self.prefix_tree:
                         return self.get_op_name(self.prefix_tree[pref])
                 
-                return res if res else "NÃO CONSTA"
+                return res if res else "N\u00c3O CONSTA"
 
             df['OPERADORA'] = df['titanium_tel'].map(_smart_map)
             
@@ -1607,7 +1620,7 @@ class CloudEngine:
             df.drop(columns=['titanium_tel'], inplace=True)
             df.to_excel(output_file, index=False)
             
-            self._update_task(tid, status="COMPLETED", progress=100, message="Portabilidade Concluída!", result_file=output_file, record_count=total)
+            self._update_task(tid, status="COMPLETED", progress=100, message="Portabilidade Conclu\u00edda!", result_file=output_file, record_count=total)
         except Exception as e:
             self._update_task(tid, status="FAILED", message=f"Erro: {str(e)}")
 
@@ -1629,11 +1642,11 @@ class CloudEngine:
 
             if c:
                 op_name = self.get_op_name(c[0])
-                res = {"operadora": op_name, "tipo": "Móvel"}
+                res = {"operadora": op_name, "tipo": "M\u00f3vel"}
             else:
                 # Prefix Fallback for Single Lookup
                 num = re.sub(r'\D', '', tel)
-                op_name = "NÃO CONSTA"
+                op_name = "N\u00c3O CONSTA"
                 for length in range(7, 3, -1):
                     pref = num[:length]
                     if pref in self.prefix_tree:

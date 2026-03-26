@@ -317,7 +317,7 @@ def get_current_user(authorization: str = Header(None), token: Optional[str] = N
         auth_token = token
         
     if not auth_token:
-        raise HTTPException(status_code=401, detail="Não autorizado")
+        raise HTTPException(status_code=401, detail="N\u00e3o autorizado")
         
     try:
         payload = jwt.decode(auth_token, SECRET_KEY, algorithms=[ALGORITHM])
@@ -330,7 +330,7 @@ def get_current_user(authorization: str = Header(None), token: Optional[str] = N
         if not user: raise HTTPException(status_code=401)
         return dict(user)
     except:
-        raise HTTPException(status_code=401, detail="Sessão expirada")
+        raise HTTPException(status_code=401, detail="Sess\u00e3o expirada")
 
 def check_clinicas_access(user: dict = Depends(get_current_user)):
     if user["role"] not in ["ADMIN", "CLINICAS"]:
@@ -365,7 +365,7 @@ async def create_payment_endpoint(req: PaymentCreateRequest, user: dict = Depend
         final_credits = plan["credits"]
         plan_name = plan["name"]
     elif req.amount <= 0:
-        raise HTTPException(status_code=400, detail="Plano ou valor inválido.")
+        raise HTTPException(status_code=400, detail="Plano ou valor inv\u00e1lido.")
 
     h = {"access_token": ASAAS_API_KEY, "Content-Type": "application/json"}
     
@@ -597,7 +597,7 @@ def download_direct(task_id: str, user: dict = Depends(get_current_user)):
     
     if not task:
         conn.close()
-        raise HTTPException(status_code=404, detail="Tarefa não encontrada")
+        raise HTTPException(status_code=404, detail="Tarefa n\u00e3o encontrada")
 
     if task["status"] != "COMPLETED" or not task["result_file"]:
         conn.close()
@@ -826,7 +826,7 @@ async def login(request: Request):
         conn.close()
         return {"access_token": token, "token_type": "bearer", "force_password_change": bool(force_change)}
     conn.close()
-    raise HTTPException(status_code=401, detail="Usuário ou senha incorretos.")
+    raise HTTPException(status_code=401, detail="Usu\u00e1rio ou senha incorretos.")
 
 @router.post("/user/change-password")
 async def change_password(req: PasswordChangeRequest, user: dict = Depends(get_current_user)):
@@ -1002,7 +1002,7 @@ def update_user(username: str, data: dict, user: dict = Depends(get_current_user
     
     if not old_user_row:
         conn.close()
-        raise HTTPException(status_code=404, detail="Usuário não encontrado")
+        raise HTTPException(status_code=404, detail="Usu\u00e1rio n\u00e3o encontrado")
     
     old_user = dict(old_user_row)
     
@@ -1090,7 +1090,7 @@ def delete_user(username: str, user: dict = Depends(get_current_user)):
         # Remover o usuário
         res = conn.execute("DELETE FROM users WHERE username = ? COLLATE NOCASE", (username,))
         if res.rowcount == 0:
-            raise HTTPException(status_code=404, detail="Usuário não encontrado")
+            raise HTTPException(status_code=404, detail="Usu\u00e1rio n\u00e3o encontrado")
             
         conn.commit()
     except Exception as e:
@@ -1152,7 +1152,7 @@ def get_user_stats(target_username: str, user: dict = Depends(get_current_user))
     target_user = conn.execute("SELECT * FROM users WHERE username = ? COLLATE NOCASE", (target_username,)).fetchone()
     if not target_user:
         conn.close()
-        raise HTTPException(status_code=404, detail="Usuário não encontrado.")
+        raise HTTPException(status_code=404, detail="Usu\u00e1rio n\u00e3o encontrado.")
     target_user = dict(target_user)
 
     today = datetime.now().strftime('%Y-%m-%d')
@@ -1330,7 +1330,7 @@ def reset_user_password(username: str, user: dict = Depends(get_current_user)):
     target = conn.execute("SELECT * FROM users WHERE username = ? COLLATE NOCASE", (username,)).fetchone()
     if not target:
         conn.close()
-        raise HTTPException(status_code=404, detail="Usuário não encontrado.")
+        raise HTTPException(status_code=404, detail="Usu\u00e1rio n\u00e3o encontrado.")
     # Ensure force_password_change column exists
     try: conn.execute("ALTER TABLE users ADD COLUMN force_password_change INTEGER DEFAULT 0")
     except: pass
