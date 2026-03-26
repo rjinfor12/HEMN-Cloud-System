@@ -306,7 +306,7 @@ def get_available_plans():
 
 # --- AUTH HELPERS ---
 def create_token(username: str):
-    expire = datetime.utcnow() + timedelta(hours=24)
+    expire = datetime.utcnow() + timedelta(hours=12)
     return jwt.encode({"sub": username, "exp": expire}, SECRET_KEY, algorithm=ALGORITHM)
 
 def get_current_user(authorization: str = Header(None), token: Optional[str] = None):

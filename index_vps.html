@@ -3084,8 +3084,9 @@
                 'CANCELLED': 'CANCELADO'
             },
             currentPixPayload: null,
-            initialized: false,
             currentModule: null,
+            lastInteraction: Date.now(),
+            inactivityInterval: null,
 
             init() {
                 if (this.initialized) return;
@@ -3201,6 +3202,9 @@
                             this.closeAllDropdowns();
                         }
                     });
+
+                    // Inactivity Monitor Setup
+                    this.setupInactivityMonitor();
                 } else {
                     const header = document.getElementById('main-header');
                     if (header) header.style.setProperty('display', 'none', 'important');
@@ -3469,6 +3473,7 @@
                 if (this.rechargeInterval) clearInterval(this.rechargeInterval);
                 if (this.pollInterval1) clearInterval(this.pollInterval1);
                 if (this.pollInterval2) clearInterval(this.pollInterval2);
+                if (this.inactivityInterval) clearInterval(this.inactivityInterval);
 
                 localStorage.removeItem("hemn_token");
                 localStorage.removeItem("hemn_force_pw_change");
@@ -3504,6 +3509,48 @@
                 const passInp = document.getElementById('pass-login');
                 if (userInp) userInp.value = '';
                 if (passInp) passInp.value = '';
+            },
+
+            resetInactivity() {
+                this.lastInteraction = Date.now();
+            },
+
+            setupInactivityMonitor() {
+                if (!this.token) return;
+                
+                this.lastInteraction = Date.now();
+                const events = ['mousedown', 'keydown', 'scroll', 'touchstart', 'mousemove'];
+                events.forEach(evt => {
+                    window.addEventListener(evt, () => this.resetInactivity(), { passive: true });
+                });
+
+                if (this.inactivityInterval) clearInterval(this.inactivityInterval);
+                this.inactivityInterval = setInterval(() => {
+                    if (!this.token) return;
+                    
+                    const now = Date.now();
+                    const diff = now - this.lastInteraction;
+                    const limit = 20 * 60 * 1000;
+                    const warningLimit = 19 * 60 * 1000;
+
+                    // Check for active tasks (QUEUED or PROCESSING)
+                    const hasActiveTasks = this.tasks.some(t => ['QUEUED', 'PROCESSING', 'AGUARDANDO', 'PROCESSANDO'].includes(t.status) || t.progress < 100 && t.status !== 'FAILED' && t.status !== 'SUCCESS');
+                    
+                    if (hasActiveTasks) {
+                        this.resetInactivity(); // Auto-reset if tasks are running
+                        return;
+                    }
+
+                    if (diff >= limit) {
+                        this.logout();
+                        this.alert("Sessão Encerrada", "Você foi deslogado automaticamente após 20 minutos de inatividade.", { type: 'info' });
+                    } else if (diff >= warningLimit) {
+                        const secondsLeft = Math.round((limit - diff) / 1000);
+                        if (secondsLeft % 30 === 0 || secondsLeft <= 10) {
+                            this.showToast(`Sessão expirará em ${secondsLeft}s por inatividade`, "warning");
+                        }
+                    }
+                }, 10000); // Check every 10 seconds for better precision on warning
             },
 
             openPasswordModal() {
