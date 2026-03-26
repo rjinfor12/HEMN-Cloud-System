@@ -1301,6 +1301,48 @@
             opacity: 1;
             text-shadow: 0 0 10px rgba(59, 130, 246, 0.2);
         }
+
+        /* HEMN Carrier Update Button */
+        .btn-update-orange {
+            background: linear-gradient(135deg, #f59e0b, #d97706) !important;
+            color: #fff !important;
+            border: none !important;
+            padding: 8px 16px !important;
+            border-radius: 12px !important;
+            font-size: 11px !important;
+            font-weight: 800 !important;
+            cursor: pointer !important;
+            display: flex !important;
+            align-items: center !important;
+            gap: 8px !important;
+            transition: all 0.3s ease !important;
+            box-shadow: 0 4px 12px rgba(245, 158, 11, 0.2) !important;
+            text-transform: uppercase !important;
+            letter-spacing: 0.5px !important;
+        }
+        .btn-update-orange:hover {
+            transform: translateY(-2px) !important;
+            box-shadow: 0 8px 20px rgba(245, 158, 11, 0.4) !important;
+            filter: brightness(1.1);
+        }
+        .btn-update-orange:disabled {
+            opacity: 0.6 !important;
+            cursor: not-allowed !important;
+            transform: none !important;
+        }
+        .progress-mini-bar {
+            width: 100%;
+            height: 4px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 2px;
+            margin-top: 6px;
+            overflow: hidden;
+        }
+        .progress-mini-fill {
+            height: 100%;
+            background: var(--accent);
+            transition: width 0.5s ease;
+        }
     </style>
 </head>
 
@@ -2622,9 +2664,15 @@
                             <h1 class="page-title">Monitoramento <span style="color:var(--accent)">Real-Time</span></h1>
                             <p class="page-subtitle">Status operacional do servidor e banco de dados.</p>
                         </div>
-                        <div class="badge-monitor">
-                            <div class="status-dot live-indicator"></div>
-                            SISTEMA OPERACIONAL
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            <button id="btn-update-carrier-main" onclick="app.triggerCarrierUpdate()" class="btn-update-orange">
+                                <i class="fas fa-sync-alt"></i>
+                                ATUALIZAR BASE OPERADORA
+                            </button>
+                            <div class="badge-monitor">
+                                <div class="status-dot live-indicator"></div>
+                                SISTEMA OPERACIONAL
+                            </div>
                         </div>
                     </div>
 
@@ -3923,6 +3971,33 @@
                     }
                 } catch (e) {
                     console.error("Monitor Error:", e);
+                }
+            },
+
+            async triggerCarrierUpdate() {
+                if (!confirm("Deseja iniciar a atualização da base de operadoras via FTP?\nEste processo pode demorar alguns minutos.")) return;
+                const btn = document.getElementById('btn-update-carrier-main');
+                try {
+                    btn.disabled = true;
+                    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> AGUARDE...';
+                    
+                    const res = await fetch(`${API}/admin/monitor/update-carrier`, {
+                        method: 'POST',
+                        headers: { 'Authorization': `Bearer ${this.token}` }
+                    });
+                    const data = await res.json();
+                    if (data.status === 'ok') {
+                        this.showToast("Tarefa de atualização iniciada com sucesso!", "success");
+                    } else {
+                        this.showToast("Erro: " + (data.detail || "Falha ao iniciar"), "error");
+                    }
+                } catch (e) {
+                    this.showToast("Falha na comunicação com o servidor", "error");
+                } finally {
+                    setTimeout(() => {
+                        btn.disabled = false;
+                        btn.innerHTML = '<i class="fas fa-sync-alt"></i> ATUALIZAR BASE OPERADORA';
+                    }, 3000);
                 }
             },
 
