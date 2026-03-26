@@ -5763,7 +5763,7 @@
                                 <div style="font-size:10px; opacity:0.8; font-weight:800; letter-spacing:2px; margin-bottom:10px; color: #fff;">OPERADORA IDENTIFICADA</div>
                                 <div style="font-size:38px; font-weight:900; letter-spacing:1px; text-shadow: 0 2px 10px rgba(0,0,0,0.2); color: #fff;">${data.operadora || 'NÃO IDENTIFICADA'}</div>
                                 <div style="display:flex; align-items:center; justify-content:center; gap:10px; margin-top:15px; color: #fff;">
-                                    <div class="badge" style="background:rgba(255,255,255,0.2); border:1px solid rgba(255,255,255,0.3); color:#fff; font-size:11px">${data.tipo || 'M\u00f3vel'}</div>
+                                    <div class="badge" style="background:rgba(255,255,255,0.2); border:1px solid rgba(255,255,255,0.3); color:#fff; font-size:11px">${(data.tipo || 'M\u00f3vel').toUpperCase().replace(/M[^A-Z0-9]{1,2}VEL/i, 'M\u00d3VEL')}</div>
                                     <div style="font-size:12px; opacity:0.9; font-weight:500; color: #fff;">
                                         <i class="fas fa-check-double" style="margin-right:5px; color: #fff;"></i> Inteligência Titanium Ativa
                                     </div>

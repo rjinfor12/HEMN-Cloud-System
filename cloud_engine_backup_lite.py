@@ -1029,7 +1029,7 @@ class CloudEngine:
 
             if c:
                 op_name = self.get_op_name(c[0])
-                res = {"operadora": op_name, "tipo": "Móvel"}
+                res = {"operadora": op_name, "tipo": "M\u00f3vel"}
             else:
                 # Prefix Fallback for Single Lookup
                 num = re.sub(r'\D', '', tel)
