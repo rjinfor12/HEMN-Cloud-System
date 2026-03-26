@@ -152,7 +152,7 @@ def create_token(username: str):
 
 def get_current_user(authorization: str = Header(None)):
     if not authorization or not authorization.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="Não autorizado")
+        raise HTTPException(status_code=401, detail="N\u00e3o autorizado")
     token = authorization.split(" ")[1]
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
@@ -165,11 +165,11 @@ def get_current_user(authorization: str = Header(None)):
         if not user: raise HTTPException(status_code=401)
         return dict(user)
     except:
-        raise HTTPException(status_code=401, detail="Sessão expirada")
+        raise HTTPException(status_code=401, detail="Sess\u00e3o expirada")
 
 def check_clinicas_access(user: dict = Depends(get_current_user)):
     if user["role"] not in ["ADMIN", "CLINICAS"]:
-        raise HTTPException(status_code=403, detail="Acesso restrito ao perfil Clínicas ou Administrador")
+        raise HTTPException(status_code=403, detail="Acesso restrito ao perfil Cl\u00ednicas ou Administrador")
     return user
 
 def log_transaction(username: str, type: str, amount: float, module: str, description: str, task_id: str = None):
@@ -203,7 +203,7 @@ async def upload_file(file: UploadFile = File(...), user: dict = Depends(get_cur
 async def download_result(task_id: str, user: dict = Depends(get_current_user)):
     task = engine.get_task_status(task_id)
     if task["status"] != "COMPLETED":
-        raise HTTPException(status_code=400, detail="Arquivo ainda não está pronto.")
+        raise HTTPException(status_code=400, detail="Arquivo ainda n\u00e3o est\u00e1 pronto.")
     
     count = task.get("record_count", 0)
     
@@ -278,13 +278,13 @@ def search_leads(req: LeadSearchRequest, user: dict = Depends(check_clinicas_acc
     # Limpeza básica do termo
     term = req.search_term.strip()
     if not term:
-        raise HTTPException(status_code=400, detail="Termo de pesquisa é obrigatório")
+        raise HTTPException(status_code=400, detail="Termo de pesquisa \u00e9 obrigat\u00f3rio")
     
     # Validação de escopo
     if req.scope == 'ESTADO' and not req.uf:
-        raise HTTPException(status_code=400, detail="UF é obrigatória para pesquisa por estado")
+        raise HTTPException(status_code=400, detail="UF \u00e9 obrigat\u00f3ria para pesquisa por estado")
     if req.scope == 'REGIAO' and not req.regiao_nome:
-        raise HTTPException(status_code=400, detail="Nome da região é obrigatório")
+        raise HTTPException(status_code=400, detail="Nome da regi\u00e3o \u00e9 obrigat\u00f3rio")
 
     try:
         results = engine.search_leads(
@@ -333,7 +333,7 @@ def start_enrich(req: EnrichRequest, user: dict = Depends(get_current_user)):
     
     # Otimização v1.9.0: Trava de Concorrência
     if user["role"] != "ADMIN" and engine.count_active_tasks(user["username"]) > 0:
-        raise HTTPException(status_code=403, detail="Você já possui uma pesquisa em andamento. Aguarde a conclusão ou cancele-a antes de iniciar outra.")
+        raise HTTPException(status_code=403, detail="Voc\u00ea j\u00e1 possui uma pesquisa em andamento. Aguarde a conclus\u00e3o ou cancele-a antes de iniciar outra.")
 
     path = os.path.join(UPLOAD_DIR, req.file_id)
     print(f"[DEBUG] /tasks/enrich - File: {req.file_id}, Perfil: {req.perfil}, User: {user['username']}")
@@ -427,7 +427,7 @@ async def login(request: Request):
         conn.close()
         return {"access_token": token, "token_type": "bearer"}
     conn.close()
-    raise HTTPException(status_code=401, detail="Usuário ou senha incorretos.")
+    raise HTTPException(status_code=401, detail="Usu\u00e1rio ou senha incorretos.")
 
 @app.get("/me")
 def get_me(user: dict = Depends(get_current_user)):
@@ -503,7 +503,7 @@ def update_user(username: str, data: dict, user: dict = Depends(get_current_user
     
     if not old_user:
         conn.close()
-        raise HTTPException(status_code=404, detail="Usuário não encontrado")
+        raise HTTPException(status_code=404, detail="Usu\u00e1rio n\u00e3o encontrado")
     
     if data:
         fields = []
@@ -582,7 +582,7 @@ def get_user_stats(target_username: str, user: dict = Depends(get_current_user))
     target_user = conn.execute("SELECT * FROM users WHERE username = ? COLLATE NOCASE", (target_username,)).fetchone()
     if not target_user:
         conn.close()
-        raise HTTPException(status_code=404, detail="Usuário não encontrado.")
+        raise HTTPException(status_code=404, detail="Usu\u00e1rio n\u00e3o encontrado.")
     target_user = dict(target_user)
 
     today = datetime.now().strftime('%Y-%m-%d')
