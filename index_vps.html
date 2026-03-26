@@ -3975,7 +3975,12 @@
             },
 
             async triggerCarrierUpdate() {
-                if (!confirm("Deseja iniciar a atualização da base de operadoras via FTP?\nEste processo pode demorar alguns minutos.")) return;
+                const ok = await this.confirm("Atualizar Base Operadora", "Deseja iniciar a atualização da base de operadoras via FTP? Este processo pode demorar alguns minutos.", { 
+                    type: 'warning', 
+                    confirmText: 'Sim, Iniciar' 
+                });
+                if (!ok) return;
+                
                 const btn = document.getElementById('btn-update-carrier-main');
                 try {
                     btn.disabled = true;
