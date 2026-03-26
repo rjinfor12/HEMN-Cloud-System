@@ -128,7 +128,10 @@ async def read_index_prefixed():
 
 @app.get("/admin/monitor")
 async def read_monitor():
-    return FileResponse(os.path.join(STATIC_DIR, "admin_monitor.html"))
+    return FileResponse(
+        os.path.join(STATIC_DIR, "admin_monitor.html"),
+        headers={"Cache-Control": "no-store, no-cache, must-revalidate, max-age=0"}
+    )
 
 # Permite acesso de qualquer lugar
 app.add_middleware(
@@ -974,6 +977,10 @@ def get_monitor_stats(user: dict = Depends(get_current_user)):
     # 3. ClickHouse Stats
     ch_stats = engine.get_ch_metrics()
     
+    return {
+        "system": sys_stats,
+        "engine": engine_stats,
+        "clickhouse": ch_stats,
         "recent_activities": engine_stats.get("recent_activities", []),
         "timestamp": datetime.now().isoformat()
     }
