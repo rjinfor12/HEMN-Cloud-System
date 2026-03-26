@@ -992,6 +992,12 @@ def post_update_carrier(user: dict = Depends(get_current_user)):
     tid = engine.start_carrier_update(user["username"])
     return {"status": "ok", "task_id": tid}
 
+@router.get("/admin/monitor/carrier-status")
+def get_carrier_status(user: dict = Depends(get_current_user)):
+    if user["role"] != "ADMIN":
+        raise HTTPException(status_code=403, detail="Acesso restrito.")
+    return engine.get_carrier_status()
+
 @router.put("/admin/users/{username}")
 def update_user(username: str, data: dict, user: dict = Depends(get_current_user)):
     if user["role"] != "ADMIN": raise HTTPException(status_code=403)

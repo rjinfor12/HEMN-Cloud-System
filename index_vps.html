@@ -2622,10 +2622,15 @@
                             <p class="page-subtitle">Status operacional do servidor e banco de dados.</p>
                         </div>
                         <div style="display: flex; align-items: center; gap: 12px;">
-                            <button id="btn-update-carrier-main" onclick="app.triggerCarrierUpdate()" class="btn-update-orange">
-                                <i class="fas fa-sync-alt"></i>
-                                ATUALIZAR BASE OPERADORA
-                            </button>
+                            <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
+                                <button id="btn-update-carrier-main" onclick="app.triggerCarrierUpdate()" class="btn-update-orange">
+                                    <i class="fas fa-sync-alt"></i>
+                                    ATUALIZAR BASE OPERADORA
+                                </button>
+                                <div id="carrier-update-status" style="font-size: 10px; color: #ffeb3b; font-weight: 700; display: none; align-items: center; gap: 4px;">
+                                    <i class="fas fa-exclamation-circle"></i> NOVA BASE DISPONÍVEL
+                                </div>
+                            </div>
                             <div class="badge-monitor">
                                 <div class="status-dot live-indicator"></div>
                                 SISTEMA OPERACIONAL
@@ -4009,13 +4014,31 @@
             // ADMIN MANAGEMENT FUNCTIONS
             async refreshAdminData() {
                 try {
+                    // Fetch Users
                     const res = await fetch(`${API}/admin/users`, { headers: { 'Authorization': `Bearer ${this.token}` } });
-                    const users = await res.json();
                     if (res.ok) {
+                        const users = await res.json();
                         this.adminUsers = users; // Cache for editing
                         this.renderAdminTable(users);
                         this.updateAdminStats(users);
                     }
+                    
+                    // Fetch Carrier Status (v1.8.12)
+                    fetch(`${API}/admin/monitor/carrier-status`, { headers: { 'Authorization': `Bearer ${this.token}` } })
+                        .then(r => r.json())
+                        .then(data => {
+                            const badge = document.getElementById('carrier-update-status');
+                            if (badge) {
+                                if (data.update_available) {
+                                    badge.style.setProperty('display', 'flex', 'important');
+                                    // Tooltip opcional
+                                    badge.title = `Nova base detectada no FTP: ${data.last_ftp}`;
+                                } else {
+                                    badge.style.display = 'none';
+                                }
+                            }
+                        }).catch(e => console.error("Fail to fetch carrier status", e));
+
                 } catch (e) {
                     this.showToast("Falha ao carregar dados admin", "error");
                 }

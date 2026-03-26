@@ -234,14 +234,10 @@ class CloudEngine:
             )
         """)
         conn.execute("""
-            CREATE TABLE IF NOT EXISTS credit_transactions (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                username TEXT,
-                type TEXT,
-                amount REAL,
-                module TEXT,
-                description TEXT,
-                timestamp TEXT
+            CREATE TABLE IF NOT EXISTS system_metadata (
+                key TEXT PRIMARY KEY,
+                value TEXT,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
         conn.commit()
@@ -498,6 +494,87 @@ class CloudEngine:
         threading.Thread(target=self._run_carrier_update, args=(tid,), daemon=True).start()
         return tid
 
+    def get_carrier_status(self):
+        """Retorna informações sobre o status da base de operadoras e atualizações disponíveis"""
+        # 1. Obter timestamps do banco
+        info = {
+            "last_check": None,
+            "last_ftp": None,
+            "last_update": None,
+            "update_available": False
+        }
+        
+        try:
+            conn = sqlite3.connect(self.db_path, timeout=5)
+            conn.row_factory = sqlite3.Row
+            rows = conn.execute("SELECT key, value FROM system_metadata WHERE key LIKE 'last_carrier_%'").fetchall()
+            for r in rows:
+                if r['key'] == 'last_carrier_check_timestamp': info["last_check"] = r['value']
+                if r['key'] == 'last_carrier_ftp_timestamp': info["last_ftp"] = r['value']
+                if r['key'] == 'last_carrier_vps_timestamp': info["last_update"] = r['value']
+            conn.close()
+        except:
+            pass
+
+        # 2. Se a última verificação foi há mais de 12 horas, verificar agora
+        now = datetime.now()
+        should_check = True
+        if info["last_check"]:
+            try:
+                last_dt = datetime.fromisoformat(info["last_check"])
+                if (now - last_dt).total_seconds() < 12 * 3600:
+                    should_check = False
+            except: pass
+            
+        if should_check:
+            print("[CARRIER] Iniciando verificação programada de 12h no FTP...")
+            remote_ts = self._check_ftp_carrier_timestamp()
+            if remote_ts:
+                info["last_check"] = now.isoformat()
+                info["last_ftp"] = remote_ts
+                # Salvar no banco
+                try:
+                    conn = sqlite3.connect(self.db_path, timeout=5)
+                    conn.execute("INSERT OR REPLACE INTO system_metadata (key, value) VALUES ('last_carrier_check_timestamp', ?)", (info["last_check"],))
+                    conn.execute("INSERT OR REPLACE INTO system_metadata (key, value) VALUES ('last_carrier_ftp_timestamp', ?)", (info["last_ftp"],))
+                    conn.commit()
+                    conn.close()
+                except: pass
+
+        # 3. Comparar FTP vs VPS
+        if info["last_ftp"] and info["last_update"]:
+            try:
+                # Normalizar formatos para comparação se necessário (FTP: MDTM ou ISO)
+                # No nosso caso, estamos salvando ISO ou similar.
+                if info["last_ftp"] > info["last_update"]:
+                    info["update_available"] = True
+            except: pass
+        elif info["last_ftp"] and not info["last_update"]:
+            # Se nunca atualizamos mas tem no FTP, sinaliza disponível
+            info["update_available"] = True
+
+        return info
+
+    def _check_ftp_carrier_timestamp(self):
+        """Acessa o FTP apenas para ler o timestamp de modificação"""
+        host = "ftp.portabilidadecelular.com"
+        port = 2157
+        user = "MAYK"
+        passwd = "Mayk@2025"
+        filename = "portabilidade.tar.bz2"
+        try:
+            ftp = ftplib.FTP()
+            ftp.connect(host, port, timeout=10)
+            ftp.login(user, passwd)
+            timestamp_raw = ftp.voidcmd(f"MDTM {filename}").split()[1]
+            dt = datetime.strptime(timestamp_raw, "%Y%m%d%H%M%S")
+            ftp.quit()
+            return dt.isoformat()
+        except:
+            try: ftp.quit()
+            except: pass
+            return None
+
     def _run_carrier_update(self, tid):
         import sys
         print(f"[CRITICAL DEBUG] _run_carrier_update started for TID: {tid}")
@@ -654,6 +731,17 @@ class CloudEngine:
             # Limpeza final
             if os_native.path.exists(local_zip): os_native.remove(local_zip)
             if extracted_file and os_native.path.exists(extracted_file): os_native.remove(extracted_file)
+            
+            # 6. Atualizar metadados globais de sucesso
+            try:
+                conn = sqlite3.connect(self.db_path, timeout=10)
+                now_iso = datetime.now().isoformat()
+                conn.execute("INSERT OR REPLACE INTO system_metadata (key, value) VALUES ('last_carrier_vps_timestamp', ?)", (now_iso,))
+                conn.commit()
+                conn.close()
+                print(f"[CRITICAL DEBUG] Global metadata updated. last_carrier_vps_timestamp: {now_iso}")
+            except Exception as me:
+                print(f"[ERROR] Fail to update carrier metadata: {me}")
             
             self._update_task(tid, progress=100, message="Base atualizada com sucesso!", status="COMPLETED")
             print(f"[CRITICAL DEBUG] CARRIER UPDATE COMPLETED SUCCESSFULLY for TID: {tid}")
