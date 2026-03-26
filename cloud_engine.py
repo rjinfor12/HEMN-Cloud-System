@@ -10,7 +10,7 @@ import re
 import unicodedata
 import ftplib
 import tarfile
-import bzip2
+import bz2
 from concurrent.futures import ThreadPoolExecutor
 try:
     import clickhouse_connect
