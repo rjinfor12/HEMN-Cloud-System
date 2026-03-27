@@ -3538,27 +3538,27 @@
                     
                     const now = Date.now();
                     const diff = now - this.lastInteraction;
-                    const limit = 20 * 60 * 1000;
-                    const warningLimit = 19 * 60 * 1000;
+                    const limit = 15 * 60 * 1000; // 15 Minutos
+                    const warningLimit = 14 * 60 * 1000; // Aviso aos 14 Minutos
 
                     // Check for active tasks (QUEUED or PROCESSING)
                     const hasActiveTasks = this.tasks.some(t => ['QUEUED', 'PROCESSING', 'AGUARDANDO', 'PROCESSANDO'].includes(t.status) || t.progress < 100 && t.status !== 'FAILED' && t.status !== 'SUCCESS');
                     
                     if (hasActiveTasks) {
-                        this.resetInactivity(); // Auto-reset if tasks are running
+                        this.resetInactivity(); // Auto-reset if tasks are running (Safety Lock)
                         return;
                     }
 
                     if (diff >= limit) {
                         this.logout();
-                        this.alert("Sessão Encerrada", "Você foi deslogado automaticamente após 20 minutos de inatividade.", { type: 'info' });
+                        this.alert("Sessão Encerrada", "Você foi deslogado automaticamente após 15 minutos de inatividade.", { type: 'info' });
                     } else if (diff >= warningLimit) {
                         const secondsLeft = Math.round((limit - diff) / 1000);
                         if (secondsLeft % 30 === 0 || secondsLeft <= 10) {
                             this.showToast(`Sessão expirará em ${secondsLeft}s por inatividade`, "warning");
                         }
                     }
-                }, 10000); // Check every 10 seconds for better precision on warning
+                }, 10000); // Check every 10 seconds for efficiency
             },
 
             openPasswordModal() {
