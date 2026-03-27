@@ -388,12 +388,23 @@ class CloudEngine:
         if not client:
             return {"status": "DISCONNECTED", "uptime": "0", "active_queries": 0}
         try:
-            res = client.query("SELECT uptime() as up, count(*) as q FROM system.processes")
+            res = client.query("SELECT version() as v, uptime() as up, count(*) as q FROM system.processes LIMIT 1")
             row = res.result_rows[0]
+            
+            # Fetch memory usage
+            mem_res = client.query("SELECT value FROM system.asynchronous_metrics WHERE metric = 'MemoryAmount' LIMIT 1")
+            mem_total = mem_res.result_rows[0][0] if mem_res.result_rows else 0
+            
+            mem_used_res = client.query("SELECT value FROM system.metrics WHERE metric = 'MemoryTracking' LIMIT 1")
+            mem_used = mem_used_res.result_rows[0][0] if mem_used_res.result_rows else 0
+
             return {
                 "status": "ONLINE",
-                "uptime": str(row[0]),
-                "active_queries": row[1]
+                "version": str(row[0]),
+                "uptime_seconds": int(row[1]),
+                "active_queries": int(row[2]),
+                "memory_usage_bytes": int(mem_used),
+                "memory_total_bytes": int(mem_total)
             }
         except:
             return {"status": "OFFLINE", "uptime": "0", "active_queries": 0}
@@ -488,7 +499,7 @@ class CloudEngine:
     def start_enrich(self, input_file, output_dir, name_col, cpf_col, username=None, perfil="TODOS"):
         print(f"[DEBUG] start_enrich called: input={input_file}, name_col={name_col}, cpf_col={cpf_col}, user={username}, perfil={perfil}")
         fname = os.path.basename(input_file)
-        f_summary = f"[v1.9.1] Enriquecer: {fname} (Perfil: {perfil})"
+        f_summary = f"[v2.2.0-PREMIUM] Enriquecer: {fname} (Perfil: {perfil})"
         tid = self._create_task(module="ENRICH", username=username, filters=f_summary)
         threading.Thread(target=self._run_enrich, args=(tid, input_file, output_dir, name_col, cpf_col, perfil), daemon=True).start()
         return tid
@@ -607,7 +618,7 @@ class CloudEngine:
 
     def _run_enrich(self, tid, input_file, output_dir, name_col, cpf_col, perfil="TODOS"):
         try:
-            self._update_task(tid, status="PROCESSING", message="[v1.9.1] Iniciando Escaneamento Titanium-MT (Motor Paralelo)...")
+            self._update_task(tid, status="PROCESSING", message="[v2.2.0-PREMIUM] Iniciando Escaneamento Titanium-MT (Motor Paralelo)...")
             status = self.get_task_status(tid)
             if status.get("status") == "CANCELLED": return
             start_time = time.time()

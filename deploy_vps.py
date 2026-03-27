@@ -40,6 +40,7 @@ with tarfile.open(tar_name, "w:gz") as tar:
     if os.path.exists("main_gui.py"): tar.add("main_gui.py")
     if os.path.exists("index.html"): tar.add("index.html")
     if os.path.exists("index_vps.html"): tar.add("index_vps.html")
+    if os.path.exists("admin_monitor_vps.html"): tar.add("admin_monitor_vps.html")
     if os.path.exists("static"): tar.add("static")
     
 print("Uploading bundle to VPS...")
@@ -49,7 +50,7 @@ sftp.put(tar_name, f"/var/www/hemn_cloud/{tar_name}")
 print("Extracting and Setting up Python Env...")
 run_cmd(client, f'cd /var/www/hemn_cloud && tar -xzf {tar_name}')
 run_cmd(client, 'cd /var/www/hemn_cloud && python3 -m venv venv')
-run_cmd(client, 'cd /var/www/hemn_cloud && ./venv/bin/pip install fastapi uvicorn pandas openpyxl python-multipart aiofiles jinja2 xlsxwriter websockets requests pyjwt numpy')
+run_cmd(client, 'cd /var/www/hemn_cloud && ./venv/bin/pip install --upgrade fastapi uvicorn pandas openpyxl python-multipart aiofiles jinja2 xlsxwriter websockets requests pyjwt numpy clickhouse-connect')
 
 # Deploy Nginx Config
 if os.path.exists("vps_nginx.conf"):

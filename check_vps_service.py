@@ -13,12 +13,12 @@ try:
 
     print("--- Service Status ---")
     stdin, stdout, stderr = client.exec_command('systemctl status hemn_cloud.service')
-    print(stdout.read().decode())
-    print(stderr.read().decode())
+    print(stdout.read().decode('utf-8', 'ignore').encode('ascii', 'ignore').decode())
+    print(stderr.read().decode('utf-8', 'ignore').encode('ascii', 'ignore').decode())
 
     print("\n--- Recent Logs ---")
     stdin, stdout, stderr = client.exec_command('journalctl -u hemn_cloud.service -n 50')
-    print(stdout.read().decode())
+    print(stdout.read().decode('utf-8', 'ignore').encode('ascii', 'ignore').decode())
 
     client.close()
 except Exception as e:

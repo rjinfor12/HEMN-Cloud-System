@@ -11,11 +11,15 @@ import unicodedata
 import ftplib
 import tarfile
 import bz2
+import numpy as np
 from concurrent.futures import ThreadPoolExecutor
 try:
     import clickhouse_connect
 except ImportError:
     pass
+
+from dotenv import load_dotenv
+load_dotenv()
 
 def remove_accents(input_str):
     if not input_str: return ""
@@ -46,6 +50,20 @@ class CloudEngine:
         
         self._init_db()
         self._load_carrier_assets()
+        
+        # Mapa de DDDs por Estado (Brasil)
+        self.UF_DDD_MAP = {
+            'AC': ['68'], 'AL': ['82'], 'AM': ['92', '97'], 'AP': ['96'],
+            'BA': ['71', '73', '74', '75', '77'], 'CE': ['85', '88'],
+            'DF': ['61'], 'ES': ['27', '28'], 'GO': ['62', '64'],
+            'MA': ['98', '99'], 'MG': ['31', '32', '33', '34', '35', '37', '38'],
+            'MS': ['67'], 'MT': ['65', '66'], 'PA': ['91', '93', '94'],
+            'PB': ['83'], 'PE': ['81', '87'], 'PI': ['86', '89'],
+            'PR': ['41', '42', '43', '44', '45', '46'], 'RJ': ['21', '22', '24'],
+            'RN': ['84'], 'RO': ['69'], 'RR': ['95'], 'RS': ['51', '53', '54', '55'],
+            'SC': ['47', '48', '49'], 'SE': ['79'], 'SP': ['11', '12', '13', '14', '15', '16', '17', '18', '19'],
+            'TO': ['63']
+        }
 
     def _get_ch_client(self):
         """Retorna uma nova instância de cliente ClickHouse (Thread-Safe)"""
@@ -188,6 +206,7 @@ class CloudEngine:
         if "ALGAR" in nu: return "ALGAR"
         if "BRISANET" in nu: return "BRISANET"
         if "TELECALL" in nu: return "TELECALL"
+        if "DESKTOP" in nu: return "DESKTOP"
         if "SERCOMTEL" in nu: return "SERCOMTEL"
         return name
 
@@ -205,6 +224,7 @@ class CloudEngine:
                 result_file TEXT,
                 record_count INTEGER,
                 filters TEXT,
+                hidden INTEGER DEFAULT 0,
                 created_at TEXT
             )
         """)
@@ -217,6 +237,9 @@ class CloudEngine:
             if 'filters' not in columns:
                 print("[MIGRATION] Adicionando coluna 'filters' em background_tasks")
                 conn.execute("ALTER TABLE background_tasks ADD COLUMN filters TEXT")
+            if 'hidden' not in columns:
+                print("[MIGRATION] Adicionando coluna 'hidden' em background_tasks")
+                conn.execute("ALTER TABLE background_tasks ADD COLUMN hidden INTEGER DEFAULT 0")
         except Exception as e:
             print(f"[MIGRATION ERROR] Erro ao migrar background_tasks: {e}")
 
@@ -257,11 +280,28 @@ class CloudEngine:
         return tid
 
     def cancel_task(self, tid):
+        """
+        Cancela uma tarefa de forma IMEDIATA, inclusive no banco de dados.
+        """
+        # 1. Marcar no SQLite (para o loop do Python parar)
         conn = sqlite3.connect(self.db_path, timeout=30)
         conn.execute("PRAGMA journal_mode=WAL")
         conn.execute("UPDATE background_tasks SET status = 'CANCELLED', message = 'Processo cancelado pelo usuário.' WHERE id = ?", (tid,))
         conn.commit()
         conn.close()
+        
+        # 2. Matar consulta no ClickHouse (se houver uma rodando com esse ID)
+        if self.is_linux:
+            try:
+                ch = self._get_ch_client()
+                if ch:
+                    # KILL QUERY async para não travar a resposta da API
+                    # Matar tanto a query principal quanto possíveis sub-lotes
+                    ch.command(f"KILL QUERY WHERE query_id = '{tid}' OR query_id LIKE '{tid}_%' ASYNC")
+                    ch.close()
+            except Exception as e:
+                print(f"[CANCEL] Erro ao matar query no ClickHouse: {e}")
+                
         return True
 
     def hide_task(self, tid):
@@ -320,7 +360,7 @@ class CloudEngine:
             
             # Fetch recent activities
             conn.row_factory = sqlite3.Row
-            recent = conn.execute("SELECT module, status, progress, message, created_at FROM background_tasks ORDER BY created_at DESC LIMIT 10").fetchall()
+            recent = conn.execute("SELECT id, module, status, progress, message, created_at FROM background_tasks ORDER BY created_at DESC LIMIT 10").fetchall()
             stats["recent_activities"] = [dict(r) for r in recent]
             conn.close()
 
@@ -383,12 +423,23 @@ class CloudEngine:
         if not client:
             return {"status": "DISCONNECTED", "uptime": "0", "active_queries": 0}
         try:
-            res = client.query("SELECT uptime() as up, count(*) as q FROM system.processes")
+            res = client.query("SELECT version() as v, uptime() as up, count(*) as q FROM system.processes LIMIT 1")
             row = res.result_rows[0]
+            
+            # Fetch memory usage
+            mem_res = client.query("SELECT value FROM system.asynchronous_metrics WHERE metric = 'MemoryAmount' LIMIT 1")
+            mem_total = mem_res.result_rows[0][0] if mem_res.result_rows else 0
+            
+            mem_used_res = client.query("SELECT value FROM system.metrics WHERE metric = 'MemoryTracking' LIMIT 1")
+            mem_used = mem_used_res.result_rows[0][0] if mem_used_res.result_rows else 0
+
             return {
                 "status": "ONLINE",
-                "uptime": str(row[0]),
-                "active_queries": row[1]
+                "version": str(row[0]),
+                "uptime_seconds": int(row[1]),
+                "active_queries": int(row[2]),
+                "memory_usage_bytes": int(mem_used),
+                "memory_total_bytes": int(mem_total)
             }
         except:
             return {"status": "OFFLINE", "uptime": "0", "active_queries": 0}
@@ -428,7 +479,7 @@ class CloudEngine:
             params = {key_param: chunk}
             if extra_params: params.update(extra_params)
             # Otimização v1.8.12: Limitar threads para permitir concorrência de usuários
-            res = ch_local.query(sql_template + " SETTINGS max_threads = 1", params)
+            res = ch_local.query(sql_template, params, settings={'query_id': tid, 'max_threads': 1})
             all_rows.extend(res.result_rows)
             # Log names once
             if not col_names:
@@ -483,7 +534,7 @@ class CloudEngine:
     def start_enrich(self, input_file, output_dir, name_col, cpf_col, username=None, perfil="TODOS"):
         print(f"[DEBUG] start_enrich called: input={input_file}, name_col={name_col}, cpf_col={cpf_col}, user={username}, perfil={perfil}")
         fname = os_native.path.basename(input_file)
-        f_summary = f"[v1.9.1] Enriquecer: {fname} (Perfil: {perfil})"
+        f_summary = f"[v2.2.0-PREMIUM] Enriquecer: {fname} (Perfil: {perfil})"
         tid = self._create_task(module="ENRICH", username=username, filters=f_summary)
         threading.Thread(target=self._run_enrich, args=(tid, input_file, output_dir, name_col, cpf_col, perfil), daemon=True).start()
         return tid
@@ -557,10 +608,10 @@ class CloudEngine:
 
     def _check_ftp_carrier_timestamp(self):
         """Acessa o FTP apenas para ler o timestamp de modificação"""
-        host = "ftp.portabilidadecelular.com"
-        port = 2157
-        user = "MAYK"
-        passwd = "Mayk@2025"
+        host = os_native.getenv("FTP_HOST", "ftp.portabilidadecelular.com")
+        port = int(os_native.getenv("FTP_PORT", 2157))
+        user = os_native.getenv("FTP_USER", "MAYK")
+        passwd = os_native.getenv("FTP_PASS", "Mayk@2025")
         filename = "portabilidade.tar.bz2"
         try:
             ftp = ftplib.FTP()
@@ -586,10 +637,10 @@ class CloudEngine:
             print(f"[CRITICAL DEBUG] local_zip set to: {local_zip}")
             sys.stdout.flush()
             
-            host = "ftp.portabilidadecelular.com"
-            port = 2157
-            user = "MAYK"
-            passwd = "Mayk@2025"
+            host = os_native.getenv("FTP_HOST", "ftp.portabilidadecelular.com")
+            port = int(os_native.getenv("FTP_PORT", 2157))
+            user = os_native.getenv("FTP_USER", "MAYK")
+            passwd = os_native.getenv("FTP_PASS", "Mayk@2025")
             filename = "portabilidade.tar.bz2"
             
             print(f"[CRITICAL DEBUG] Attempting to update task status to 5%...")
@@ -904,7 +955,7 @@ class CloudEngine:
 
     def _run_enrich(self, tid, input_file, output_dir, name_col, cpf_col, perfil="TODOS"):
         try:
-            self._update_task(tid, status="PROCESSING", message="[v1.9.1] Iniciando Escaneamento Titanium-MT (Motor Paralelo)...")
+            self._update_task(tid, status="PROCESSING", message="[v2.2.0-PREMIUM] Iniciando Escaneamento Titanium-MT (Motor Paralelo)...")
             status = self.get_task_status(tid)
             if status.get("status") == "CANCELLED": return
             start_time = time.time()
@@ -1497,9 +1548,18 @@ class CloudEngine:
                 params['cid'] = f"%{filters['cidade'].strip().upper()}%"
             
             if filters.get("cnae"): 
-                cnaes = [c.strip() for c in filters["cnae"].split(',')]
-                estab_conds.append("estab_inner.cnae_fiscal IN %(cnaes)s")
-                params['cnaes'] = cnaes
+                # Suporte a múltiplos CNAEs/Prefixos separados por , ou ;
+                raw_cnae = filters["cnae"].replace(';', ',')
+                cnae_list = [c.strip() for c in raw_cnae.split(',') if c.strip()]
+                
+                if cnae_list:
+                    cnae_clauses = []
+                    for i, c_prefix in enumerate(cnae_list):
+                        p_name = f"cnae_pref_{i}"
+                        cnae_clauses.append(f"startsWith(estab_inner.cnae_fiscal, %({p_name})s)")
+                        params[p_name] = c_prefix
+                    
+                    estab_conds.append(f"({' OR '.join(cnae_clauses)})")
 
             # Filtro de Perfil (MEI / NAO MEI) - APLICADO NA TABELA EMPRESAS
             perfil = str(filters.get("perfil", "TODOS")).upper().strip()
@@ -1531,7 +1591,16 @@ class CloudEngine:
                 estab_conds.append("((length(estab_inner.telefone1) >= 8 AND substring(estab_inner.telefone1, 1, 1) IN ('2','3','4','5')) OR (length(estab_inner.telefone2) >= 8 AND substring(estab_inner.telefone2, 1, 1) IN ('2','3','4','5')))")
             elif tipo_req == "AMBOS":
                 estab_conds.append("((length(estab_inner.telefone1) >= 8 AND substring(estab_inner.telefone1, 1, 1) IN ('6','7','8','9') AND length(estab_inner.telefone2) >= 8 AND substring(estab_inner.telefone2, 1, 1) IN ('2','3','4','5')) OR (length(estab_inner.telefone1) >= 8 AND substring(estab_inner.telefone1, 1, 1) IN ('2','3','4','5') AND length(estab_inner.telefone2) >= 8 AND substring(estab_inner.telefone2, 1, 1) IN ('6','7','8','9')))")
+
+            # Filtro de DDD da Região (Independente do Tipo de Telefone)
+            if filters.get("filtrar_ddd_regiao") and filters.get("uf"):
+                target_uf = filters["uf"].strip().upper()
+                ddds = self.UF_DDD_MAP.get(target_uf, [])
+                if ddds:
+                    estab_conds.append("(estab_inner.ddd1 IN %(ddds_reg)s OR estab_inner.ddd2 IN %(ddds_reg)s)")
+                    params['ddds_reg'] = ddds
             elif filters.get("somente_com_telefone"):
+                # Fallback legado
                 estab_conds.append("(estab_inner.telefone1 != '' OR estab_inner.telefone2 != '')")
 
             cep_file = filters.get("cep_file")
@@ -1654,7 +1723,7 @@ class CloudEngine:
                     prog_val = min(95, round(15 + (b_idx / len(pairs) * 80), 1))
                     self._update_task(tid, progress=prog_val, message=f"Consultando lote { (b_idx//batch_size_sql)+1 } / {total_batches}...")
                     
-                    result = ch_local.query(batch_q, current_params)
+                    result = ch_local.query(batch_q, current_params, settings={'query_id': f"{tid}_b{b_idx}"})
                     df_batch = pd.DataFrame(result.result_rows, columns=result.column_names)
                     
                     if not df_batch.empty:
@@ -1665,7 +1734,7 @@ class CloudEngine:
             else:
                 # Caso padrão (Extração normal ou CEP sem Número)
                 self._update_task(tid, progress=15, message="Executando consulta no ClickHouse...")
-                result = ch_local.query(q, params)
+                result = ch_local.query(q, params, settings={'query_id': tid})
                 rows = result.result_rows
                 cols = result.column_names
                 total_rows_found = len(rows)
@@ -1712,28 +1781,60 @@ class CloudEngine:
 
     def _process_extraction_dataframe(self, tid, df, filters, workbook, sheet, header_fmt, header_written, start_row_count):
         """
-        Sub-motor de processamento de dataframe para extração.
-        Normaliza telefones, filtra operadoras e escreve no Excel.
+        Sub-motor de processamento de dataframe para extração (VETORIZADO).
+        Normaliza telefones, filtra operadoras e escreve no Excel com performance titanium.
         """
         if df.empty: return df
 
-        # 1. Normalização de Telefones
-        def check_tel(t):
-            if not t or str(t).upper() in ['NAN', 'NONE']: return None
-            num = re.sub(r'\D', '', str(t).strip().replace('.0', ''))
-            if not num: return None
-            return "CELULAR" if (len(num) == 9 or (len(num) == 8 and num[0] in '6789')) else "FIXO"
+        # 1. Normalização de Telefones (Vetorizada)
+        for col in ['DDD1', 'TEL1', 'DDD2', 'TEL2']:
+            if col not in df.columns: df[col] = ""
+            df[col] = df[col].astype(str).str.replace(r'\.0$', '', regex=True).replace(['nan', 'NaN', 'None', '<NA>'], '')
 
-        def get_full(d, t):
-            if not t or str(t).upper() in ['NAN', 'NONE']: return ""
-            full = re.sub(r'\D', '', (str(d).replace('.0', '') if pd.notna(d) else "") + str(t).replace('.0', ''))
-            if len(full) == 10 and full[2] in '6789': full = full[:2] + '9' + full[2:]
-            return full
+        # Limpeza e concatenação (T1)
+        df['full_t1'] = (df['DDD1'] + df['TEL1']).str.replace(r'\D', '', regex=True)
+        # Regra do 9º dígito (Vetorizada)
+        mask10_t1 = (df['full_t1'].str.len() == 10) & (df['full_t1'].str[2].isin(['6','7','8','9']))
+        df.loc[mask10_t1, 'full_t1'] = df['full_t1'].str[:2] + '9' + df['full_t1'].str[2:]
+        
+        # Limpeza e concatenação (T2)
+        df['full_t2'] = (df['DDD2'] + df['TEL2']).str.replace(r'\D', '', regex=True)
+        mask10_t2 = (df['full_t2'].str.len() == 10) & (df['full_t2'].str[2].isin(['6','7','8','9']))
+        df.loc[mask10_t2, 'full_t2'] = df['full_t2'].str[:2] + '9' + df['full_t2'].str[2:]
 
-        df['full_t1'] = df.apply(lambda x: get_full(x['DDD1'], x['TEL1']), axis=1)
-        df['full_t2'] = df.apply(lambda x: get_full(x['DDD2'], x['TEL2']), axis=1)
-        df['t1_tipo'] = df['TEL1'].apply(check_tel)
-        df['t2_tipo'] = df['TEL2'].apply(check_tel)
+        # Filtro de Junk (Zeros ou Vazios)
+        def clean_junk(ser):
+            # Transforma em vazio se for só zeros ou se após o DDD (2 primeiros dígitos) for só zeros
+            is_all_zero = ser.str.replace('0', '') == ''
+            is_local_zero = (ser.str.len() >= 2) & (ser.str.slice(2).str.replace('0', '') == '')
+            return np.where(is_all_zero | is_local_zero, "", ser)
+        
+        df['full_t1'] = clean_junk(df['full_t1'])
+        df['full_t2'] = clean_junk(df['full_t2'])
+
+        # Identificação de Região (Pernambuco Fix)
+        if filters.get("filtrar_ddd_regiao") and filters.get("uf"):
+            target_uf = filters["uf"].strip().upper()
+            valid_ddds = [str(d) for d in self.UF_DDD_MAP.get(target_uf, [])]
+            if valid_ddds:
+                df['is_reg1'] = df['DDD1'].astype(str).isin(valid_ddds)
+                df['is_reg2'] = df['DDD2'].astype(str).isin(valid_ddds)
+            else:
+                df['is_reg1'] = True
+                df['is_reg2'] = True
+        else:
+            df['is_reg1'] = True
+            df['is_reg2'] = True
+
+        # Identificação de Tipos (Vetorizada)
+        def get_tipo_vec(col):
+            # O TEL1/TEL2 original (já limpo de .0 e nan)
+            clean = df[col].str.replace(r'\D', '', regex=True)
+            is_cel = (clean.str.len() == 9) | ((clean.str.len() == 8) & (clean.str.slice(0,1).isin(['6','7','8','9'])))
+            return np.where(clean.str.len() > 0, np.where(is_cel, "CELULAR", "FIXO"), None)
+
+        df['t1_tipo'] = get_tipo_vec('TEL1')
+        df['t2_tipo'] = get_tipo_vec('TEL2')
 
         tipo_req = filters.get("tipo_tel", "TODOS")
         if tipo_req == "AMBOS":
@@ -1744,43 +1845,59 @@ class CloudEngine:
 
         if df.empty: return df
 
-        def select_phone(row):
-            t1, t2 = row.get('full_t1', ''), row.get('full_t2', '')
-            tipo1, tipo2 = row.get('t1_tipo'), row.get('t2_tipo')
-            if tipo_req in ["CELULAR", "FIXO"]:
-                if tipo1 == tipo_req: return t1
-                return t2
-            elif tipo_req == "AMBOS":
-                parts = []
-                if t1: parts.append(f"{tipo1}: {t1}")
-                if t2: parts.append(f"{tipo2}: {t2}")
-                return " | ".join(parts)
-            if tipo1 == "CELULAR": return t1
-            if tipo2 == "CELULAR": return t2
-            return t1 if t1 else t2
+        # Seleção do Telefone (Vetorizada com Filtro Regional)
+        if tipo_req in ["CELULAR", "FIXO"]:
+            # Só seleciona se for do tipo correto E (se filtro on) for da região correta
+            mask1 = (df['t1_tipo'] == tipo_req) & (df['is_reg1']) & (df['full_t1'] != "")
+            mask2 = (df['t2_tipo'] == tipo_req) & (df['is_reg2']) & (df['full_t2'] != "")
+            df['TELEFONE SOLICITADO'] = np.where(mask1, df['full_t1'], 
+                                        np.where(mask2, df['full_t2'], ""))
+        elif tipo_req == "AMBOS":
+            # Para AMBOS, mostramos os dois, mas filtrados por região se necessário
+            t1_valid = (df['full_t1'] != "") & (df['is_reg1'])
+            t2_valid = (df['full_t2'] != "") & (df['is_reg2'])
+            t1_part = np.where(t1_valid, df['t1_tipo'].astype(str) + ": " + df['full_t1'], "")
+            t2_part = np.where(t2_valid, df['t2_tipo'].astype(str) + ": " + df['full_t2'], "")
+            df['TELEFONE SOLICITADO'] = t1_part + np.where((t1_part != "") & (t2_part != ""), " | ", "") + t2_part
+        else: # TODOS
+            # Prioridade: 1. Celular Regional, 2. Fixo Regional, 3. Qualquer Celular (se filtro off), 4. Qualquer Fixo (se filtro off)
+            c1_reg = (df['t1_tipo'] == "CELULAR") & (df['is_reg1']) & (df['full_t1'] != "")
+            c2_reg = (df['t2_tipo'] == "CELULAR") & (df['is_reg2']) & (df['full_t2'] != "")
+            f1_reg = (df['t1_tipo'] == "FIXO") & (df['is_reg1']) & (df['full_t1'] != "")
+            f2_reg = (df['t2_tipo'] == "FIXO") & (df['is_reg2']) & (df['full_t2'] != "")
             
-        df['TELEFONE SOLICITADO'] = df.apply(select_phone, axis=1)
-        df = df.drop(columns=[c for c in ['DDD1', 'TEL1', 'DDD2', 'TEL2', 't1_tipo', 't2_tipo', 'full_t1', 'full_t2'] if c in df.columns])
+            df['TELEFONE SOLICITADO'] = np.where(c1_reg, df['full_t1'],
+                                        np.where(c2_reg, df['full_t2'],
+                                        np.where(f1_reg, df['full_t1'],
+                                        np.where(f2_reg, df['full_t2'], ""))))
         
-        # Enriquecimento de Operadora (em lotes)
+        # Se após a seleção o telefone estiver vazio e o usuário pediu filtragem ou somente com telefone, removemos a linha
+        if filters.get("filtrar_ddd_regiao") or filters.get("somente_com_telefone"):
+            df = df[df['TELEFONE SOLICITADO'] != ""].copy()
+            if df.empty: return df
+                                        
+        # Drop de colunas auxiliares
+        drop_cols = [c for c in ['DDD1', 'TEL1', 'DDD2', 'TEL2', 't1_tipo', 't2_tipo', 'full_t1', 'full_t2'] if c in df.columns]
+        df = df.drop(columns=drop_cols)
+        
+        # Enriquecimento de Operadora (em lotes - já otimizado anteriormente)
         df = self._append_operator_column(tid, df)
 
-        # Filtros de Operadora
+        # Filtros de Operadora (Vetorizados)
         op_inc = str(filters.get("operadora_inc", "TODAS")).upper()
         op_exc = str(filters.get("operadora_exc", "NENHUMA")).upper()
         
-        def check_op(row_val, target_op):
-            if not row_val: return False
-            rv = str(row_val).upper()
-            to = str(target_op).upper()
-            if to == "VIVO": return "VIVO" in rv or "TELEFONICA" in rv
-            return to in rv
-
         if 'OPERADORA DO TELEFONE' in df.columns:
             if op_exc != "NENHUMA":
-                df = df[~df['OPERADORA DO TELEFONE'].apply(lambda x: check_op(x, op_exc))]
+                # Escapa caracteres especiais de regex e trata VIVO/TELEFONICA
+                pattern = "VIVO|TELEFONICA" if op_exc == "VIVO" else re.escape(op_exc)
+                mask_exc = df['OPERADORA DO TELEFONE'].str.upper().str.contains(pattern, na=False, regex=True)
+                df = df[~mask_exc]
+                
             if op_inc != "TODAS":
-                df = df[df['OPERADORA DO TELEFONE'].apply(lambda x: check_op(x, op_inc))]
+                pattern = "VIVO|TELEFONICA" if op_inc == "VIVO" else re.escape(op_inc)
+                mask_inc = df['OPERADORA DO TELEFONE'].str.upper().str.contains(pattern, na=False, regex=True)
+                df = df[mask_inc]
 
         if df.empty: return df
 
@@ -1800,21 +1917,18 @@ class CloudEngine:
         
         df_final = df[final_columns].fillna("")
 
-        # Escrita no Excel
+        # Escrita no Excel (Vetorizada com write_row)
         EXCEL_LIMIT = 1000000 
         current_sheet_row = (start_row_count % EXCEL_LIMIT) + 1
-        # Se for o primeiro lote de todos
+        
+        # Primeiro lote: Escrever Header
         if not header_written:
-            for col_idx, col_name in enumerate(df_final.columns):
-                sheet.write(0, col_idx, col_name, header_fmt)
+            sheet.write_row(0, 0, df_final.columns, header_fmt)
             current_sheet_row = 1
 
-        data_matrix = df_final.values
-        for r_idx, row_data in enumerate(data_matrix):
-            # Nota: O controle de nova aba aqui é simplificado, 
-            # assumimos que um único lote não estoura 1M se processado corretamente.
-            for c_idx, val in enumerate(row_data):
-                sheet.write(current_sheet_row, c_idx, val)
+        # Escrita em massa: Usando write_row em loop (Muito mais rápido que sheet.write individual)
+        for r_idx, row_data in enumerate(df_final.values):
+            sheet.write_row(current_sheet_row, 0, row_data)
             current_sheet_row += 1
             
         return df_final
@@ -2144,52 +2258,78 @@ class CloudEngine:
         return normalized
 
     def _append_operator_column(self, tid, df):
+        """
+        Enriquecimento de operadora de ALTA PERFORMANCE.
+        Usa cache em lote e evita processamento linha-a-linha desnecessário.
+        """
+        if 'TELEFONE SOLICITADO' not in df.columns or df.empty:
+            df['OPERADORA DO TELEFONE'] = "NÃO CONSTA"
+            return df
+
         self._update_task(tid, progress=90, message="Identificando operadoras...")
         try:
-            phones_to_query = df['TELEFONE SOLICITADO'].dropna().astype(str).str.replace(r'\D', '', regex=True).tolist()
-            phones_to_query = list(set([p for p in phones_to_query if p]))
-            phones_to_query_clean = [p[2:] if p.startswith('55') else p for p in phones_to_query]
-            phones_to_query_alt = [p[:len(p)-9] + p[len(p)-8:] for p in phones_to_query_clean if len(p) == 11]
-            all_queries = list(set(phones_to_query_clean + phones_to_query_alt))
-
-            conn = sqlite3.connect(self.db_carrier)
+            # 1. Limpeza Vetorizada de Telefones
+            df['_clean_tel_enrich'] = df['TELEFONE SOLICITADO'].astype(str).str.replace(r'\D', '', regex=True).str.replace(r'^55', '', regex=True)
+            
+            unique_phones = df['_clean_tel_enrich'].unique()
+            phones_to_query = [p for p in unique_phones if p and p != 'nan']
+            
+            # Gerar variações (11 -> 10 para portabilidade legada)
+            all_queries = set(phones_to_query)
+            for p in phones_to_query:
+                if len(p) == 11: all_queries.add(p[:2] + p[3:]) # DDD + 8 dígitos
+            
+            # 2. Consulta SQLite em Lotes (Cache de Resultados)
             op_results = {}
             op_map = self._get_carrier_map()
             
+            all_queries_list = list(all_queries)
             batch_size = 900
-            for i in range(0, len(all_queries), batch_size):
-                batch = all_queries[i : i + batch_size]
+            conn = sqlite3.connect(self.db_carrier)
+            for i in range(0, len(all_queries_list), batch_size):
+                batch = all_queries_list[i : i + batch_size]
                 placeholders = ','.join(['?'] * len(batch))
                 rows = conn.execute(f"SELECT telefone, operadora_id FROM portabilidade WHERE telefone IN ({placeholders})", batch).fetchall()
                 for tel_db, op_id in rows:
                     op_results[str(tel_db)] = op_map.get(str(op_id), "OUTRA")
             conn.close()
 
-            def _smart_map(t):
-                if pd.isna(t) or not t: return "NÃO CONSTA"
-                t = str(t).replace(r'\D', '')
-                if t.startswith('55'): t = t[2:]
-                
-                res = None
-                if t in op_results: res = op_results[t]
-                if not res and len(t) == 11:
-                    t10 = t[:2] + t[3:]
-                    if t10 in op_results: res = op_results[t10]
-                if not res:
-                    t13 = "55" + t
-                    if t13 in op_results: res = op_results[t13]
-                
-                if res and res != "OUTRA": return res
-                
-                num = re.sub(r'\D', '', t)
-                if num.startswith("55"): num = num[2:]
-                for length in range(7, 3, -1):
-                    pref = num[:length]
-                    if pref in self.prefix_tree:
-                        return self.get_op_name(self.prefix_tree[pref]).upper()
-                return "NÃO CONSTA"
+            # 3. Mapeamento Inteligente e Fallback de Prefixo (Híbrido Vetorizado)
+            # Primeiro nível: Mapeamento direto da Portabilidade
+            df['OPERADORA DO TELEFONE'] = df['_clean_tel_enrich'].map(op_results)
+            
+            # Segundo nível: Portabilidade com 10 dígitos (se o de 11 falhou)
+            mask_retry_10 = (df['OPERADORA DO TELEFONE'].isna()) & (df['_clean_tel_enrich'].str.len() == 11)
+            if mask_retry_10.any():
+                df.loc[mask_retry_10, 'OPERADORA DO TELEFONE'] = (df.loc[mask_retry_10, '_clean_tel_enrich'].str[:2] + df.loc[mask_retry_10, '_clean_tel_enrich'].str[3:]).map(op_results)
 
-            df['OPERADORA DO TELEFONE'] = df['TELEFONE SOLICITADO'].apply(_smart_map)
+            # Terceiro nível: Prefixo Anatel (Fallback)
+            mask_prefix = df['OPERADORA DO TELEFONE'].isna() | (df['OPERADORA DO TELEFONE'] == "OUTRA")
+            if mask_prefix.any():
+                # Loop limitado por comprimentos de prefixo (mais rápido que loop por linha)
+                prefix_results = pd.Series(index=df.index, dtype=str)
+                nums = df.loc[mask_prefix, '_clean_tel_enrich']
+                
+                # De 7 a 4 dígitos
+                for length in [7, 6, 5, 4]:
+                    if nums.empty: break
+                    prefs = nums.str[:length]
+                    # Mapear prefixos usando o prefix_tree em memória
+                    mapped = prefs.map(self.prefix_tree).dropna()
+                    if not mapped.empty:
+                        # Converter códigos Anatel para nomes reais
+                        unique_codes = mapped.unique()
+                        code_to_name = {c: self.get_op_name(c).upper() for c in unique_codes}
+                        resolved = mapped.map(code_to_name)
+                        prefix_results.update(resolved)
+                        # Remover já encontrados para não sobrepor com prefixos menores
+                        nums = nums.drop(index=mapped.index)
+                
+                df.loc[mask_prefix, 'OPERADORA DO TELEFONE'] = prefix_results.fillna(df.loc[mask_prefix, 'OPERADORA DO TELEFONE'])
+
+            # Limpeza final
+            df['OPERADORA DO TELEFONE'] = df['OPERADORA DO TELEFONE'].fillna("NÃO CONSTA")
+            df = df.drop(columns=['_clean_tel_enrich'])
             return df
         except Exception as e:
             import traceback

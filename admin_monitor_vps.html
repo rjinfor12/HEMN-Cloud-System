@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>HEMN SYSTEM | Monitoramento Administrativo</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root {
@@ -209,7 +210,7 @@
         <div class="header">
             <div>
                 <a href="../static/admin.html" class="btn-back">← Voltar ao Painel</a>
-                <h1 style="margin-top: 20px;">Monitoramento <span>Real-Time</span></h1>
+                <h1 style="margin-top: 20px;">Monitoramento <span id="env-version">Real-Time</span></h1>
             </div>
             <div class="status-badge">
                 <div class="status-dot live-indicator"></div>
@@ -299,9 +300,26 @@
     </div>
 
     <script>
-        const API = "";
+        const API = "/areadocliente";
         const token = localStorage.getItem("hemn_token");
         if (!token) location.href = "../static/admin.html";
+
+        async function cancelTask(tid) {
+            if (!confirm("Deseja realmente cancelar este processo?")) return;
+            try {
+                const res = await fetch(`${API}/tasks/${tid}/cancel`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (res.ok) {
+                    alert("Cancelamento solicitado.");
+                    updateStats();
+                }
+            } catch (e) {
+                console.error("Cancel Error:", e);
+                alert("Erro ao enviar cancelamento.");
+            }
+        }
 
         // Chart Setup
         const ctx = document.getElementById('cpuChart').getContext('2d');
@@ -351,13 +369,26 @@
                 cpuChart.data.datasets[0].data.push(data.system.cpu);
                 cpuChart.update('none');
 
+                // Update Version
+                if (data.system_version) {
+                    document.getElementById('env-version').innerText = data.system_version;
+                }
+
                 // Update ClickHouse
                 const ch = data.clickhouse;
                 document.getElementById('ch-status').innerText = ch.status;
                 document.getElementById('ch-status').style.color = ch.status === 'ONLINE' ? 'var(--success)' : 'var(--danger)';
                 document.getElementById('ch-version').innerText = ch.version || '--';
                 document.getElementById('ch-queries').innerText = ch.active_queries || '0';
-                document.getElementById('ch-ram').innerText = ch.memory_usage_bytes ? (ch.memory_usage_bytes / 1024 / 1024 / 1024).toFixed(2) + ' GB' : '--';
+                
+                if (ch.memory_usage_bytes && ch.memory_total_bytes) {
+                    const usageGb = (ch.memory_usage_bytes / 1024 / 1024 / 1024).toFixed(2);
+                    const totalGb = (ch.memory_total_bytes / 1024 / 1024 / 1024).toFixed(1);
+                    document.getElementById('ch-ram').innerText = `${usageGb} / ${totalGb} GB`;
+                } else if (ch.memory_usage_bytes) {
+                    document.getElementById('ch-ram').innerText = (ch.memory_usage_bytes / 1024 / 1024 / 1024).toFixed(2) + ' GB';
+                }
+
                 document.getElementById('ch-uptime').innerText = ch.uptime_seconds ? (ch.uptime_seconds / 3600).toFixed(1) + ' hrs' : '--';
 
                 // Update Engine
@@ -366,6 +397,46 @@
                 document.getElementById('engine-queued').innerText = eng.tasks.queued;
                 document.getElementById('engine-completed').innerText = eng.tasks.completed;
                 document.getElementById('engine-slots').innerText = eng.enrich_slots_available;
+
+                // Update Recent Activities (v2.2.1 Fix)
+                const logContainer = document.getElementById('task-logs');
+                if (data.recent_activities && data.recent_activities.length > 0) {
+                    logContainer.innerHTML = data.recent_activities.map(t => {
+                        if (!t.created_at) return '';
+                        const date = t.created_at.includes('T') ? t.created_at.split('T')[1].split('.')[0] : (t.created_at.includes(' ') ? t.created_at.split(' ')[1] : t.created_at);
+                        
+                        const rawStatus = (t.status || 'PROCESSING').toUpperCase();
+                        const isDone = (rawStatus === 'COMPLETED' || rawStatus === 'SUCCESS');
+                        const isFailed = (rawStatus === 'FAILED' || rawStatus === 'ERROR');
+                        const isCancelled = (rawStatus === 'CANCELLED');
+
+                                    const showCancel = !isDone && !isFailed && !isCancelled && t.id;
+                                    const cancelBtn = showCancel ? `<i class="fas fa-times-circle" style="color:#ef4444; cursor:pointer; margin-left:8px; font-size:14px" onclick="cancelTask('${t.id}')" title="Cancelar este processo"></i>` : '';
+
+                                    return `
+                                        <div class="list-item" style="border-bottom: 1px solid var(--border); padding: 12px 0;">
+                                            <div style="display:flex; justify-content:space-between; width:100%; align-items:center;">
+                                                <div style="display:flex; align-items:center; gap:10px;">
+                                                    <i class="fas ${icon}" style="color:${statusColor}; font-size: 16px;"></i>
+                                                    <div>
+                                                        <div style="font-weight:700; font-size:13px;">${module}</div>
+                                                        <div style="font-size:11px; color:var(--text-muted)">${msg}</div>
+                                                    </div>
+                                                </div>
+                                                <div style="display:flex; align-items:center; gap:5px; text-align:right;">
+                                                    <div>
+                                                        <div style="font-weight:800; color:${statusColor}">${t.progress}%</div>
+                                                        <div style="font-size:10px; color:var(--text-muted)">${date}</div>
+                                                    </div>
+                                                    ${cancelBtn}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    `;
+                    }).join('');
+                } else {
+                    logContainer.innerHTML = '<div style="color: var(--text-muted); text-align: center; margin-top: 40px;">Nenhuma atividade recente.</div>';
+                }
 
             } catch (e) {
                 console.error("Monitor Error:", e);

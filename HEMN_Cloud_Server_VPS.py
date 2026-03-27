@@ -10,6 +10,17 @@ from datetime import datetime, timedelta
 from typing import Optional, List
 import shutil
 import uuid
+from dotenv import load_dotenv
+from passlib.context import CryptContext
+
+# Load environment variables
+load_dotenv()
+
+SYSTEM_VERSION = "v2.2.0-PREMIUM" # Single source of truth
+SECRET_KEY = os.getenv("SECRET_KEY", "HEMN_SECRET_SUPER_SAFE_123")
+ALGORITHM = "HS256"
+# Security: Password Hashing (Robust PBKDF2 to avoid OS-level issues with bcrypt)
+pwd_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
 
 # Importações customizadas
 import cloud_engine
@@ -47,6 +58,10 @@ RESULT_DIR = os.path.join(APP_DIR, "storage", "results")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 os.makedirs(RESULT_DIR, exist_ok=True)
 
+@app.get("/version")
+async def get_system_version():
+    return {"version": SYSTEM_VERSION}
+
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 @app.get("/")
@@ -65,6 +80,9 @@ async def read_index():
 
 @app.get("/admin/monitor")
 async def read_monitor():
+    root_vps = os.path.join(APP_DIR, "admin_monitor_vps.html")
+    if os.path.exists(root_vps):
+        return FileResponse(root_vps)
     return FileResponse(os.path.join(STATIC_DIR, "admin_monitor.html"))
 
 # Permite acesso de qualquer lugar
@@ -77,8 +95,6 @@ app.add_middleware(
 
 DB_PATH = os.path.join(APP_DIR, "hemn_cloud.db")
 print(f"[DEBUG] DB_PATH: {DB_PATH}")
-SECRET_KEY = "HEMN_SECRET_SUPER_SAFE_123"
-ALGORITHM = "HS256"
 
 from fastapi.responses import JSONResponse
 import traceback
@@ -144,6 +160,18 @@ class LeadSearchRequest(BaseModel):
     regiao_nome: Optional[str] = None
 
 # --- AUTH HELPERS ---
+def verify_password(plain_password, hashed_password):
+    try:
+        # PBKDF2 is robust and avoids the 72-char limit or handler init issues
+        return pwd_context.verify(str(plain_password), hashed_password)
+    except Exception as e:
+        print(f"[AUTH] Error verifying password: {e}")
+        # Fallback for plain text if migration is in progress
+        return plain_password == hashed_password
+
+def get_password_hash(password):
+    return pwd_context.hash(str(password))
+
 def create_token(username: str):
     expire = datetime.utcnow() + timedelta(hours=24)
     return jwt.encode({"sub": username, "exp": expire}, SECRET_KEY, algorithm=ALGORITHM)
@@ -389,6 +417,14 @@ def get_single_carrier(phone: str, user: dict = Depends(get_current_user)):
 def get_active_tasks(user: dict = Depends(get_current_user)):
     return engine.get_user_tasks(user["username"])
 
+@app.get("/tasks/{task_id}")
+def get_task_status(task_id: str, user: dict = Depends(get_current_user)):
+    # Simple status check for specific ID (Safety net for individual polling)
+    status = engine.get_task_status(task_id)
+    if not status or status.get("username") != user["username"] and user["role"] != "ADMIN":
+        return {"status": "NOT_FOUND"}
+    return status
+
 @app.post("/tasks/{task_id}/cancel")
 def cancel_task(task_id: str, user: dict = Depends(get_current_user)):
     # Verify ownership
@@ -409,22 +445,37 @@ async def login(request: Request):
     conn = sqlite3.connect(DB_PATH, timeout=30)
     conn.execute("PRAGMA journal_mode=WAL")
     conn.row_factory = sqlite3.Row
-    user = conn.execute("SELECT * FROM users WHERE username = ? COLLATE NOCASE AND password = ?", (u, p)).fetchone()
+    user = conn.execute("SELECT * FROM users WHERE username = ? COLLATE NOCASE", (u,)).fetchone()
+    
     if user:
-        if user["status"] != "ACTIVE": 
+        stored_password = user["password"]
+        if verify_password(p, stored_password):
+            is_correct = True
+            # Migration check: if not already pbkdf2_sha256, migrate it
+            # (In this context, if the verify works but it wasn't hashed with the current scheme)
+            if not stored_password.startswith("$pbkdf2-sha256$"):
+                 new_hash = get_password_hash(p)
+                 conn.execute("UPDATE users SET password = ? WHERE username = ? COLLATE NOCASE", (new_hash, u))
+                 conn.commit()
+
+        if is_correct:
+            if user["status"] != "ACTIVE": 
+                conn.close()
+                raise HTTPException(status_code=403, detail="Acesso bloqueado.")
+            token = create_token(u)
+            conn.execute("UPDATE users SET last_login = ? WHERE username = ? COLLATE NOCASE", (datetime.now().isoformat(), u))
+            conn.commit()
             conn.close()
-            raise HTTPException(status_code=403, detail="Acesso bloqueado.")
-        token = create_token(u)
-        conn.execute("UPDATE users SET last_login = ? WHERE username = ? COLLATE NOCASE", (datetime.now().isoformat(), u))
-        conn.commit()
-        conn.close()
-        return {"access_token": token, "token_type": "bearer"}
+            return {"access_token": token, "token_type": "bearer"}
+    
     conn.close()
     raise HTTPException(status_code=401, detail="Usu\u00e1rio ou senha incorretos.")
 
 @app.get("/me")
 def get_me(user: dict = Depends(get_current_user)):
-    return user
+    user_data = dict(user)
+    user_data["system_version"] = SYSTEM_VERSION
+    return user_data
 
 @app.get("/me/db_version")
 def get_db_version(user: dict = Depends(get_current_user)):
@@ -479,6 +530,7 @@ def get_monitor_stats(user: dict = Depends(get_current_user)):
     ch_stats = engine.get_ch_metrics()
     
     return {
+        "system_version": SYSTEM_VERSION,
         "system": sys_stats,
         "engine": engine_stats,
         "clickhouse": ch_stats,
@@ -502,6 +554,8 @@ def update_user(username: str, data: dict, user: dict = Depends(get_current_user
         fields = []
         values = []
         for k, v in data.items():
+            if k == "password" and v:
+                v = get_password_hash(v)
             fields.append(f"{k} = ?")
             values.append(v)
         
@@ -660,6 +714,8 @@ def create_user(data: dict, user: dict = Depends(get_current_user)):
     if user["role"] != "ADMIN": raise HTTPException(status_code=403)
     conn = sqlite3.connect(DB_PATH)
     try:
+        if "password" in data:
+            data["password"] = bcrypt.hash(data["password"])
         cols = ", ".join(data.keys())
         placeholders = ", ".join(["?"] * len(data))
         conn.execute(f"INSERT INTO users ({cols}) VALUES ({placeholders})", list(data.values()))

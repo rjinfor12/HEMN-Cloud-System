@@ -586,6 +586,7 @@
                                 <label>OPERADORA (INCLUIR)</label>
                                 <select id="extract-operadora-inc">
                                     <option value="TODAS" selected>TODAS</option>
+                                    <option value="DESKTOP">DESKTOP</option>
                                     <option value="VIVO">VIVO</option>
                                     <option value="CLARO">CLARO</option>
                                     <option value="TIM">TIM</option>
@@ -600,6 +601,7 @@
                                 <label>OPERADORA (EXCLUIR)</label>
                                 <select id="extract-operadora-exc">
                                     <option value="NENHUMA" selected>NENHUMA</option>
+                                    <option value="DESKTOP">DESKTOP</option>
                                     <option value="VIVO">VIVO</option>
                                     <option value="CLARO">CLARO</option>
                                     <option value="TIM">TIM</option>
@@ -3164,13 +3166,19 @@
             },
 
             async pollTasks() {
-                // Tique global para contagem regressiva em tempo real
-                setInterval(() => {
-                    this.tasks.forEach(t => {
-                        if (t.remaining > 0 && !t.done) {
+                // Tique global para contagem regressiva em tempo real (Otimizado: Corre apenas se houver tarefas ativas e visíveis)
+                if (this.pollInterval1) clearInterval(this.pollInterval1);
+                this.pollInterval1 = setInterval(() => {
+                    if (document.visibilityState !== 'visible') return;
+
+                    const activeProcessingTasks = this.tasks.filter(t => !t.done);
+                    if (activeProcessingTasks.length === 0) return;
+
+                    activeProcessingTasks.forEach(t => {
+                        if (t.remaining > 0) {
                             t.remaining--;
                             const timeLabel = document.getElementById(`time-label-${t.id}`);
-                            if (timeLabel) {
+                            if (timeLabel && timeLabel.offsetParent) {
                                 const mins = Math.floor(t.remaining / 60);
                                 const secs = Math.floor(t.remaining % 60);
                                 timeLabel.innerText = `RESTANTE: ~${mins}m ${secs}s`;
@@ -3179,115 +3187,96 @@
                     });
                 }, 1000);
 
-                setInterval(async () => {
-                    if (this.tasks.length === 0) return;
-                    for (let t of this.tasks) {
-                        if (t.done) continue;
-                        try {
-                            const res = await fetch(`${API}/tasks/${t.id}`, { headers: { 'Authorization': `Bearer ${this.token}` } });
-                            const data = await res.json();
+                if (this.pollInterval2) clearInterval(this.pollInterval2);
+                this.pollInterval2 = setInterval(async () => {
+                    if (document.visibilityState !== 'visible') return;
 
-                            // If server restarted, the task is gone from memory — clean up
-                            if (data.status === 'NOT_FOUND') {
-                                t.done = true;
-                                let saved = JSON.parse(localStorage.getItem('hemn_active_tasks') || '[]');
-                                saved = saved.filter(x => x.id !== t.id);
-                                localStorage.setItem('hemn_active_tasks', JSON.stringify(saved));
-                                const gcard = document.getElementById(`gtask-${t.id}`);
-                                if (gcard) gcard.remove();
-                                const gmsg = document.getElementById(`gmsg-${t.id}`);
-                                if (gmsg) gmsg.innerText = 'Servidor reiniciado — processo perdido.';
+                    const activeToPoll = this.tasks.filter(t => !t.done);
+                    if (activeToPoll.length === 0) return;
+                    
+                    try {
+                        const res = await fetch(`${API}/tasks/active`, { headers: { 'Authorization': `Bearer ${this.token}` } });
+                        if (!res.ok) return;
+                        const activeTasks = await res.json();
+                        
+                        const serverTasks = {};
+                        activeTasks.forEach(st => serverTasks[st.id] = st);
+
+                        for (let t of this.tasks) {
+                            if (t.done) continue;
+                            let data = serverTasks[t.id];
+
+                            // SE A TAREFA NÃO ESTÁ NO ACTIVE, AUMENTAR CONTADOR DE MISS
+                            if (!data) {
+                                t.missCount = (t.missCount || 0) + 1;
+                                if (t.missCount >= 3) {
+                                    t.done = true;
+                                    // Remove from localStorage
+                                    let saved = JSON.parse(localStorage.getItem('hemn_active_tasks') || '[]');
+                                    saved = saved.filter(x => x.id !== t.id);
+                                    localStorage.setItem('hemn_active_tasks', JSON.stringify(saved));
+                                    
+                                    const gcard = document.getElementById(`gtask-${t.id}`);
+                                    if (gcard) gcard.remove();
+                                    
+                                    const timeLabel = document.getElementById(`time-label-${t.id}`);
+                                    if (timeLabel) timeLabel.innerHTML = `<i class="fas fa-exclamation-triangle" style="color:var(--text-3); margin-right:5px"></i> PROCESSO CONCLUÍDO (OFF)`;
+                                }
                                 continue;
                             }
+                            t.missCount = 0; // Reset miss count if found
 
-                            const statusBadge = document.getElementById(`status-${t.id}`);
-                            const progressBar = document.getElementById(`prog-${t.id}`);
-                            const msgLabel = document.getElementById(`msg-${t.id}`);
-                            const timeLabel = document.getElementById(`time-label-${t.id}`);
-                            const pctLabel = document.getElementById(`pct-${t.id}`);
+                            if (data && data.status) {
+                                // 1. Atualizar Estado em Memória e Global Card (Sempre visível se existir)
+                                const updateElement = (id, val, attr = 'innerText') => {
+                                    const el = document.getElementById(id);
+                                    if (el) {
+                                        if (attr === 'styleWidth') el.style.width = val + '%';
+                                        else el[attr] = val;
+                                    }
+                                };
+                                
+                                updateElement(`gmsg-${t.id}`, data.message);
+                                updateElement(`gprog-${t.id}`, data.progress, 'styleWidth');
+                                updateElement(`gstatus-${t.id}`, this.statusMap[data.status.toUpperCase()] || data.status.toUpperCase());
 
-                            // Always update global banner regardless of module card
-                            if (data.status) {
-                                const gmsg = document.getElementById(`gmsg-${t.id}`);
-                                const gprog = document.getElementById(`gprog-${t.id}`);
-                                const gstatus = document.getElementById(`gstatus-${t.id}`);
-                                if (gmsg && data.message) gmsg.innerText = data.message;
-                                if (gprog && data.progress !== undefined) gprog.style.width = data.progress + '%';
-                                if (gstatus) gstatus.innerText = this.statusMap[data.status.toUpperCase()] || data.status.toUpperCase();
-
-                                // Update localStorage to preserve state for next refresh
                                 t.status = data.status;
                                 t.message = data.message;
                                 t.progress = data.progress;
-                                let saved = JSON.parse(localStorage.getItem('hemn_active_tasks') || '[]');
-                                const idx = saved.findIndex(x => x.id === t.id);
-                                if (idx !== -1) {
-                                    saved[idx] = { ...saved[idx], ...data };
-                                    localStorage.setItem('hemn_active_tasks', JSON.stringify(saved));
-                                }
+                                if (data.record_count) t.record_count = data.record_count;
 
-                                if (data.status === 'COMPLETED' || data.status === 'FAILED') {
-                                    // Removed premature t.done = true to allow specialized success/fail blocks to run
-                                }
-                            }
+                                // 2. Atualizar Card do Módulo (Apenas se estiver visível no DOM!)
+                                const card = document.getElementById(`task-${t.id}`);
+                                if (card && card.offsetParent) {
+                                    updateElement(`status-${t.id}`, this.statusMap[data.status.toUpperCase()] || data.status.toUpperCase());
+                                    updateElement(`msg-${t.id}`, data.message);
+                                    updateElement(`prog-${t.id}`, data.progress, 'styleWidth');
+                                    updateElement(`pct-${t.id}`, data.progress + "%");
 
-                            if (statusBadge && data.status) {
-                                const rawStatus = data.status.toUpperCase();
-                                statusBadge.innerText = this.statusMap[rawStatus] || rawStatus;
-                                if (msgLabel && data.message) msgLabel.innerText = data.message;
-                                
-                                if (data.filters) {
-                                    const filterDiv = document.getElementById(`filters-${t.id}`);
-                                    if (filterDiv) {
-                                        filterDiv.style.display = 'flex';
-                                        filterDiv.querySelector('span').innerText = data.filters;
-                                        // Update memory/storage to keep it on refresh
-                                        t.filters = data.filters;
-                                        let saved = JSON.parse(localStorage.getItem('hemn_active_tasks') || '[]');
-                                        const idx = saved.findIndex(x => x.id === t.id);
-                                        if (idx !== -1) {
-                                            saved[idx].filters = data.filters;
-                                            localStorage.setItem('hemn_active_tasks', JSON.stringify(saved));
-                                        }
-                                    }
-                                }
-
-                                if (progressBar && data.progress !== undefined) {
-                                    progressBar.style.width = data.progress + "%";
-                                    if (pctLabel) pctLabel.innerText = data.progress + "%";
-                                }
-
-                                if (data.status === 'PROCESSING') {
-                                    if (data.progress > 10 && data.progress < 100) {
+                                    if (data.status === 'PROCESSING' && data.progress > 10 && data.progress < 100) {
                                         const elapsed = (Date.now() - t.startTime) / 1000;
                                         const total = elapsed / (data.progress / 100);
                                         const currentEst = Math.max(0, Math.floor(total - elapsed));
-
-                                        // Suavização exponencial para evitar saltos
                                         if (!t.remaining) t.remaining = currentEst;
                                         else t.remaining = Math.floor(t.remaining * 0.7 + currentEst * 0.3);
 
+                                        const timeLabel = document.getElementById(`time-label-${t.id}`);
                                         if (timeLabel) {
                                             const mins = Math.floor(t.remaining / 60);
                                             const secs = Math.floor(t.remaining % 60);
                                             timeLabel.innerText = `RESTANTE: ~${mins}m ${secs}s`;
-                                            timeLabel.style.color = "var(--accent)";
-                                        }
-                                    } else {
-                                        if (timeLabel) {
-                                            if (data.progress <= 10) timeLabel.innerHTML = `<i class="fas fa-circle-notch fa-spin" style="margin-right:5px"></i> ESTIMATIVA: REALIDADE EM CURSO...`;
-                                            else timeLabel.innerHTML = `<i class="fas fa-circle-notch fa-spin" style="margin-right:5px; opacity:1 !important"></i> ESTIMATIVA: FINALIZANDO...`;
                                         }
                                     }
                                 }
 
-                                if (data.status === 'COMPLETED' || data.status === 'SUCCESS' || data.result_file) {
-                                    statusBadge.className = "badge badge-green";
-                                    statusBadge.innerText = "CONCLUÍDO";
-                                    if (!t.done) {
-                                        const count = (data.record_count !== undefined) ? data.record_count : 0;
-                                        this.showToast(`Concluído: ${count.toLocaleString()} registros!`, "success");
-                                        const card = document.getElementById(`task-${t.id}`);
+                                // 3. Lógica de Conclusão / Falha
+                                const rawStatus = data.status.toUpperCase();
+                                if (rawStatus === 'COMPLETED' || rawStatus === 'SUCCESS' || data.result_file) {
+                                    const count = data.record_count || 0;
+                                    this.showToast(`Concluído: ${count.toLocaleString()} registros!`, "success");
+                                    
+                                    const card = document.getElementById(`task-${t.id}`);
+                                    if (card && !card.querySelector('.btn-primary')) {
                                         const isSplit = t.mid === 'split';
                                         const btnText = isSplit ? "Baixar Arquivos Divididos" : (this.user && this.user.role === 'MAYK' ? "Baixar Arquivos Processados" : `Baixar e Consumir Créditos (${count.toLocaleString()} Cr)`);
                                         const btnIcon = isSplit ? "fa-file-archive" : "fa-download";
@@ -3302,26 +3291,31 @@
                                         `;
                                         card.insertAdjacentHTML('beforeend', downloadHtml);
                                         
+                                        const timeLabel = document.getElementById(`time-label-${t.id}`);
                                         if (timeLabel) {
                                             timeLabel.innerHTML = `<i class="fas fa-check-circle" style="color:var(--g-success); margin-right:5px"></i> PROCESSO CONCLUÍDO`;
                                             timeLabel.style.color = "var(--g-success)";
                                         }
-                                        t.done = true;
-                                        const modName = t.mid ? t.mid.toUpperCase() : 'Processo';
-                                        this.addNotification(`${modName} Concluído`, `Processamento do lote (TI-${t.id.substring(0, 6)}) finalizado. Foram encontrados ${count} registros prontos para download.`, "success");
-                                        this.refreshUser();
+                                        const statusBadge = document.getElementById(`status-${t.id}`);
+                                        if (statusBadge) {
+                                            statusBadge.className = "badge badge-green";
+                                            statusBadge.innerText = "CONCLUÍDO";
+                                        }
                                     }
+                                    
+                                    t.done = true;
+                                    const modName = t.mid ? t.mid.toUpperCase() : 'Processo';
+                                    this.addNotification(`${modName} Concluído`, `Processamento do lote (TI-${t.id.substring(0, 6)}) finalizado.`, "success");
+                                    this.refreshUser();
                                 }
-                                else if (data.status === 'FAILED' || data.status === 'CANCELLED') {
-                                    statusBadge.className = "badge badge-red";
+                                else if (rawStatus === 'FAILED' || rawStatus === 'CANCELLED') {
+                                    const statusBadge = document.getElementById(`status-${t.id}`);
+                                    if (statusBadge) statusBadge.className = "badge badge-red";
                                     const cancelZone = document.getElementById(`cancel-zone-${t.id}`);
                                     if (cancelZone) cancelZone.style.display = 'none';
                                     t.done = true;
-                                    const stName = data.status === 'CANCELLED' ? 'Cancelado' : 'Falhou';
-                                    this.addNotification(`Processo ${stName}`, `O lote TI-${t.id.substring(0, 6)} encerrou com status ${data.status}.`, "error");
-                                    if (data.status === 'CANCELLED') {
-                                        this.showToast(`Tarefa ${t.id.substring(0, 8)} cancelada`, "info");
-                                    }
+                                    const stName = rawStatus === 'CANCELLED' ? 'Cancelado' : 'Falhou';
+                                    this.addNotification(`Processo ${stName}`, `O lote TI-${t.id.substring(0, 6)} encerrou com status ${rawStatus}.`, "error");
                                 }
 
                                 if (t.done) {
@@ -3335,15 +3329,11 @@
                                     setTimeout(() => {
                                         const gcard = document.getElementById(`gtask-${t.id}`);
                                         if (gcard) gcard.remove();
-                                        const list = document.getElementById('global-task-list');
-                                        if (list && !list.children.length) {
-                                            document.getElementById('global-task-tracker').style.display = 'none';
-                                        }
                                     }, 5000);
                                 }
                             }
-                        } catch (e) { console.error(e); }
-                    }
+                        }
+                    } catch (e) { console.error("Poll Error:", e); }
                 }, 3000);
             },
 

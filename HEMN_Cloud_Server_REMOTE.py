@@ -238,7 +238,6 @@ class ExtractionFilter(BaseModel):
     operadora_exc: Optional[str] = "NENHUMA"
     perfil: Optional[str] = "TODOS"
     sem_governo: Optional[bool] = False
-    filtrar_ddd_regiao: Optional[bool] = False
 
 class UnifyRequest(BaseModel):
     file_ids: List[str]
@@ -739,8 +738,7 @@ def start_extract(filters: ExtractionFilter, user: dict = Depends(get_current_us
         "operadora_inc": filters.operadora_inc,
         "operadora_exc": filters.operadora_exc,
         "perfil": filters.perfil,
-        "sem_governo": filters.sem_governo,
-        "filtrar_ddd_regiao": filters.filtrar_ddd_regiao
+        "sem_governo": filters.sem_governo
     }
     
     tid = engine.start_extraction(f_dict, RESULT_DIR, username=user["username"])
@@ -850,12 +848,15 @@ async def login(request: Request):
         is_valid = False
         db_pass = user["password"]
         
-        if verify_password(p, db_pass):
-            is_valid = True
-            # Migration: if not pbkdf2, migrate on next login
-            if not db_pass.startswith("$pbkdf2-sha256$"):
+        if db_pass.startswith("$2b$") or db_pass.startswith("$2a$"):
+            is_valid = verify_password(p, db_pass)
+        else:
+            # Legacy plain-text check
+            if db_pass == p:
+                is_valid = True
+                # Auto-migrate to hash
                 new_hash = get_password_hash(p)
-                conn.execute("UPDATE users SET password = ? WHERE username = ? COLLATE NOCASE", (new_hash, u))
+                conn.execute("UPDATE users SET password = ? WHERE username = ?", (new_hash, u))
                 conn.commit()
 
         if is_valid:
@@ -892,8 +893,10 @@ async def change_password(req: PasswordChangeRequest, user: dict = Depends(get_c
     # Verify current password
     is_valid = False
     db_pass = db_user["password"]
-    if verify_password(req.current_password, db_pass):
-        is_valid = True
+    if db_pass.startswith("$2b$") or db_pass.startswith("$2a$"):
+        is_valid = verify_password(req.current_password, db_pass)
+    else:
+        is_valid = (db_pass == req.current_password)
         
     if not is_valid:
         conn.close()

@@ -514,6 +514,11 @@ input::placeholder {
     color: var(--text-2);
     text-transform: uppercase;
     letter-spacing: 0.5px;
+    min-height: 48px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    margin-bottom: 8px;
 }
 
 .form-grid {

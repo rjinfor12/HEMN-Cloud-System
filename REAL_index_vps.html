@@ -656,18 +656,6 @@
             z-index: 5000 !important;
             transition: all 0.3s ease;
         }
-        .v-marker {
-            position: fixed;
-            bottom: 10px;
-            right: 10px;
-            background: rgba(0,0,0,0.5);
-            color: #fff;
-            font-size: 9px;
-            padding: 2px 6px;
-            border-radius: 4px;
-            z-index: 9999;
-            pointer-events: none;
-        }
         .greeting-container {
             flex: 1;
             display: flex;
@@ -1103,12 +1091,7 @@
         html[data-theme="dark"] .details-list li span {
             color: #8b949e !important;
         }
-        @keyframes pulse-focus {
-            0% { box-shadow: 0 0 0 0 rgba(247, 151, 30, 0.4); border-color: var(--accent); }
-            70% { box-shadow: 0 0 0 10px rgba(247, 151, 30, 0); border-color: var(--accent); }
-            100% { box-shadow: 0 0 0 0 rgba(247, 151, 30, 0); }
-        }
-
+        
         /* --- NEBULA GLASS FUSION BANNER --- */
         .welcome-hero {
             position: relative;
@@ -1318,6 +1301,48 @@
             opacity: 1;
             text-shadow: 0 0 10px rgba(59, 130, 246, 0.2);
         }
+
+        /* HEMN Carrier Update Button */
+        .btn-update-orange {
+            background: linear-gradient(135deg, #f59e0b, #d97706) !important;
+            color: #fff !important;
+            border: none !important;
+            padding: 8px 16px !important;
+            border-radius: 12px !important;
+            font-size: 11px !important;
+            font-weight: 800 !important;
+            cursor: pointer !important;
+            display: flex !important;
+            align-items: center !important;
+            gap: 8px !important;
+            transition: all 0.3s ease !important;
+            box-shadow: 0 4px 12px rgba(245, 158, 11, 0.2) !important;
+            text-transform: uppercase !important;
+            letter-spacing: 0.5px !important;
+        }
+        .btn-update-orange:hover {
+            transform: translateY(-2px) !important;
+            box-shadow: 0 8px 20px rgba(245, 158, 11, 0.4) !important;
+            filter: brightness(1.1);
+        }
+        .btn-update-orange:disabled {
+            opacity: 0.6 !important;
+            cursor: not-allowed !important;
+            transform: none !important;
+        }
+        .progress-mini-bar {
+            width: 100%;
+            height: 4px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 2px;
+            margin-top: 6px;
+            overflow: hidden;
+        }
+        .progress-mini-fill {
+            height: 100%;
+            background: var(--accent);
+            transition: width 0.5s ease;
+        }
     </style>
 </head>
 
@@ -1334,7 +1359,7 @@
             </button>
             <div class="logo-container">
                 <img src="/areadocliente/static/logo.png" class="logo logo-3d logo-reveal" alt="HEMN WEB Logo">
-                <div class="brand-name">HEMN WEB <small style="font-size: 10px; opacity: 0.5;">v2.1</small></div>
+                <div class="brand-name">HEMN WEB <small id="display-version" style="font-size: 10px; opacity: 0.5;">...</small></div>
             </div>
 
             <nav class="nav-menu">
@@ -1366,10 +1391,6 @@
                     <i class="icon fas fa-layer-group"></i>
                     <span>Unificar Bases</span>
                 </a>
-                <a href="#" class="nav-link" id="nav-split" onclick="app.showModule('split', this)">
-                    <i class="icon fas fa-cut"></i>
-                    <span>Dividir Arquivo</span>
-                </a>
                 <a href="#" class="nav-link" id="nav-carrier" onclick="app.showModule('carrier', this)">
                     <i class="icon fas fa-signal"></i>
                     <span>Consulta Operadora</span>
@@ -1397,9 +1418,6 @@
                     </a>
                 </div>
             </nav>
-
-            <!-- Global Tasks Tracker (Re-enabled) -->
-            <div id="global-tasks-container" style="padding: 0 15px; margin-bottom: 20px; display: flex; flex-direction: column; gap: 10px;"></div>
 
             <div class="system-status-badge">
                 <div class="status-badge-row">
@@ -1450,26 +1468,7 @@
                     </div>
                 </div>
                 <div class="header-tools">
-                    <div class="notification-wrapper" id="notification-wrapper">
-                        <button class="icon-btn" title="Notificações" id="btn-notifications" onclick="app.toggleNotifications()">
-                            <i class="fas fa-bell"></i>
-                            <span id="notification-badge">0</span>
-                        </button>
-
-                        <!-- Notification Dropdown -->
-                        <div id="notification-dropdown">
-                            <div class="notif-header">
-                                <h3>NOTIFICAÇÕES</h3>
-                                <button onclick="app.clearNotifications()">Limpar Tudo</button>
-                            </div>
-                            <div id="notification-list">
-                                <div class="notif-empty-state">
-                                    <i class="fas fa-bell-slash"></i>
-                                    Nenhuma notificação por enquanto.
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                        <!-- Notification Wrapper Removed -->
 
                     <!-- Real-Time Balance Display -->
                     <div class="balance-menu-wrapper" id="balance-menu-wrapper">
@@ -1585,7 +1584,7 @@
                         <div class="hero-content-wrapper">
                             <div class="hero-header-top">
                                 <span class="badge-new">PORTAL HEMN</span>
-                                <span class="system-tag">v1.9.1 PREMIUM</span>
+                                <span class="system-tag" id="display-tag-version">...</span>
                             </div>
                             <h1 id="welcome-title">Bem-vindo!</h1>
                             <div class="hero-divider"></div>
@@ -1798,8 +1797,8 @@
                                 <input type="text" id="extract-cidade" placeholder="Ex: RIO DE JANEIRO">
                             </div>
                             <div class="form-group">
-                                <label>CNAE (PREFIXO) <span style="font-size: 10px; opacity: 0.6;">(Opcional)</span></label>
-                                <input type="text" id="extract-cnae" placeholder="Ex: 4711">
+                                <label>CNAE (PREFIXO)</label>
+                                <input type="text" id="extract-cnae" placeholder="Ex: 4712;4713">
                             </div>
                             <div class="form-group">
                                 <label>FILTRAR TELEFONE</label>
@@ -1825,6 +1824,7 @@
                                 <label>OPERADORA (INCLUIR)</label>
                                 <select id="extract-operadora-inc">
                                     <option value="TODAS" selected>TODAS</option>
+                                    <option value="DESKTOP">DESKTOP</option>
                                     <option value="VIVO">VIVO</option>
                                     <option value="CLARO">CLARO</option>
                                     <option value="TIM">TIM</option>
@@ -1839,6 +1839,7 @@
                                 <label>OPERADORA (EXCLUIR)</label>
                                 <select id="extract-operadora-exc">
                                     <option value="NENHUMA" selected>NENHUMA</option>
+                                    <option value="DESKTOP">DESKTOP</option>
                                     <option value="VIVO">VIVO</option>
                                     <option value="CLARO">CLARO</option>
                                     <option value="TIM">TIM</option>
@@ -1863,10 +1864,10 @@
                             <!-- Extreme Left: Switch + Texto -->
                             <label class="switch-group" style="display: flex; align-items: center; gap: 12px; cursor: pointer; flex-shrink: 0;">
                                 <div class="hemn-switch">
-                                    <input type="checkbox" id="extract-somente-tel">
+                                    <input type="checkbox" id="extract-ddd-regiao">
                                     <span class="hemn-slider"></span>
                                 </div>
-                                <span style="font-size: 12px; color: var(--text-2); font-weight: 700; text-transform: uppercase; white-space: nowrap; letter-spacing: 0.3px;">APENAS CONTATOS VALIDADOS</span>
+                                <span style="font-size: 12px; color: var(--text-2); font-weight: 700; text-transform: uppercase; white-space: nowrap; letter-spacing: 0.3px;">FILTRAR DDD DA REGIÃO</span>
                             </label>
 
                             <!-- Extreme Right: Texto + Switch -->
@@ -1891,7 +1892,7 @@
                             style="width: 100%; justify-content: center;">
                             <i class="fas fa-rocket"></i> Iniciar Processamento Massivo (1 Cr por registro)
                         </button>
-                        <h3 id="title-extract" style="margin-top: 25px; margin-bottom: 10px; font-size: 14px; font-weight: 700; color: var(--text-1); border-left: 3px solid var(--accent); padding-left: 10px;">| PESQUISAS ATIVAS:</h3>
+                        <h3 id="title-extract" style="display:none; margin-top: 25px; margin-bottom: 10px; font-size: 14px; font-weight: 700; color: var(--text-1); border-left: 3px solid var(--accent); padding-left: 10px;">Pesquisas:</h3>
                         <div id="tasks-extract" style="margin-top: var(--s-2);"></div>
                     </div>
                 </section>
@@ -1945,9 +1946,9 @@
                                 <option value="NAO MEI">NAO MEI</option>
                             </select>
                         </div>
-                        <button id="btn-start-enrich" class="btn-primary" onclick="app.startEnrich()"
-                            style="width: 100%; justify-content: center; height: 50px; font-size: 16px;">Iniciar Enriquecimento</button>
-                        <h3 id="title-enrich" style="margin-top: 25px; margin-bottom: 10px; font-size: 14px; font-weight: 700; color: var(--text-1); border-left: 3px solid var(--accent); padding-left: 10px;">| PESQUISAS ATIVAS (VPS):</h3>
+                        <button class="btn-primary" onclick="app.startEnrich()"
+                            style="width: 100%; justify-content: center;">Iniciar Enriquecimento</button>
+                        <h3 id="title-enrich" style="display:none; margin-top: 25px; margin-bottom: 10px; font-size: 14px; font-weight: 700; color: var(--text-1); border-left: 3px solid var(--accent); padding-left: 10px;">Pesquisas:</h3>
                         <div id="tasks-enrich" style="margin-top: var(--s-2);"></div>
                     </div>
                 </section>
@@ -2020,26 +2021,6 @@
                 </section>
 
                 <!-- MODULE: SPLIT -->
-                <section id="module-split" class="module-view" style="display:none;">
-                    <div class="page-header">
-                        <div>
-                            <h1 class="page-title">PESQUISA: Divisor de Arquivos Heavy</h1>
-                            <p class="page-subtitle">Quebre arquivos massivos em pedaços de 1M de linhas.</p>
-                        </div>
-                    </div>
-                    <div class="glass-card">
-                        <div class="drop-zone" onclick="document.getElementById('file-input-split').click()">
-                            <i class="fas fa-cut" style="font-size: 30px; margin-bottom: 12px;"></i>
-                            <p>Suba o arquivo CSV ou Excel gigante</p>
-                            <input type="file" id="file-input-split" hidden onchange="app.handleFiles(this, 'split')">
-                        </div>
-                        <div id="file-list-split" style="margin: var(--s-4) 0;"></div>
-                        <button class="btn-primary" onclick="app.startSplit()"
-                            style="width: 100%; justify-content: center;">Fatiar Arquivo</button>
-                        <h3 id="title-split" style="display:none; margin-top: 25px; margin-bottom: 10px; font-size: 14px; font-weight: 700; color: var(--text-1); border-left: 3px solid var(--accent); padding-left: 10px;">Pesquisas:</h3>
-                        <div id="tasks-split" style="margin-top: var(--s-2);"></div>
-                    </div>
-                </section>
 
                 <!-- MODULE: CLINICAS -->
                 <section id="module-clinicas" class="module-view" style="display:none;">
@@ -2642,9 +2623,20 @@
                             <h1 class="page-title">Monitoramento <span style="color:var(--accent)">Real-Time</span></h1>
                             <p class="page-subtitle">Status operacional do servidor e banco de dados.</p>
                         </div>
-                        <div class="badge-monitor">
-                            <div class="status-dot live-indicator"></div>
-                            SISTEMA OPERACIONAL
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
+                                <button id="btn-update-carrier-main" onclick="app.triggerCarrierUpdate()" class="btn-update-orange">
+                                    <i class="fas fa-sync-alt"></i>
+                                    ATUALIZAR BASE OPERADORA
+                                </button>
+                                <div id="carrier-update-status" style="font-size: 11px; color: #000000; font-weight: 800; display: none; align-items: center; gap: 4px; margin-top: 2px;">
+                                    <i class="fas fa-exclamation-circle"></i> NOVA BASE DISPONÍVEL
+                                </div>
+                            </div>
+                            <div class="badge-monitor">
+                                <div class="status-dot live-indicator"></div>
+                                SISTEMA OPERACIONAL
+                            </div>
                         </div>
                     </div>
 
@@ -2885,7 +2877,7 @@
 
     <!-- Global Active Task Tracker -->
     <div id="global-task-tracker"
-        style="display:none !important; position: fixed; bottom: 20px; right: 20px; z-index: 5000; width: 360px; background: var(--bg-card); border: 1px solid rgba(247,151,30,0.3); border-radius: var(--r-lg); box-shadow: 0 16px 48px rgba(0,0,0,0.4); overflow: hidden;">
+        style="display:none; position: fixed; bottom: 20px; right: 20px; z-index: 5000; width: 360px; background: var(--bg-card); border: 1px solid rgba(247,151,30,0.3); border-radius: var(--r-lg); box-shadow: 0 16px 48px rgba(0,0,0,0.4); overflow: hidden;">
         <div
             style="background: var(--g-warm); padding: 10px 16px; display: flex; align-items: center; gap: 10px; justify-content: space-between;">
             <div style="display:flex; align-items:center; gap: 8px; color: white; font-size: 12px; font-weight: 800;">
@@ -3036,13 +3028,11 @@
     </div>
 
 
-    
-
     <script>
         const API = "/areadocliente";
         const app = {
             token: localStorage.getItem("hemn_token"),
-            uploadedFiles: { unify: [], enrich: [], carrier: [], split: [], cep: [] },
+            uploadedFiles: { unify: [], enrich: [], carrier: [], cep: [] },
             tasks: [],
             adminUsers: [], // Store users for edit lookup
             theme: localStorage.getItem("hemn_theme") || "dark",
@@ -3052,69 +3042,53 @@
             statusMap: {
                 'QUEUED': 'AGUARDANDO',
                 'PROCESSING': 'PROCESSANDO',
-                'COMPLETED': 'CONCLUÍDO',
-                'SUCCESS': 'CONCLUÍDO',
+                'COMPLETED': 'CONCLU\u00cdDO',
+                'SUCCESS': 'CONCLU\u00cdDO',
                 'FAILED': 'FALHOU',
                 'CANCELLED': 'CANCELADO'
             },
+            moduleMap: {
+                'ENRICH': 'ENRIQUECIMENTO',
+                'EXTRACT': 'EXTRA\u00c7\u00c3O',
+                'EXTRACTION': 'EXTRA\u00c7\u00c3O',
+                'CARRIER': 'OPERADORA',
+                'UNIFY': 'UNIFICA\u00c7\u00c3O',
+                'DOWNLOAD': 'DOWNLOAD',
+                'MANUAL': 'MANUAL'
+            },
+            typeMap: {
+                'DEBIT': 'D\u00c9BITO',
+                'CREDIT': 'CR\u00c9DITO'
+            },
             currentPixPayload: null,
-            initialized: false,
             currentModule: null,
+            lastInteraction: Date.now(),
+            inactivityInterval: null,
 
             init() {
                 if (this.initialized) return;
                 this.initialized = true;
-                // console.log("HEMN SYSTEM INITIALIZED");
+                this.fetchAndSetVersion();
 
-
-                // Universal Robust Closer (Always Active)
-                const handleGlobalClick = (e) => {
-                    // Notification dropdown closer
-                    const dropdown = document.getElementById('notification-dropdown');
-                    const bellBtn = document.getElementById('btn-notifications');
-                    if (dropdown) {
-                        const isVisible = dropdown.style.display === 'block' || getComputedStyle(dropdown).display === 'block';
-                        if (isVisible) {
-                            const rect = dropdown.getBoundingClientRect();
-                            const isInside = e.clientX >= rect.left && e.clientX <= rect.right && 
-                                             e.clientY >= rect.top && e.clientY <= rect.bottom;
-
-                            let onButton = false;
-                            if (bellBtn) {
-                                const bRect = bellBtn.getBoundingClientRect();
-                                onButton = e.clientX >= bRect.left && e.clientX <= bRect.right &&
-                                           e.clientY >= bRect.top && e.clientY <= bRect.bottom;
-                                if (!onButton) onButton = bellBtn.contains(e.target);
-                            }
-
-                            if (!isInside && !onButton && !dropdown.contains(e.target)) {
-                                dropdown.style.display = 'none';
-                            }
+                // --- UNIVERSAL UI CONTROLLER (Consolidated) ---
+                const handleGlobalUI = (e) => {
+                    // 1. Close Dropdowns if clicking outside
+                    const wrappers = ['.user-menu-wrapper', '.balance-menu-wrapper', '.notification-wrapper'];
+                    let isInsideDropdown = false;
+                    for (const selector of wrappers) {
+                        if (e.target.closest(selector)) {
+                            isInsideDropdown = true;
+                            break;
                         }
                     }
-
-                    // User menu robust closer
-                    const userWrapper = document.getElementById('user-menu-wrapper');
-                    if (userWrapper && userWrapper.classList.contains('open')) {
-                        if (!userWrapper.contains(e.target)) {
-                            userWrapper.classList.remove('open');
-                        }
-                    }
-
-                    // Balance menu robust closer
-                    const balanceWrapper = document.getElementById('balance-menu-wrapper');
-                    if (balanceWrapper && balanceWrapper.classList.contains('open')) {
-                        if (!balanceWrapper.contains(e.target)) {
-                            balanceWrapper.classList.remove('open');
-                        }
+                    if (!isInsideDropdown) {
+                        this.closeAllDropdowns();
                     }
                 };
-                window.addEventListener('mousedown', handleGlobalClick, true);
+                window.addEventListener('click', handleGlobalUI, true);
                 window.addEventListener('touchstart', (e) => {
-                    if (e.touches && e.touches[0]) {
-                        handleGlobalClick(e.touches[0]);
-                    }
-                }, true);
+                    if (e.touches && e.touches[0]) handleGlobalUI(e.touches[0]);
+                }, { passive: true, capture: true });
 
                 const header = document.getElementById('main-header');
                 if (this.token) {
@@ -3143,20 +3117,7 @@
                     this.pollTasks();
                     this.refreshDashboard();
                     this.setupDragAndDrop();
-                    
-                    // Recover uploaded files state (v1.6.6)
-                    try {
-                        const savedFiles = JSON.parse(localStorage.getItem('hemn_uploaded_files') || '{}');
-                        Object.keys(savedFiles).forEach(mid => {
-                            if (Array.isArray(savedFiles[mid])) {
-                                this.uploadedFiles[mid] = savedFiles[mid];
-                                this.uploadedFiles[mid].forEach(id => {
-                                    const name = id.split('_').slice(1).join('_') || id;
-                                    this.renderFile(mid, name, id);
-                                });
-                            }
-                        });
-                    } catch (e) { console.error("Error recovering uploaded files", e); }
+                     // Init logic for authenticated user
 
                     // Verificar se é primeiro acesso (mudança de senha obrigatória)
                     if (localStorage.getItem('hemn_force_pw_change') === '1') {
@@ -3178,18 +3139,9 @@
                         }, 600);
                     }
 
-                    // Global Click Listener to close dropdowns
-                    window.addEventListener('click', (e) => {
-                        const wrappers = ['.user-menu-wrapper', '.balance-menu-wrapper', '.notification-wrapper'];
-                        let matched = false;
-                        wrappers.forEach(w => {
-                            if (e.target.closest(w)) matched = true;
-                        });
 
-                        if (!matched) {
-                            this.closeAllDropdowns();
-                        }
-                    });
+                    // Inactivity Monitor Setup
+                    this.setupInactivityMonitor();
                 } else {
                     const header = document.getElementById('main-header');
                     if (header) header.style.setProperty('display', 'none', 'important');
@@ -3201,9 +3153,18 @@
                 }, 50);
             },
             addNotification(title, message, type = 'info') {
+                // Autolocalization of module names in titles (Extra defense)
+                let localTitle = title;
+                if (this.moduleMap) {
+                    Object.entries(this.moduleMap).forEach(([en, pt]) => {
+                        const regex = new RegExp(`\\b${en}\\b`, 'gi');
+                        localTitle = localTitle.replace(regex, pt);
+                    });
+                }
+
                 const notif = {
                     id: Date.now(),
-                    title,
+                    title: localTitle,
                     message,
                     type,
                     time: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
@@ -3214,7 +3175,7 @@
                 localStorage.setItem("hemn_notifications", JSON.stringify(this.notifications));
                 this.renderNotifications();
                 this.showBadge();
-                this.showToast(`🔔 ${title}`, type);
+                this.showToast(`🔔 ${localTitle}`, type);
             },
 
             renderNotifications() {
@@ -3417,11 +3378,15 @@
                 this.theme = this.theme === 'dark' ? 'light' : 'dark';
                 document.documentElement.setAttribute('data-theme', this.theme);
                 localStorage.setItem("hemn_theme", this.theme);
+                
                 // Update dropdown theme icon/label
                 const icon = document.getElementById('theme-toggle-icon');
                 const label = document.getElementById('theme-toggle-label');
                 if (icon) icon.className = this.theme === 'dark' ? 'fas fa-moon' : 'fas fa-sun';
                 if (label) label.textContent = this.theme === 'dark' ? 'Modo Escuro' : 'Modo Claro';
+                
+                // PERFORMANCE: Trigger a small delay before allowing another heavy layout change
+                this.lastThemeToggle = Date.now();
             },
 
             async login() {
@@ -3452,12 +3417,59 @@
                 }
             },
 
+            // This block was added to handle version display after login/initialization
+            async fetchAndSetVersion() {
+                // 1. Fetch public version first (works without token)
+                try {
+                    const vRes = await fetch(`${API}/version`);
+                    if (vRes.ok) {
+                        const vData = await vRes.json();
+                        const vStr = vData.version || "...";
+                        
+                        // Update ALL version elements
+                        const elements = [
+                            'display-version',
+                            'display-tag-version',
+                            'system-version-login'
+                        ];
+                        elements.forEach(id => {
+                            const el = document.getElementById(id);
+                            if (el) {
+                                // Display full version string to avoid confusion (v2.2.0-PREMIUM)
+                                el.innerText = vStr;
+                            }
+                        });
+                    }
+                } catch (e) {
+                    console.error("Error fetching version:", e);
+                }
+
+                // 2. Fetch user info if token exists
+                const token = localStorage.getItem("hemn_token");
+                if (!token) return;
+
+                try {
+                    const res = await fetch(`${API}/me`, {
+                        headers: { "Authorization": `Bearer ${token}` }
+                    });
+                    if (res.ok) {
+                        this.user = await res.json();
+                    } else if (res.status === 401) {
+                        localStorage.removeItem("hemn_token");
+                        location.reload();
+                    }
+                } catch (e) {
+                    console.error("Error fetching user info:", e);
+                }
+            },
+
             logout() {
                 if (this.taskInterval) clearInterval(this.taskInterval);
                 if (this.monInterval) clearInterval(this.monInterval);
                 if (this.rechargeInterval) clearInterval(this.rechargeInterval);
                 if (this.pollInterval1) clearInterval(this.pollInterval1);
                 if (this.pollInterval2) clearInterval(this.pollInterval2);
+                if (this.inactivityInterval) clearInterval(this.inactivityInterval);
 
                 localStorage.removeItem("hemn_token");
                 localStorage.removeItem("hemn_force_pw_change");
@@ -3493,6 +3505,48 @@
                 const passInp = document.getElementById('pass-login');
                 if (userInp) userInp.value = '';
                 if (passInp) passInp.value = '';
+            },
+
+            resetInactivity() {
+                this.lastInteraction = Date.now();
+            },
+
+            setupInactivityMonitor() {
+                if (!this.token) return;
+                
+                this.lastInteraction = Date.now();
+                const events = ['mousedown', 'keydown', 'scroll', 'touchstart', 'mousemove'];
+                events.forEach(evt => {
+                    window.addEventListener(evt, () => this.resetInactivity(), { passive: true });
+                });
+
+                if (this.inactivityInterval) clearInterval(this.inactivityInterval);
+                this.inactivityInterval = setInterval(() => {
+                    if (!this.token) return;
+                    
+                    const now = Date.now();
+                    const diff = now - this.lastInteraction;
+                    const limit = 20 * 60 * 1000;
+                    const warningLimit = 19 * 60 * 1000;
+
+                    // Check for active tasks (QUEUED or PROCESSING)
+                    const hasActiveTasks = this.tasks.some(t => ['QUEUED', 'PROCESSING', 'AGUARDANDO', 'PROCESSANDO'].includes(t.status) || t.progress < 100 && t.status !== 'FAILED' && t.status !== 'SUCCESS');
+                    
+                    if (hasActiveTasks) {
+                        this.resetInactivity(); // Auto-reset if tasks are running
+                        return;
+                    }
+
+                    if (diff >= limit) {
+                        this.logout();
+                        this.alert("Sessão Encerrada", "Você foi deslogado automaticamente após 20 minutos de inatividade.", { type: 'info' });
+                    } else if (diff >= warningLimit) {
+                        const secondsLeft = Math.round((limit - diff) / 1000);
+                        if (secondsLeft % 30 === 0 || secondsLeft <= 10) {
+                            this.showToast(`Sessão expirará em ${secondsLeft}s por inatividade`, "warning");
+                        }
+                    }
+                }, 10000); // Check every 10 seconds for better precision on warning
             },
 
             openPasswordModal() {
@@ -3584,7 +3638,11 @@
                         // Update Sidebar Role
                         const sidebarRole = document.getElementById('sidebar-role-display');
                         if (sidebarRole) {
-                            if (user.role === 'ADMIN') sidebarRole.innerText = 'Admin';
+                            if (user.role === 'ADMIN') {
+                                sidebarRole.innerText = 'Admin';
+                                // Chamar verificação de operadora para admins logo no login
+                                if (typeof this.checkCarrierUpdate === 'function') this.checkCarrierUpdate();
+                            }
                             else if (user.role === 'CLINICAS') sidebarRole.innerText = 'Clínicas';
                             else sidebarRole.innerText = 'Bronze';
                         }
@@ -3765,7 +3823,7 @@
                             const btnExtract = document.querySelector('#module-extract .btn-primary');
                             if (btnExtract) btnExtract.innerHTML = '<i class="fas fa-rocket"></i> Iniciar Processamento Massivo';
 
-                            [...manualEls, ...extractEls, ...unifyEls, ...splitEls, ...carrierEls].forEach(el => {
+                            [...manualEls, ...enrichEls, ...extractEls, ...unifyEls, ...splitEls, ...carrierEls].forEach(el => {
                                 if (el) el.style.display = el.classList.contains('action-card') ? 'flex' : 'flex';
                             });
                             if (processingLabel) processingLabel.style.display = 'block';
@@ -3777,7 +3835,7 @@
                             if (clinCard) clinCard.style.display = 'none';
                             
                             // Standard users see everything except Admin and Clinicas
-                            [...manualEls, ...extractEls, ...unifyEls, ...splitEls, ...carrierEls, ...dashboardEls].forEach(el => {
+                            [...manualEls, ...enrichEls, ...extractEls, ...unifyEls, ...splitEls, ...carrierEls, ...dashboardEls].forEach(el => {
                                 if (el) el.style.display = el.classList.contains('action-card') ? 'flex' : 'flex';
                             });
                             if (processingLabel) processingLabel.style.display = 'block';
@@ -3901,6 +3959,13 @@
                     if (!res.ok) throw new Error("Unauthorized");
                     const data = await res.json();
 
+                    // Verificação de operadora (Throttle: apenas se não verificado nos últimos 60s)
+                    const now = Date.now();
+                    if (!this.lastCarrierCheck || (now - this.lastCarrierCheck > 60000)) {
+                        this.checkCarrierUpdate();
+                        this.lastCarrierCheck = now;
+                    }
+
                     document.getElementById('mon-cpu-val').innerText = data.system.cpu;
                     document.getElementById('mon-ram-val').innerText = data.system.ram;
                     document.getElementById('mon-ram-progress').style.width = data.system.ram + '%';
@@ -3963,12 +4028,56 @@
                 }
             },
 
+            async triggerCarrierUpdate() {
+                const ok = await this.confirm("Atualizar Base Operadora", "Deseja iniciar a atualização da base de operadoras via FTP? Este processo pode demorar alguns minutos.", { 
+                    type: 'warning', 
+                    confirmText: 'Sim, Iniciar' 
+                });
+                if (!ok) return;
+                
+                const btn = document.getElementById('btn-update-carrier-main');
+                try {
+                    btn.disabled = true;
+                    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> AGUARDE...';
+                    
+                    const res = await fetch(`${API}/admin/monitor/update-carrier`, {
+                        method: 'POST',
+                        headers: { 'Authorization': `Bearer ${this.token}` }
+                    });
+                    const data = await res.json();
+                    if (res.ok) {
+                        const task = { id: data.task_id || data.id, mid: 'carrier', startTime: Date.now(), done: false };
+                        this.tasks.push(task);
+                        localStorage.setItem('hemn_active_tasks', JSON.stringify(this.tasks));
+                        this.showToast("Tarefa de atualização iniciada com sucesso!", "success");
+                        
+                        // Atualizar badge para "Atualizando"
+                        const badge = document.getElementById('carrier-update-status');
+                        if (badge) {
+                            badge.style.display = 'flex';
+                            badge.style.color = '#3b82f6';
+                            badge.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Atualização em curso...';
+                        }
+                    } else {
+                        this.showToast("Erro: " + (data.detail || "Falha ao iniciar"), "error");
+                    }
+                } catch (e) {
+                    this.showToast("Falha na comunicação com o servidor", "error");
+                } finally {
+                    setTimeout(() => {
+                        btn.disabled = false;
+                        btn.innerHTML = '<i class="fas fa-sync-alt"></i> ATUALIZAR BASE OPERADORA';
+                    }, 3000);
+                }
+            },
+
             // ADMIN MANAGEMENT FUNCTIONS
             async refreshAdminData() {
                 try {
+                    // Fetch Users
                     const res = await fetch(`${API}/admin/users`, { headers: { 'Authorization': `Bearer ${this.token}` } });
-                    const users = await res.json();
                     if (res.ok) {
+                        const users = await res.json();
                         this.adminUsers = users; // Cache for editing
                         this.renderAdminTable(users);
                         this.updateAdminStats(users);
@@ -3976,6 +4085,36 @@
                 } catch (e) {
                     this.showToast("Falha ao carregar dados admin", "error");
                 }
+            },
+
+            checkCarrierUpdate() {
+                // Fetch Carrier Status (v1.8.12)
+                fetch(`${API}/admin/monitor/carrier-status`, { headers: { 'Authorization': `Bearer ${this.token}` } })
+                    .then(r => r.json())
+                    .then(data => {
+                        const badge = document.getElementById('carrier-update-status');
+                        if (badge) {
+                            if (data.update_available) {
+                                badge.style.setProperty('display', 'flex', 'important');
+                                badge.style.color = "#000000"; // Preto solicitado pelo usuário
+                                badge.innerHTML = `<i class="fas fa-exclamation-circle" style="color:#d97706"></i> NOVA BASE DISPONÍVEL`;
+                                badge.title = `Nova base detectada no FTP em: ${data.last_ftp}`;
+                            } else if (data.last_update) {
+                                badge.style.setProperty('display', 'flex', 'important');
+                                badge.style.color = "#10b981"; // Verde para atualizado
+                                try {
+                                    const dt = new Date(data.last_update);
+                                    const fmt = dt.toLocaleString('pt-BR');
+                                    badge.innerHTML = `<i class="fas fa-check-circle"></i> Base Atualizada: ${fmt}`;
+                                } catch(e) {
+                                    badge.innerHTML = `<i class="fas fa-check-circle"></i> Base Atualizada`;
+                                }
+                                badge.title = "A base de operadoras está sincronizada com a última versão disponível.";
+                            } else {
+                                badge.style.display = 'none';
+                            }
+                        }
+                    }).catch(e => console.error("Fail to fetch carrier status", e));
             },
 
             renderAdminTable(users) {
@@ -4767,14 +4906,17 @@
 
             renderStatementTable(logs) {
                 const tbody = document.getElementById('statement-tbody');
-                tbody.innerHTML = "";
+                if (!tbody) return;
+                
+                // Optimization: Pre-build HTML string to minimize reflows
+                let html = "";
                 logs.forEach(l => {
                     const dateObj = new Date(l.timestamp);
                     const dateStr = dateObj.toLocaleString('pt-BR');
                     const badgeClass = l.type === 'DEBIT' ? 'badge-red' : 'badge-green';
                     const amountPrefix = l.type === 'DEBIT' ? '-' : '+';
+                    const rowColor = l.type === 'DEBIT' ? '#ef4444' : '#10b981';
 
-                    const row = document.createElement('tr');
                     let downloadBtn = '';
                     if (l.task_id) {
                         const now = new Date();
@@ -4788,29 +4930,20 @@
                         }
                     }
 
-                    const typeMap = { 'DEBIT': 'DÉBITO', 'CREDIT': 'CRÉDITO' };
-                    const moduleMap = {
-                        'ENRICH': 'ENRIQUECIMENTO',
-                        'EXTRACT': 'EXTRAÇÃO',
-                        'EXTRACTION': 'EXTRAÇÃO',
-                        'CARRIER': 'OPERADORA',
-                        'UNIFY': 'UNIFICAÇÃO',
-                        'SPLIT': 'DIVISÃO',
-                        'DOWNLOAD': 'DOWNLOAD',
-                        'MANUAL': 'MANUAL'
-                    };
-                    const typeLabel = typeMap[l.type] || l.type;
-                    const moduleLabel = moduleMap[l.module] || l.module;
+                    const typeLabel = (this.typeMap && this.typeMap[l.type]) || l.type;
+                    const moduleLabel = (this.moduleMap && this.moduleMap[l.module]) || l.module;
 
-                    row.innerHTML = `
-                        <td style="font-size: 11px; font-weight: 500;">${dateStr}</td>
-                        <td><span class="badge badge-blue" style="font-size: 10px;">${moduleLabel}</span></td>
-                        <td style="font-size: 12px; color: var(--text-2);">${l.description}</td>
-                        <td style="font-weight: 700; color: ${l.type === 'DEBIT' ? '#ef4444' : '#10b981'}">${amountPrefix}${l.amount.toFixed(1)}</td>
-                        <td style="display: flex; align-items: center; gap: 8px; border: none;"><span class="badge ${badgeClass}">${typeLabel}</span> ${downloadBtn}</td>
+                    html += `
+                        <tr>
+                            <td style="font-size: 11px; font-weight: 500;">${dateStr}</td>
+                            <td><span class="badge badge-blue" style="font-size: 10px;">${moduleLabel}</span></td>
+                            <td style="font-size: 12px; color: var(--text-2);">${l.description}</td>
+                            <td style="font-weight: 700; color: ${rowColor}">${amountPrefix}${(l.amount || 0).toFixed(1)}</td>
+                            <td style="display: flex; align-items: center; gap: 8px; border: none;"><span class="badge ${badgeClass}">${typeLabel}</span> ${downloadBtn}</td>
+                        </tr>
                     `;
-                    tbody.appendChild(row);
                 });
+                tbody.innerHTML = html;
             },
 
             async handleFiles(input, mid) {
@@ -4913,9 +5046,7 @@
                 setTimeout(() => toast.remove(), 4000);
             },
 
-            async startTask(endpoint, body, midRaw) {
-                const mid = (midRaw.includes('enrich') || midRaw.includes('enrique')) ? 'enrich' : 
-                            ((midRaw.includes('extract') || midRaw.includes('extra')) ? 'extract' : midRaw);
+            async startTask(endpoint, body, mid) {
                 // Bloqueio de Multi-tarefas para perfis comuns (Exceto Busca Unitária e Operadora que são rápidas)
                 if (this.user && this.user.role !== 'ADMIN' && mid !== 'manual' && mid !== 'carrier') {
                     const activeTasks = this.tasks.filter(t => !t.done);
@@ -4942,10 +5073,9 @@
                     }
 
                     if (data.task_id) {
-                        const normalizedMid = mid.toLowerCase().includes('enrich') ? 'enrich' : (mid.toLowerCase().includes('extract') ? 'extract' : mid);
                         const taskInfo = { 
                             id: data.task_id, 
-                            mid: normalizedMid, 
+                            mid: mid, 
                             startTime: Date.now(),
                             filters: body.filterSummary || null
                         };
@@ -4957,16 +5087,8 @@
 
                         this.showToast("Tarefa iniciada na nuvem", "success");
 
-                        const moduleLabels = {
-                            'enrich': 'ENRIQUECIMENTO',
-                            'extract': 'EXTRAÇÃO',
-                            'extraction': 'EXTRAÇÃO',
-                            'carrier': 'OPERADORA',
-                            'unify': 'UNIFICAÇÃO',
-                            'split': 'DIVISÃO',
-                            'manual': 'BUSCA UNITÁRIA'
-                        };
-                        const moduleName = moduleLabels[mid] || mid.toUpperCase();
+                        const moduleName = this.moduleMap[mid.toUpperCase()] || mid.toUpperCase();
+                        console.log(`[DEBUG] Task ${data.task_id} initiated for module ${mid} (${moduleName})`);
                         this.addNotification("Novo Processo", `Sua tarefa de ${moduleName} (TI-${data.task_id.substring(0, 6)}) foi encaminhada para a nuvem.`, "info");
 
                         // Passa o resumo dos filtros para renderização imediata
@@ -4987,12 +5109,8 @@
                     const activeTasks = await res.json();
                     if (activeTasks && Array.isArray(activeTasks)) {
                         activeTasks.forEach(task => {
-                            // if (!this.tasks.find(t => t.id === task.id)) {
-                                let midRaw = (task.module || "").toLowerCase();
-                                let mid = (midRaw.includes('enrich') || midRaw.includes('enrique')) ? 'enrich' : 
-                                          ((midRaw.includes('extract') || midRaw.includes('extra')) ? 'extract' : midRaw);
-                                console.log(`[DEBUG] Task Recovery - TID: ${task.id}, Raw Module: ${task.module}, Normalized Mid: ${mid}`);
-                                
+                            if (!this.tasks.find(t => t.id === task.id)) {
+                                const mid = task.module.toLowerCase();
                                 const taskInfo = {
                                     id: task.id,
                                     mid: mid,
@@ -5002,87 +5120,51 @@
                                 this.tasks.push(taskInfo);
                                 this.renderTaskCard(task.id, mid, task);
                                 this.renderGlobalTaskCard(task.id, mid, task);
-                            });
-                        }
+                            }
+                        });
+                    }
                 } catch (e) {
                     console.error("Task recovery failed", e);
                 }
             },
 
             renderGlobalTaskCard(tid, mid, savedData = null) {
-                // We update TWO possible containers for redundancy
-                const floatingList = document.getElementById('global-task-list');
-                const sidebarList = document.getElementById('global-tasks-container');
-                const tracker = document.getElementById('global-task-tracker');
-                
-                if (!floatingList && !sidebarList) {
-                    console.warn("No task containers found for TID:", tid);
-                    return;
+                const container = document.getElementById('global-tasks-container');
+                if (!container) return;
+                let card = document.getElementById(`gtask-${tid}`);
+                if (!card) {
+                    card = document.createElement('div');
+                    card.className = 'gtask-card active';
+                    card.id = `gtask-${tid}`;
+                    container.prepend(card);
                 }
 
-                // Show tracker if hidden (DISABLED BY USER REQUEST)
-                if (tracker) tracker.style.display = 'none'; 
+                const moduleLabel = this.moduleMap[mid.toUpperCase()] || mid.toUpperCase();
 
-                const moduleLabels = {
-                    'enrich': 'ENRIQUECIMENTO',
-                    'extract': 'EXTRAÇÃO',
-                    'extraction': 'EXTRAÇÃO',
-                    'carrier': 'OPERADORA',
-                    'unify': 'UNIFICAÇÃO',
-                    'split': 'DIVISÃO',
-                    'manual': 'BUSCA UNITÁRIA'
-                };
-                const moduleLabel = moduleLabels[mid] || mid.toUpperCase();
+                // Use saved data for instant UI or defaults
                 const rawStatus = savedData?.status?.toUpperCase() || "QUEUED";
                 const statusLabel = this.statusMap[rawStatus] || rawStatus;
                 const message = savedData?.message || "Iniciando...";
                 const progress = savedData?.progress || 0;
 
-                const createCardHtml = (prefix) => `
+                card.innerHTML = `
                     <div class="gtask-name">
                         <span><i class="fas fa-cog"></i> ${moduleLabel} &mdash; TI-${tid.substring(0, 6)}</span>
-                        <span id="${prefix}status-${tid}" style="color:var(--text-3); font-weight:600">${statusLabel}</span>
+                        <span id="gstatus-${tid}" style="color:var(--text-3); font-weight:600">${statusLabel}</span>
                     </div>
-                    <div class="gtask-msg" id="${prefix}msg-${tid}">${message}</div>
+                    <div class="gtask-msg" id="gmsg-${tid}">${message}</div>
                     <div class="gtask-progress">
-                        <div class="gtask-bar" id="${prefix}prog-${tid}" style="width: ${progress}%"></div>
+                        <div class="gtask-bar" id="gprog-${tid}" style="width: ${progress}%"></div>
                     </div>
                     <div style="position: absolute; top: 10px; right: 10px; display: flex; gap: 8px;">
-                        <button class="gtask-dismiss" onclick="this.closest('.gtask-card').remove()" title="Remover Card" style="background:none; border:none; color:var(--text-3); cursor:pointer; font-size:14px; opacity:0.6; transition:opacity 0.2s;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.6'">
+                        <button class="gtask-dismiss" onclick="app.dismissTask('${tid}', '${mid}')" title="Remover Card" style="background:none; border:none; color:var(--text-3); cursor:pointer; font-size:14px; opacity:0.6; transition:opacity 0.2s;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.6'">
                             <i class="fas fa-times"></i>
+                        </button>
+                        <button class="gtask-cancel" id="cancel-zone-${tid}" onclick="app.cancelTask('${tid}')" title="Cancelar Processo" style="${(rawStatus === 'COMPLETED' || rawStatus === 'FAILED' || rawStatus === 'CANCELLED') ? 'display:none' : ''}">
+                            <i class="fas fa-times-circle" style="color:#ef4444"></i>
                         </button>
                     </div>
                 `;
-
-                // Update Floating List
-                if (floatingList) {
-                    let card = document.getElementById(`gtask-f-${tid}`);
-                    if (!card) {
-                        card = document.createElement('div');
-                        card.className = 'gtask-card active';
-                        card.id = `gtask-f-${tid}`;
-                        card.style.position = 'relative';
-                        floatingList.prepend(card);
-                    }
-                    card.innerHTML = createCardHtml('gf-');
-                }
-
-                // Update Sidebar List
-                if (sidebarList) {
-                    let card = document.getElementById(`gtask-s-${tid}`);
-                    if (!card) {
-                        card = document.createElement('div');
-                        card.className = 'gtask-card active';
-                        card.id = `gtask-s-${tid}`;
-                        card.style.position = 'relative';
-                        card.style.background = 'rgba(0,0,0,0.05)';
-                        card.style.padding = '10px';
-                        card.style.borderRadius = '8px';
-                        card.style.fontSize = '10px';
-                        sidebarList.prepend(card);
-                    }
-                    card.innerHTML = createCardHtml('gs-');
-                }
             },
 
             async cancelTask(tid) {
@@ -5102,27 +5184,20 @@
             },
 
             renderTaskCard(tid, mid, savedData = null) {
-                try {
-                    const tidStr = tid ? String(tid) : 'no-id';
-                    console.log(`[DEBUG] renderTaskCard - TID: ${tidStr}, MID: ${mid}`);
-                    const title = document.getElementById(`title-${mid}`);
-                    if (title) {
-                        title.style.display = 'block';
-                        title.style.color = 'red';
-                        title.innerHTML = `PESQUISAS ATIVAS (EXEC-${mid}):`;
-                    }
-                    console.log(`[DEBUG] renderTaskCard - TID: ${tidStr}, MID: ${mid}`);
-                    const container = document.getElementById(`tasks-${mid}`);
-                    if (!container) {
-                        console.error(`[CRITICAL] Container tasks-${mid} not found in DOM!`);
-                        return;
-                    }
+                // Harmonização de IDs: 'extraction' vindo do backend deve usar container 'tasks-extract'
+                const effectiveMid = (mid === 'extraction') ? 'extract' : mid.toLowerCase();
+                const container = document.getElementById(`tasks-${effectiveMid}`);
+                
+                if (!container) {
+                    console.warn(`[DEBUG] Container tasks-${effectiveMid} not found for task ${tid}. Skipping render.`);
+                    return;
+                }
 
-                    // Evita duplicar se já foi renderizado (ex: pelo recovery)
-                    if (document.getElementById(`task-${tidStr}`)) return;
+                // Evita duplicar se já foi renderizado (ex: pelo recovery)
+                if (document.getElementById(`task-${tid}`)) return;
 
-                    const card = document.createElement('div');
-                    card.id = `task-${tidStr}`;
+                const card = document.createElement('div');
+                card.id = `task-${tid}`;
                 card.className = "glass-card";
                 card.style.marginTop = "15px";
                 card.style.borderColor = "var(--border-focus)";
@@ -5134,11 +5209,11 @@
                 const filterText = savedData?.filters || savedData?.filterSummary || '';
 
                 card.innerHTML = `
-                    <button onclick="this.closest('.glass-card').remove()" style="position:absolute; top:8px; right:8px; background:rgba(0,0,0,0.1); border:none; color:var(--text-2); cursor:pointer; width:22px; height:22px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:10px; z-index:10; transition:all 0.2s;" onmouseover="this.style.background='rgba(239,68,68,0.2)'; this.style.color='#ef4444'" onmouseout="this.style.background='rgba(0,0,0,0.1)'; this.style.color='var(--text-2)'">
+                    <button onclick="app.dismissTask('${tid}', '${mid}')" style="position:absolute; top:8px; right:8px; background:rgba(0,0,0,0.1); border:none; color:var(--text-2); cursor:pointer; width:22px; height:22px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:10px; z-index:10; transition:all 0.2s;" onmouseover="this.style.background='rgba(239,68,68,0.2)'; this.style.color='#ef4444'" onmouseout="this.style.background='rgba(0,0,0,0.1)'; this.style.color='var(--text-2)'">
                         <i class="fas fa-times"></i>
                     </button>
                     <div style="display:flex; justify-content:space-between; align-items:center; padding-right:30px">
-                        <span style="font-size:12px; font-weight:700">TI-ID: ${tidStr.substring(0, 8)}</span>
+                        <span style="font-size:12px; font-weight:700">TI-ID: ${tid.substring(0, 8)}</span>
                         <div class="badge badge-blue" id="status-${tid}">${statusLabel}</div>
                     </div>
                     <div id="filters-${tid}" style="font-size:10px; color:var(--accent); font-weight:600; margin-top:4px; display:${filterText ? 'flex' : 'none'}; align-items:center; gap:5px">
@@ -5165,17 +5240,11 @@
                 card.style.position = "relative";
                 container.appendChild(card);
                 
-                // Title updated at start of function for diagnostic purposes
-                
-                // Garantir visibilidade
-                setTimeout(() => {
-                    const card = document.getElementById(`task-${tid}`);
-                    if (card) {
-                        card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-                        card.style.animation = 'pulse-focus 2s infinite';
-                        setTimeout(() => card.style.animation = '', 4000);
-                    }
-                }, 100);
+                const title = document.getElementById(`title-${mid}`);
+                if (title) {
+                    title.style.display = 'block';
+                    title.innerHTML = "PESQUISAS ATIVAS:";
+                }
 
                 if (savedData && (savedData.status === 'COMPLETED' || savedData.status === 'SUCCESS' || savedData.result_file)) {
                     const count = savedData.record_count || 0;
@@ -5198,15 +5267,29 @@
                     const timeLabel = document.getElementById(`time-label-${tid}`);
                     if (timeLabel) timeLabel.innerHTML = `<i class="fas fa-check-circle" style="color:var(--g-success); margin-right:5px"></i> PROCESSO CONCLUÍDO`;
                 }
-                } catch (err) {
-                    console.error("[FATAL] Error in renderTaskCard:", err);
-                }
             },
 
-            dismissTask(tid, mid) {
+            async dismissTask(tid, mid) {
                 const el = document.getElementById(`task-${tid}`);
+                const gel = document.getElementById(`gtask-${tid}`);
                 if (el) el.remove();
+                if (gel) gel.remove();
                 
+                try {
+                    // Além de esconder, cancela o processo no backend
+                    fetch(`${API}/tasks/${tid}/cancel`, {
+                        method: 'POST',
+                        headers: { 'Authorization': `Bearer ${this.token}` }
+                    });
+
+                    await fetch(`${API}/tasks/${tid}/hide`, {
+                        method: 'POST',
+                        headers: { 'Authorization': `Bearer ${this.token}` }
+                    });
+                } catch (e) {
+                    console.error("Failed to cancel/hide task", e);
+                }
+
                 // Se não houver mais cards, esconde o título
                 const container = document.getElementById(`tasks-${mid}`);
                 if (container && container.children.length === 0) {
@@ -5366,14 +5449,19 @@
             },
 
             async pollTasks() {
-                // Tique global para contagem regressiva em tempo real
+                // Tique global para contagem regressiva em tempo real (Otimizado: Corre apenas se houver tarefas ativas e visíveis)
                 if (this.pollInterval1) clearInterval(this.pollInterval1);
                 this.pollInterval1 = setInterval(() => {
-                    this.tasks.forEach(t => {
-                        if (t.remaining > 0 && !t.done) {
+                    if (document.visibilityState !== 'visible') return;
+
+                    const activeProcessingTasks = this.tasks.filter(t => !t.done);
+                    if (activeProcessingTasks.length === 0) return;
+
+                    activeProcessingTasks.forEach(t => {
+                        if (t.remaining > 0) {
                             t.remaining--;
                             const timeLabel = document.getElementById(`time-label-${t.id}`);
-                            if (timeLabel) {
+                            if (timeLabel && timeLabel.offsetParent) {
                                 const mins = Math.floor(t.remaining / 60);
                                 const secs = Math.floor(t.remaining % 60);
                                 timeLabel.innerText = `RESTANTE: ~${mins}m ${secs}s`;
@@ -5384,137 +5472,133 @@
 
                 if (this.pollInterval2) clearInterval(this.pollInterval2);
                 this.pollInterval2 = setInterval(async () => {
-                    if (this.tasks.length === 0) return;
-                    for (let t of this.tasks) {
-                        if (t.done) continue;
-                        try {
-                            const res = await fetch(`${API}/tasks/${t.id}`, { 
-                                headers: { 'Authorization': `Bearer ${this.token}` } 
-                            });
-                            const data = await res.json();
+                    if (document.visibilityState !== 'visible') return;
 
-                            if (data.status === 'NOT_FOUND') {
-                                t.done = true;
-                                let saved = JSON.parse(localStorage.getItem('hemn_active_tasks') || '[]');
-                                saved = saved.filter(x => x.id !== t.id);
-                                localStorage.setItem('hemn_active_tasks', JSON.stringify(saved));
-                                ['f', 's'].forEach(p => {
-                                    const card = document.getElementById(`gtask-${p}-${t.id}`);
-                                    if (card) card.remove();
-                                });
+                    const activeToPoll = this.tasks.filter(t => !t.done);
+                    if (activeToPoll.length === 0) return;
+                    
+                    try {
+                        const res = await fetch(`${API}/tasks/active`, { headers: { 'Authorization': `Bearer ${this.token}` } });
+                        if (!res.ok) return;
+                        const activeTasks = await res.json();
+                        
+                        const serverTasks = {};
+                        activeTasks.forEach(st => serverTasks[st.id] = st);
+
+                        for (let t of this.tasks) {
+                            if (t.done) continue;
+                            let data = serverTasks[t.id];
+
+                            // SE A TAREFA NÃO ESTÁ NO ACTIVE, AUMENTAR CONTADOR DE MISS
+                            if (!data) {
+                                t.missCount = (t.missCount || 0) + 1;
+                                if (t.missCount >= 3) {
+                                    t.done = true;
+                                    this.refreshDashboard(); // Atualiza dashboard para mostrar o débito/crédito final
+                                }
                                 continue;
                             }
+                            t.missCount = 0; // Reset miss count if found
 
-                            // Update in-memory and storage
-                            Object.assign(t, data);
-                            let saved = JSON.parse(localStorage.getItem('hemn_active_tasks') || '[]');
-                            const idx = saved.findIndex(x => x.id === t.id);
-                            if (idx !== -1) {
-                                saved[idx] = { ...saved[idx], ...data };
-                                localStorage.setItem('hemn_active_tasks', JSON.stringify(saved));
-                            }
-
-                            const rawStatus = data.status ? data.status.toUpperCase() : "QUEUED";
-                            const statusLabel = this.statusMap[rawStatus] || rawStatus;
-                            const isDone = (rawStatus === 'COMPLETED' || rawStatus === 'SUCCESS' || rawStatus === 'FAILED' || rawStatus === 'CANCELLED');
-
-                            // Update Module-Specific Card
-                            const statusBadge = document.getElementById(`status-${t.id}`);
-                            const progressBar = document.getElementById(`prog-${t.id}`);
-                            const msgLabel = document.getElementById(`msg-${t.id}`);
-                            const pctLabel = document.getElementById(`pct-${t.id}`);
-                            const timeLabel = document.getElementById(`time-label-${t.id}`);
-
-                            if (statusBadge) {
-                                statusBadge.innerText = statusLabel;
-                                if (isDone) {
-                                    statusBadge.className = (rawStatus === 'FAILED' || rawStatus === 'CANCELLED') ? "badge badge-red" : "badge badge-green";
-                                }
-                            }
-                            if (msgLabel && data.message) msgLabel.innerText = data.message;
-                            if (progressBar && data.progress !== undefined) {
-                                progressBar.style.width = data.progress + "%";
-                                if (pctLabel) pctLabel.innerText = data.progress + "%";
-                            }
-
-                            // Update Global Cards (Floating and Sidebar Tracker)
-                            ['gf-', 'gs-'].forEach(prefix => {
-                                const gMsg = document.getElementById(`${prefix}msg-${t.id}`);
-                                const gProg = document.getElementById(`${prefix}prog-${t.id}`);
-                                const gStatus = document.getElementById(`${prefix}status-${t.id}`);
-                                if (gMsg && data.message) gMsg.innerText = data.message;
-                                if (gProg && data.progress !== undefined) gProg.style.width = data.progress + '%';
-                                if (gStatus) gStatus.innerText = statusLabel;
-                            });
-
-                            // ESTIMAÇÃO DE TEMPO (Solo se estiver processando)
-                            if (rawStatus === 'PROCESSING' && data.progress > 5 && data.progress < 100) {
-                                const elapsed = (Date.now() - t.startTime) / 1000;
-                                const total = elapsed / (data.progress / 100);
-                                const currentEst = Math.max(0, Math.floor(total - elapsed));
-                                if (!t.remaining) t.remaining = currentEst;
-                                else t.remaining = Math.floor(t.remaining * 0.7 + currentEst * 0.3); // Suavização
-
-                                if (timeLabel) {
-                                    const mins = Math.floor(t.remaining / 60);
-                                    const secs = Math.floor(t.remaining % 60);
-                                    timeLabel.innerText = `RESTANTE: ~${mins}m ${secs}s`;
-                                    timeLabel.style.color = "var(--accent)";
-                                }
-                            } else if (isDone && timeLabel) {
-                                timeLabel.innerHTML = `<i class="fas fa-check-circle" style="color:var(--g-success); margin-right:5px"></i> PROCESSO FINALIZADO`;
-                                timeLabel.style.color = "var(--g-success)";
-                            }
-
-                            // FINALIZAÇÃO ESPECIALIZADA
-                            if (isDone) {
-                                t.done = true;
-                                const count = (data.record_count !== undefined) ? data.record_count : 0;
-                                
-                                // Se for sucesso, adiciona botão de download no card do módulo
-                                const card = document.getElementById(`task-${t.id}`);
-                                if (card && (rawStatus === 'COMPLETED' || rawStatus === 'SUCCESS') && !card.querySelector('.btn-download-ready')) {
-                                    const isSplit = t.mid === 'split';
-                                    const btnText = isSplit ? "Baixar Arquivos Divididos" : (this.user?.role === 'MAYK' ? "Baixar Arquivos" : `Baixar (${count.toLocaleString()} Cr)`);
-                                    const downloadHtml = `
-                                        <div class="btn-download-ready" style="margin-top:15px; padding-top:12px; border-top:1px solid var(--border); color:var(--text-3); font-size:11px">
-                                            <i class="fas fa-database"></i> ${isSplit ? 'Fatiamento concluído' : `Registros: <b>${count.toLocaleString()}</b>`}
-                                        </div>
-                                        <button onclick="app.downloadTask('${t.id}', ${count})" class="btn-primary" style="margin-top:10px; width:100%; border:none; height:40px; border-radius:8px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px">
-                                            <i class="fas fa-download"></i> ${btnText}
-                                        </button>
-                                    `;
-                                    card.insertAdjacentHTML('beforeend', downloadHtml);
-                                      this.showToast(`Concluído: ${count.toLocaleString()} registros!`, "success");
-                                      this.addNotification(`Lote Concluído`, `Processo TI-${t.id.substring(0, 6)} finalizado.`, "success");
-                                      this.refreshUser();
-                                }
-
-                                if (rawStatus === 'FAILED' || rawStatus === 'CANCELLED') {
-                                    this.addNotification(`Falha no Lote`, `Processo TI-${t.id.substring(0, 6)} encerrou com erro.`, "error");
-                                }
-                                
-                                // Limpa localStorage
-                                let saved = JSON.parse(localStorage.getItem('hemn_active_tasks') || '[]');
-                                saved = saved.filter(x => x.id !== t.id);
-                                localStorage.setItem('hemn_active_tasks', JSON.stringify(saved));
-
-                                // Remove global cards após delay
-                                setTimeout(() => {
-                                    ['f', 's'].forEach(p => {
-                                        const gc = document.getElementById(`gtask-${p}-${t.id}`);
-                                        if (gc) gc.remove();
-                                    });
-                                    const list = document.getElementById('global-task-list');
-                                    const trk = document.getElementById('global-task-tracker');
-                                    if (list && !list.children.length && trk) {
-                                        trk.style.display = 'none';
+                            if (data && data.status) {
+                                // 1. Atualizar Estado em Memória e Global Card (Sempre visível se existir)
+                                const updateElement = (id, val, attr = 'innerText') => {
+                                    const el = document.getElementById(id);
+                                    if (el) {
+                                        if (attr === 'styleWidth') el.style.width = val + '%';
+                                        else el[attr] = val;
                                     }
-                                }, 8000);
-                            }
+                                };
+                                
+                                updateElement(`gmsg-${t.id}`, data.message);
+                                updateElement(`gprog-${t.id}`, data.progress, 'styleWidth');
+                                updateElement(`gstatus-${t.id}`, this.statusMap[data.status.toUpperCase()] || data.status.toUpperCase());
 
-                        } catch (e) { console.error("Polling error:", e); }
-                    }
+                                t.status = data.status;
+                                t.message = data.message;
+                                t.progress = data.progress;
+                                if (data.record_count) t.record_count = data.record_count;
+
+                                // 2. Atualizar Card do Módulo (Apenas se estiver visível no DOM!)
+                                const card = document.getElementById(`task-${t.id}`);
+                                if (card && card.offsetParent) {
+                                    updateElement(`status-${t.id}`, this.statusMap[data.status.toUpperCase()] || data.status.toUpperCase());
+                                    updateElement(`msg-${t.id}`, data.message);
+                                    updateElement(`prog-${t.id}`, data.progress, 'styleWidth');
+                                    updateElement(`pct-${t.id}`, data.progress + "%");
+
+                                    if (data.status === 'PROCESSING' && data.progress > 10 && data.progress < 100) {
+                                        const elapsed = (Date.now() - t.startTime) / 1000;
+                                        const total = elapsed / (data.progress / 100);
+                                        const currentEst = Math.max(0, Math.floor(total - elapsed));
+                                        if (!t.remaining) t.remaining = currentEst;
+                                        else t.remaining = Math.floor(t.remaining * 0.7 + currentEst * 0.3);
+
+                                        const timeLabel = document.getElementById(`time-label-${t.id}`);
+                                        if (timeLabel) {
+                                            const mins = Math.floor(t.remaining / 60);
+                                            const secs = Math.floor(t.remaining % 60);
+                                            timeLabel.innerText = `RESTANTE: ~${mins}m ${secs}s`;
+                                        }
+                                    }
+                                }
+
+                                // 3. Lógica de Conclusão / Falha
+                                const rawStatus = data.status.toUpperCase();
+                                if (rawStatus === 'COMPLETED' || rawStatus === 'SUCCESS' || data.result_file) {
+                                    const count = data.record_count || 0;
+                                    this.showToast(`Concluído: ${count.toLocaleString()} registros!`, "success");
+                                    
+                                    if (card) {
+                                        const sb = document.getElementById(`status-${t.id}`);
+                                        if (sb) { sb.className = "badge badge-green"; sb.innerText = "CONCLUÍDO"; }
+                                        const tl = document.getElementById(`time-label-${t.id}`);
+                                        if (tl) { tl.innerHTML = `<i class="fas fa-check-circle" style="color:var(--g-success); margin-right:5px"></i> PROCESSO CONCLUÍDO`; tl.style.color = "var(--g-success)"; }
+                                        const cz = document.getElementById(`cancel-zone-${t.id}`);
+                                        if (cz) cz.style.display = 'none';
+
+                                        const isSplit = t.mid === 'split';
+                                        const btnText = isSplit ? "Baixar Arquivos Divididos" : (this.user && this.user.role === 'MAYK' ? "Baixar Arquivos Processados" : `Baixar e Consumir Créditos (${count.toLocaleString()} Cr)`);
+                                        const btnIcon = isSplit ? "fa-file-archive" : "fa-download";
+                                        const downloadHtml = `
+                                            <div style="margin-top:15px; padding-top:12px; border-top:1px solid var(--border-color); color:var(--text-3); font-size:11px">
+                                                <i class="fas fa-database"></i> ${isSplit ? 'Fatiamento concluído' : `Encontrados: <b>${count.toLocaleString()}</b> registros.`}
+                                            </div>
+                                            <button onclick="app.downloadTask('${t.id}', ${count})" class="btn-primary" style="margin-top:10px; width:100%; border:none; height:40px; border-radius:8px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px">
+                                                <i class="fas ${btnIcon}"></i> ${btnText}
+                                            </button>
+                                        `;
+                                        if (!card.querySelector('.btn-primary')) card.insertAdjacentHTML('beforeend', downloadHtml);
+                                    }
+
+                                    t.done = true;
+                                    this.addNotification(`${this.moduleMap[t.mid] || t.mid} Concluído`, `O lote (TI-${t.id.substring(0, 6)}) foi finalizado com sucesso.`, "success");
+                                    this.refreshUser();
+                                    if (t.mid === 'carrier') this.checkCarrierUpdate();
+                                }
+                                else if (rawStatus === 'FAILED' || rawStatus === 'CANCELLED') {
+                                    if (card) {
+                                        const sb = document.getElementById(`status-${t.id}`);
+                                        if (sb) { sb.className = "badge badge-red"; sb.innerText = (rawStatus === 'CANCELLED' ? 'CANCELADO' : 'FALHOU'); }
+                                        const cz = document.getElementById(`cancel-zone-${t.id}`);
+                                        if (cz) cz.style.display = 'none';
+                                    }
+                                    t.done = true;
+                                    this.addNotification(`Processo Interrompido`, `O lote TI-${t.id.substring(0, 6)} encerrou com status ${rawStatus}.`, "error");
+                                }
+
+                                if (t.done) {
+                                    let saved = JSON.parse(localStorage.getItem('hemn_active_tasks') || '[]');
+                                    saved = saved.filter(x => x.id !== t.id);
+                                    localStorage.setItem('hemn_active_tasks', JSON.stringify(saved));
+                                    setTimeout(() => {
+                                        const gcard = document.getElementById(`gtask-${t.id}`);
+                                        if (gcard) gcard.remove();
+                                    }, 5000);
+                                }
+                            }
+                        }
+                    } catch (e) { console.error("Polling Error:", e); }
                 }, 3000);
             },
 
@@ -5525,54 +5609,18 @@
                     filterSummary: `Unificando ${count} arquivo(s)`
                 }, 'unify'); 
             },
-            async startEnrich() {
-                const btn = document.getElementById('btn-start-enrich');
-                if (!btn) return;
-                const originalHtml = btn.innerHTML;
+            startEnrich() {
+                const perfilEl = document.getElementById('enrich-perfil');
+                const perfil = perfilEl ? perfilEl.value : "TODOS";
+                console.log("[DEBUG] Iniciar Enriquecimento - Perfil Selecionado:", perfil);
                 
-                try {
-                    const fileId = this.uploadedFiles.enrich[0];
-                    if (!fileId) {
-                        this.showToast("Selecione um arquivo para enriquecer", "error");
-                        return;
-                    }
-
-                    const perfilEl = document.getElementById('enrich-perfil');
-                    const perfil = perfilEl ? perfilEl.value : "TODOS";
-                    
-                    // Feedback visual imediato
-                    btn.disabled = true;
-                    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> PROCESSANDO...';
-
-                    console.log("[DEBUG] Iniciar Enriquecimento - Perfil Selecionado:", perfil);
-                    const success = await this.startTask('/tasks/enrich', {
-                        file_id: fileId,
-                        name_col: null,
-                        cpf_col: null,
-                        perfil: perfil,
-                        filterSummary: `Enriquecimento (${perfil})`
-                    }, 'enrich');
-
-                    if (success) {
-                        // Limpar seleção de arquivos
-                        this.uploadedFiles.enrich = [];
-                        const dropzone = document.getElementById('dropzone-enrich');
-                        if (dropzone) {
-                            dropzone.innerHTML = `
-                                <i class="fas fa-cloud-upload-alt" style="font-size: 32px; color: var(--accent); margin-bottom: 12px;"></i>
-                                <div style="font-weight: 700; color: var(--text-1);">Arraste seu arquivo Excel ou CSV</div>
-                                <div style="font-size: 11px; color: var(--text-3); margin-top: 4px;">Até 200MB por processamento</div>
-                            `;
-                            dropzone.style.borderColor = 'var(--border)';
-                        }
-                    }
-                } catch (e) {
-                    console.error("Enrich error:", e);
-                    this.showToast("Erro ao iniciar enriquecimento", "error");
-                } finally {
-                    btn.disabled = false;
-                    btn.innerHTML = originalHtml;
-                }
+                this.startTask('/tasks/enrich', {
+                    file_id: this.uploadedFiles.enrich[0],
+                    name_col: null,
+                    cpf_col: null,
+                    perfil: perfil,
+                    filterSummary: `Enriquecimento (${perfil})`
+                }, 'enrich');
             },
             startCarrier() { 
                 const phoneCol = document.getElementById('carrier-col').value;
@@ -5709,7 +5757,7 @@
                                 <div style="font-size:10px; opacity:0.8; font-weight:800; letter-spacing:2px; margin-bottom:10px; color: #fff;">OPERADORA IDENTIFICADA</div>
                                 <div style="font-size:38px; font-weight:900; letter-spacing:1px; text-shadow: 0 2px 10px rgba(0,0,0,0.2); color: #fff;">${data.operadora || 'NÃO IDENTIFICADA'}</div>
                                 <div style="display:flex; align-items:center; justify-content:center; gap:10px; margin-top:15px; color: #fff;">
-                                    <div class="badge" style="background:rgba(255,255,255,0.2); border:1px solid rgba(255,255,255,0.3); color:#fff; font-size:11px">${(data.tipo || 'M\u00f3vel').toUpperCase().replace('M??VEL', 'M\u00d3VEL')}</div>
+                                    <div class="badge" style="background:rgba(255,255,255,0.2); border:1px solid rgba(255,255,255,0.3); color:#fff; font-size:11px">${(data.tipo || 'M\u00f3vel').toUpperCase().replace(/M[^A-Z0-9]{1,2}VEL/i, 'M\u00d3VEL')}</div>
                                     <div style="font-size:12px; opacity:0.9; font-weight:500; color: #fff;">
                                         <i class="fas fa-check-double" style="margin-right:5px; color: #fff;"></i> Inteligência Titanium Ativa
                                     </div>
@@ -5734,16 +5782,6 @@
                     btn.innerHTML = '<i class="fas fa-search"></i> Consultar';
                 }
             },
-            startSplit() { 
-                if (!this.uploadedFiles.split || this.uploadedFiles.split.length === 0) {
-                    this.showToast("Nenhum arquivo submetido para fatiamento", "warning");
-                    return;
-                }
-                this.startTask('/tasks/split', { 
-                    file_id: this.uploadedFiles.split[0],
-                    filterSummary: "Divisão de Arquivo Heavy"
-                }, 'split'); 
-            },
             startExtract() {
                 const uf = document.getElementById('extract-uf').value.toUpperCase();
                 const cidade = document.getElementById('extract-cidade').value.toUpperCase();
@@ -5763,7 +5801,7 @@
                     cnae: cnae,
                     situacao: situacao,
                     tipo_tel: document.getElementById('extract-tipo-tel').value,
-                    somente_com_telefone: document.getElementById('extract-somente-tel').checked,
+                    filtrar_ddd_regiao: document.getElementById('extract-ddd-regiao').checked,
                     sem_governo: document.getElementById('extract-sem-governo').checked,
                     cep_file: this.uploadedFiles.cep[0] || null,
                     operadora_inc: document.getElementById('extract-operadora-inc').value,
