@@ -687,6 +687,10 @@ def start_unify(req: UnifyRequest, user: dict = Depends(get_current_user)):
 @router.post("/tasks/enrich")
 def start_enrich(req: EnrichRequest, user: dict = Depends(get_current_user)):
     if req.manual:
+        # Validação mandátoria de termos para busca manual
+        if not req.name and not req.cpf and not req.cnpj and not req.phone:
+            raise HTTPException(status_code=400, detail="Pelo menos um critério (Nome, CPF, CNPJ ou Telefone) deve ser fornecido para a busca unitária.")
+
         # Limpeza básica do CPF
         cpf_clean = ''.join(filter(str.isdigit, str(req.cpf or "")))
         cnpj_clean = ''.join(filter(str.isdigit, str(req.cnpj or "")))
@@ -724,8 +728,16 @@ def start_enrich(req: EnrichRequest, user: dict = Depends(get_current_user)):
 @app.post("/tasks/extract")
 @router.post("/tasks/extract")
 def start_extract(filters: ExtractionFilter, user: dict = Depends(get_current_user)):
+    # Validação de UF (Mandatório)
+    if not filters.uf:
+        raise HTTPException(status_code=400, detail="O campo ESTADO (UF) é obrigatório para iniciar a extração massiva.")
+    
+    uf_clean = str(filters.uf).strip().upper()
+    if len(uf_clean) != 2:
+        raise HTTPException(status_code=400, detail="O campo ESTADO (UF) deve conter exatamente 2 letras (ex: SP, RJ).")
+
     # Logar início de extração
-    log_transaction(user["username"], "CREDIT", 0, "EXTRACT", f"Iniciada extração de dados: {filters.uf} - {filters.cidade}")
+    log_transaction(user["username"], "CREDIT", 0, "EXTRACT", f"Iniciada extração de dados: {uf_clean} - {filters.cidade}")
     
     # Garantir mapeamento explícito e resolver caminhos
     f_dict = {

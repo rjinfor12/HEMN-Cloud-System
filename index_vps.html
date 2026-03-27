@@ -1035,6 +1035,18 @@
             opacity: 1 !important;
             -webkit-filter: none !important;
         }
+
+        /* Visual Validation Alerts */
+        .is-invalid {
+            border-color: var(--status-red) !important;
+            box-shadow: 0 0 0 3px rgba(255, 72, 108, 0.2) !important;
+            animation: hemnShake 0.4s ease-in-out;
+        }
+        @keyframes hemnShake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-6px); }
+            75% { transform: translateX(6px); }
+        }
     </style>
     <!-- Version: 1.0.5 (Ultra Flash Block) -->
     <!-- Icons and Fonts -->
@@ -5353,18 +5365,34 @@
                 const isPJ = document.getElementById('manual-mode-switch').checked;
                 let name = '', cpf = '', cnpj = '', phone = '';
                 
+                const nameInput = document.getElementById('manual-name');
+                const cpfInput = document.getElementById('manual-cpf');
+                const cnpjInput = document.getElementById('manual-cnpj');
+                const phoneInput = document.getElementById('manual-phone');
+
+                // Helper to clear invalid state
+                const clearInvalid = (el) => el.classList.remove('is-invalid');
+                [nameInput, cpfInput, cnpjInput, phoneInput].forEach(el => {
+                    el.classList.remove('is-invalid');
+                    el.oninput = () => clearInvalid(el);
+                });
+
                 if (isPJ) {
-                    cnpj = document.getElementById('manual-cnpj').value;
-                    phone = document.getElementById('manual-phone').value;
+                    cnpj = cnpjInput.value.trim();
+                    phone = phoneInput.value.trim();
                     if (!cnpj && !phone) {
                         this.showToast("Preencha CNPJ ou Telefone", "warning");
+                        cnpjInput.classList.add('is-invalid');
+                        phoneInput.classList.add('is-invalid');
                         return;
                     }
                 } else {
-                    name = document.getElementById('manual-name').value;
-                    cpf = document.getElementById('manual-cpf').value;
+                    name = nameInput.value.trim();
+                    cpf = cpfInput.value.trim();
                     if (!name && !cpf) {
                         this.showToast("Preencha Nome ou CPF/CNPJ", "warning");
+                        nameInput.classList.add('is-invalid');
+                        cpfInput.classList.add('is-invalid');
                         return;
                     }
                 }
@@ -5674,11 +5702,18 @@
             },
             async runClinicasSearch() {
                 const type = document.getElementById('clinicas-search-type').value;
-                const term = document.getElementById('clinicas-search-term').value;
+                const termInput = document.getElementById('clinicas-search-term');
+                const term = termInput.value.trim();
                 const scope = document.getElementById('clinicas-search-scope').value;
                 
+                // Limpar estado inválido anterior
+                termInput.classList.remove('is-invalid');
+                termInput.oninput = () => termInput.classList.remove('is-invalid');
+
                 if (!term) {
                     this.showToast("Informe o termo de busca", "warning");
+                    termInput.classList.add('is-invalid');
+                    termInput.focus();
                     return;
                 }
 
@@ -5743,9 +5778,17 @@
                 container.scrollIntoView({ behavior: 'smooth' });
             },
             async runSingleCarrier() {
-                const phone = document.getElementById('carrier-single-phone').value.replace(/\D/g, '');
+                const phoneInput = document.getElementById('carrier-single-phone');
+                const phone = phoneInput.value.replace(/\D/g, '');
+                
+                // Limpar estado inválido anterior
+                phoneInput.classList.remove('is-invalid');
+                phoneInput.oninput = () => phoneInput.classList.remove('is-invalid');
+
                 if (phone.length < 10) {
-                    this.showToast("Número inválido", "warning");
+                    this.showToast("Número inválido. Informe o DDD + Número.", "warning");
+                    phoneInput.classList.add('is-invalid');
+                    phoneInput.focus();
                     return;
                 }
                 const btn = document.getElementById('btn-single-carrier');
@@ -5820,11 +5863,43 @@
                 }
             },
             startExtract() {
-                const uf = document.getElementById('extract-uf').value.toUpperCase();
-                const cidade = document.getElementById('extract-cidade').value.toUpperCase();
-                const cnae = document.getElementById('extract-cnae').value;
+                const ufInput = document.getElementById('extract-uf');
+                const uf = ufInput.value.trim().toUpperCase();
+                const cidadeInput = document.getElementById('extract-cidade');
+                const cidade = cidadeInput.value.trim().toUpperCase();
+                const cnaeInput = document.getElementById('extract-cnae');
+                const cnae = cnaeInput.value.trim();
                 const situacao = document.getElementById('extract-status').value;
                 
+                // Helper to clear invalid state
+                const clearInvalid = (el) => el.classList.remove('is-invalid');
+                [ufInput, cnaeInput].forEach(el => {
+                    el.classList.remove('is-invalid');
+                    el.oninput = () => clearInvalid(el);
+                });
+
+                // Validação de Campos Obrigatórios
+                if (!uf) {
+                    this.showToast("O campo ESTADO (UF) é obrigatório.", "warning");
+                    ufInput.classList.add('is-invalid');
+                    ufInput.focus();
+                    return;
+                }
+                if (!/^[A-Z]{2}$/.test(uf)) {
+                    this.showToast("O campo ESTADO (UF) deve conter exatamente 2 letras (ex: SP, RJ).", "warning");
+                    ufInput.classList.add('is-invalid');
+                    ufInput.focus();
+                    return;
+                }
+
+                // Validação opcional de CNAE (se preenchido, deve ser números e ponto-e-vírgula)
+                if (cnae && !/^[0-9;]+$/.test(cnae)) {
+                    this.showToast("O campo CNAE deve conter apenas números e ponto-e-vírgula (ex: 4712;4713).", "warning");
+                    cnaeInput.classList.add('is-invalid');
+                    cnaeInput.focus();
+                    return;
+                }
+
                 const sitMap = {"02": "Ativas", "04": "Baixadas", "08": "Suspensas"};
                 let summary = [];
                 if (uf) summary.push(uf);
