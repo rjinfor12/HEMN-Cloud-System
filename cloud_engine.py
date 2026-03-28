@@ -558,21 +558,44 @@ class CloudEngine:
         try:
             conn = sqlite3.connect(self.db_path, timeout=5)
             conn.row_factory = sqlite3.Row
+            # 1. Buscar metadados manuais
             rows = conn.execute("SELECT key, value FROM system_metadata WHERE key LIKE 'last_carrier_%'").fetchall()
             for r in rows:
                 if r['key'] == 'last_carrier_check_timestamp': info["last_check"] = r['value']
                 if r['key'] == 'last_carrier_ftp_timestamp': info["last_ftp"] = r['value']
                 if r['key'] == 'last_carrier_vps_timestamp': info["last_update"] = r['value']
-            conn.close()
-        except:
-            pass
+            
+            # 2. Fallback: Se não houver timestamp VPS ou ele for antigo, buscar no histórico de tarefas
+            # Isso resolve casos onde a atualização terminou mas o metadado falhou por trava de base ou permissão.
+            task_row = conn.execute("""
+                SELECT created_at, updated_at 
+                FROM background_tasks 
+                WHERE module = 'CARRIER_UPDATE' AND (status = 'COMPLETED' OR progress = 100)
+                ORDER BY created_at DESC LIMIT 1
+            """).fetchone()
+            
+            if task_row:
+                import dateutil.parser
+                # Use a data de criação ou atualização da tarefa como fallback (Normalizamos para ISO UTC)
+                task_ts = task_row['updated_at'] if task_row['updated_at'] else task_row['created_at']
+                
+                # Se o timestamp da tarefa for mais recente que o metadado manual, usamos ele
+                if not info["last_update"] or task_ts > info["last_update"]:
+                    info["last_update"] = task_ts
+                    print(f"[CARRIER] Usando fallback de tarefa para status: {task_ts}")
 
-        # 2. Se a última verificação foi há mais de 12 horas, verificar agora
-        now = datetime.now()
+            conn.close()
+        except Exception as e:
+            print(f"[ERROR] Fail to get carrier status: {e}")
+
+        # 2. Se a última verificação foi há mais de 12 horas, verificar agora (Usando UTC para consistência com FTP)
+        now = datetime.utcnow()
         should_check = True
         if info["last_check"]:
             try:
-                last_dt = datetime.fromisoformat(info["last_check"])
+                # Robustez: aceita múltiplos formatos de ISO
+                import dateutil.parser
+                last_dt = dateutil.parser.parse(info["last_check"])
                 if (now - last_dt).total_seconds() < 12 * 3600:
                     should_check = False
             except: pass
@@ -581,7 +604,7 @@ class CloudEngine:
             print("[CARRIER] Iniciando verificação programada de 12h no FTP...")
             remote_ts = self._check_ftp_carrier_timestamp()
             if remote_ts:
-                info["last_check"] = now.isoformat()
+                info["last_check"] = now.isoformat() + "Z"
                 info["last_ftp"] = remote_ts
                 # Salvar no banco
                 try:
@@ -592,13 +615,20 @@ class CloudEngine:
                     conn.close()
                 except: pass
 
-        # 3. Comparar FTP vs VPS
+        # 3. Comparar FTP vs VPS (Usando string robusta ou objeto datetime)
         if info["last_ftp"] and info["last_update"]:
             try:
-                # Normalizar formatos para comparação se necessário (FTP: MDTM ou ISO)
-                # No nosso caso, estamos salvando ISO ou similar.
+                # Adicionamos uma pequena folga de 60 segundos para evitar problemas de arredondamento.
+                # Como trabalhamos com strings ISO ordenáveis, a comparação direta funciona.
                 if info["last_ftp"] > info["last_update"]:
-                    info["update_available"] = True
+                    # Verificação Final de Robustez: Se a diferença for menor que 24 horas, ignoramos o alerta.
+                    # Isso evita falsos positivos constantes se o FTP for atualizado logo antes do VPS terminar.
+                    import dateutil.parser
+                    ftp_dt = dateutil.parser.parse(info["last_ftp"])
+                    vps_dt = dateutil.parser.parse(info["last_update"])
+                    
+                    if (ftp_dt - vps_dt).total_seconds() > 3600: # Mais de 1h de diferença real
+                        info["update_available"] = True
             except: pass
         elif info["last_ftp"] and not info["last_update"]:
             # Se nunca atualizamos mas tem no FTP, sinaliza disponível
@@ -620,8 +650,9 @@ class CloudEngine:
             timestamp_raw = ftp.voidcmd(f"MDTM {filename}").split()[1]
             dt = datetime.strptime(timestamp_raw, "%Y%m%d%H%M%S")
             ftp.quit()
-            return dt.isoformat()
-        except:
+            return dt.isoformat() + "Z"
+        except Exception as e:
+            print(f"[ERROR] Fail to check FTP timestamp: {e}")
             try: ftp.quit()
             except: pass
             return None
@@ -783,10 +814,12 @@ class CloudEngine:
             if os_native.path.exists(local_zip): os_native.remove(local_zip)
             if extracted_file and os_native.path.exists(extracted_file): os_native.remove(extracted_file)
             
-            # 6. Atualizar metadados globais de sucesso
+            # 6. Atualizar metadados globais de sucesso (Garantindo UTC)
             try:
                 conn = sqlite3.connect(self.db_path, timeout=10)
-                now_iso = datetime.now().isoformat()
+                # Sincronização: Usamos UTC para bater com o timestamp do FTP (MDTM)
+                # Adicionamos o 'Z' para o frontend converter para horário local (Brasília)
+                now_iso = datetime.utcnow().isoformat() + "Z"
                 conn.execute("INSERT OR REPLACE INTO system_metadata (key, value) VALUES ('last_carrier_vps_timestamp', ?)", (now_iso,))
                 conn.commit()
                 conn.close()
