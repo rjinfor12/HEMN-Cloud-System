@@ -96,8 +96,8 @@
             justify-content: center;
             gap: 15px;
             min-height: 280px;
-            backdrop-filter: var(--glass-blur);
             -webkit-backdrop-filter: var(--glass-blur);
+            backdrop-filter: var(--glass-blur);
             box-shadow: var(--glass-shadow);
         }
         [data-theme="dark"] .plan-card {
@@ -181,6 +181,211 @@
             margin-top: 4px;
         }
         .plan-validity { font-size: 11px; color: var(--text-3); font-weight: 600; text-transform: uppercase; letter-spacing: 1px; }
+          /* --- HYPER-PREMIUM REDESIGN: OBSIDIAN SILVER V6.0 (LIGHT LUXURY) --- */
+        #module-extract .glass-card {
+            background: rgba(255, 255, 255, 0.85); /* Back to Pure Light Glass */
+            -webkit-backdrop-filter: blur(30px) saturate(180%);
+            backdrop-filter: blur(30px) saturate(180%);
+            border: 1px solid rgba(0, 85, 255, 0.15);
+            box-shadow: 
+                0 30px 80px rgba(0, 50, 150, 0.1), 
+                0 10px 20px rgba(0, 0, 0, 0.02),
+                inset 0 0 0 1px rgba(255, 255, 255, 0.6);
+            padding: 55px 45px;
+            border-radius: 40px;
+            position: relative;
+            z-index: 10;
+            overflow: hidden;
+            transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.4s ease;
+        }
+
+        [data-theme="dark"] #module-extract .glass-card {
+            background: rgba(20, 25, 40, 0.7);
+            border-color: rgba(255, 255, 255, 0.1);
+            box-shadow: 0 40px 100px rgba(0, 0, 0, 0.4);
+        }
+
+        /* Subtle Silver Silk Animation */
+        #module-extract .glass-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: -100%;
+            width: 100%; height: 3px;
+            background: linear-gradient(90deg, transparent, #0077ff, #00ddff, transparent);
+            animation: silverStroke 8s infinite ease-in-out;
+            opacity: 0.6;
+        }
+
+        @keyframes silverStroke {
+            0% { left: -100%; }
+            50% { left: 100%; }
+            100% { left: -100%; }
+        }
+
+        .filter-section {
+            margin-bottom: 45px;
+            border-bottom: 1px solid rgba(0, 85, 255, 0.06);
+            padding-bottom: 35px;
+        }
+
+        .filter-section:last-of-type { border-bottom: none; }
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+
+        .section-header i {
+            font-size: 20px;
+            color: #0066ff;
+            background: rgba(0, 102, 255, 0.08);
+            width: 45px;
+            height: 45px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 10px rgba(0, 102, 255, 0.1);
+        }
+
+        .section-header h2 {
+            font-size: 14.5px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: #1a1a1a; /* Professional High Contrast */
+            font-family: var(--font-heading);
+        }
+
+        [data-theme="dark"] .section-header h2 { color: #fff; }
+
+        .titanium-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 25px;
+        }
+
+        /* Obsidian Precision Inputs */
+        .titanium-input-wrapper {
+            position: relative;
+        }
+
+        .titanium-input-wrapper label {
+            font-size: 10.5px;
+            font-weight: 800;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            margin-bottom: 10px;
+            display: block;
+            margin-left: 2px;
+        }
+
+        .titanium-field {
+            width: 100%;
+            background: rgba(0, 85, 255, 0.02);
+            border: 1px solid rgba(0, 85, 255, 0.12);
+            border-radius: 15px;
+            padding: 16px 20px;
+            font-size: 14px;
+            color: #222;
+            font-weight: 600;
+            transition: all 0.3s;
+            outline: none;
+            font-family: var(--font-main);
+        }
+
+        [data-theme="dark"] .titanium-field {
+            background: rgba(255, 255, 255, 0.03);
+            color: #fff;
+            border-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .titanium-field:focus {
+            border-color: #0066ff;
+            background: #fff;
+            box-shadow: 0 8px 25px rgba(0, 102, 255, 0.12);
+            transform: translateY(-2px);
+        }
+
+        /* Obsidian Switches */
+        .tactical-switch-row {
+            display: flex;
+            gap: 30px;
+            margin-top: 15px;
+        }
+
+        .tactical-toggle {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            cursor: pointer;
+        }
+
+        .toggle-info .toggle-label {
+            font-size: 12px;
+            font-weight: 700;
+            color: #333;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        [data-theme="dark"] .toggle-info .toggle-label { color: #ccc; }
+
+        /* Premium Indigo Action Button */
+        .titanium-action-btn {
+            background: linear-gradient(135deg, #0055ff 0%, #0088ff 100%);
+            color: #fff;
+            border: none;
+            padding: 22px;
+            border-radius: 18px;
+            font-size: 15px;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            cursor: pointer;
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            box-shadow: 0 15px 35px rgba(0, 85, 255, 0.25);
+            margin-top: 10px;
+        }
+
+        .titanium-action-btn:hover {
+            transform: translateY(-4px) scale(1.01);
+            box-shadow: 0 25px 50px rgba(0, 85, 255, 0.4);
+            filter: brightness(1.1);
+        }
+
+        .titanium-action-btn:active { transform: scale(0.98); }
+
+        .titanium-action-btn i { font-size: 18px; }
+
+        /* Blueprint Drop Zone */
+        .premium-drop-zone {
+            background: rgba(0, 85, 255, 0.03);
+            border: 2px dashed rgba(0, 85, 255, 0.15);
+            border-radius: 20px;
+            padding: 40px;
+            text-align: center;
+            transition: all 0.3s;
+            margin-bottom: 30px;
+            cursor: pointer;
+        }
+
+        .premium-drop-zone:hover {
+            background: rgba(0, 85, 255, 0.05);
+            border-color: #0066ff;
+        }
+
+        .premium-drop-zone i { font-size: 32px; color: #0066ff; margin-bottom: 12px; }
+        .premium-drop-zone p { font-size: 13px; font-weight: 700; color: #333; margin: 0; }
+        .premium-drop-zone span { font-size: 11px; color: #777; font-weight: 600; }
         
         /* Premium Status Card - COMPACT LIGHT */
         .premium-status-container {
@@ -1537,7 +1742,7 @@
                     style="position: fixed; inset: 0; background: transparent; z-index: 2000; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(5px); padding: 15px; overflow: hidden;">
                     <div class="aurora-container">
                         <div class="aurora-blob blob-1"></div>
-                        <div class="aurora-blob blob-2"></div>
+                        <div class="aurora-blob blob-2:"></div>
                         <div class="aurora-blob blob-3"></div>
                     </div>
                     <div class="glass-card"
@@ -1547,7 +1752,7 @@
                                 style="width: 80px; height: 80px; margin-bottom: var(--s-4);">
                         </div>
                         <h2 style="margin-bottom: var(--s-5); font-family: var(--font-heading);">Acesso HEMN SYSTEM <span class="responsive-icon" style="font-size: 0.8em; vertical-align: middle;">💠</span></h2>
-                        <!-- Fake fields to trick aggressive browser autofill -->
+                        
                         <div style="position: absolute; opacity: 0; pointer-events: none; z-index: -1;">
                             <input type="text" name="fake-username-field" tabindex="-1">
                             <input type="password" name="fake-password-field" tabindex="-1">
@@ -1582,7 +1787,6 @@
                         </div>
                     </div>
                 </div>
-
 
                 <!-- MODULE: INÍCIO (Home) -->
                 <section id="module-inicio" class="module-view" style="display:none;">
@@ -1789,123 +1993,141 @@
                     </div>
                 </section>
 
-                <!-- MODULE: EXTRACT -->
+                <!-- MODULE: EXTRACT (V6.0 OBSIDIAN SILVER) -->
                 <section id="module-extract" class="module-view" style="display:none;">
                     <div class="page-header">
                         <div>
                             <h1 class="page-title">PESQUISA: Extração Massiva</h1>
-                            <p class="page-subtitle">Gere leads qualificados filtrando por UF, Cidade e CNAE.</p>
+                            <p class="page-subtitle">Sinfonia de dados em tempo real para identificação de leads estratégicos.</p>
                         </div>
                     </div>
 
                     <div class="glass-card">
-                        <div class="form-grid" style="margin-bottom: var(--s-5);">
-                            <div class="form-group">
-                                <label>ESTADO (UF) <span style="font-size: 10px; opacity: 0.6;">(Obrigatório)</span></label>
-                                <input type="text" id="extract-uf" placeholder="Ex: RJ (Sigla)">
+                        <!-- SECTION 1: GEOLOCALIZAÇÃO -->
+                        <div class="filter-section">
+                            <div class="section-header">
+                                <i class="fas fa-map-pin"></i>
+                                <h2>Localização Estratégica</h2>
                             </div>
-                            <div class="form-group">
-                                <label>CIDADE <span style="font-size: 10px; opacity: 0.6;">(Opcional)</span></label>
-                                <input type="text" id="extract-cidade" placeholder="Ex: RIO DE JANEIRO">
-                            </div>
-                            <div class="form-group">
-                                <label>CNAE (PREFIXO)</label>
-                                <input type="text" id="extract-cnae" placeholder="Ex: 4712;4713">
-                            </div>
-                            <div class="form-group">
-                                <label>FILTRAR TELEFONE</label>
-                                <select id="extract-tipo-tel">
-                                    <option value="TODOS">TODOS</option>
-                                    <option value="CELULAR">SOMENTE MÓVEL</option>
-                                    <option value="FIXO">SOMENTE FIXO</option>
-                                    <option value="AMBOS">AMBOS (MOBILE + FIXO)</option>
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label>SITUAÇÃO CADASTRAL</label>
-                                <select id="extract-status">
-                                    <option value="02" selected>ATIVA</option>
-                                    <option value="01">NULA</option>
-                                    <option value="03">SUSPENSA</option>
-                                    <option value="04">INAPTA</option>
-                                    <option value="08">BAIXADA</option>
-                                    <option value="TODOS">TODAS</option>
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label>OPERADORA (INCLUIR)</label>
-                                <select id="extract-operadora-inc">
-                                    <option value="TODAS" selected>TODAS</option>
-                                    <option value="DESKTOP">DESKTOP</option>
-                                    <option value="VIVO">VIVO</option>
-                                    <option value="CLARO">CLARO</option>
-                                    <option value="TIM">TIM</option>
-                                    <option value="ALGAR">ALGAR</option>
-                                    <option value="SERCOMTEL">SERCOMTEL</option>
-                                    <option value="BRISANET">BRISANET</option>
-                                    <option value="TELECALL">TELECALL</option>
-                                    <option value="OI">OI</option>
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label>OPERADORA (EXCLUIR)</label>
-                                <select id="extract-operadora-exc">
-                                    <option value="NENHUMA" selected>NENHUMA</option>
-                                    <option value="DESKTOP">DESKTOP</option>
-                                    <option value="VIVO">VIVO</option>
-                                    <option value="CLARO">CLARO</option>
-                                    <option value="TIM">TIM</option>
-                                    <option value="ALGAR">ALGAR</option>
-                                    <option value="SERCOMTEL">SERCOMTEL</option>
-                                    <option value="BRISANET">BRISANET</option>
-                                    <option value="TELECALL">TELECALL</option>
-                                    <option value="OI">OI</option>
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label>PERFIL DA EMPRESA</label>
-                                <select id="extract-perfil">
-                                    <option value="TODOS" selected>TODOS</option>
-                                    <option value="MEI">MEI</option>
-                                    <option value="NAO MEI">NAO MEI</option>
-                                </select>
+                            <div class="titanium-grid">
+                                <div class="titanium-input-wrapper">
+                                    <label>Estado (UF)</label>
+                                    <input type="text" id="extract-uf" class="titanium-field" placeholder="Ex: RJ">
+                                </div>
+                                <div class="titanium-input-wrapper">
+                                    <label>Cidade Regional</label>
+                                    <input type="text" id="extract-cidade" class="titanium-field" placeholder="Opcional">
+                                </div>
+                                <div class="titanium-input-wrapper">
+                                    <label>CNAE Relacionado</label>
+                                    <input type="text" id="extract-cnae" class="titanium-field" placeholder="Prefixo CNAE">
+                                </div>
                             </div>
                         </div>
 
-                        <div class="extract-filters-row">
-                            <!-- Extreme Left: Switch + Texto -->
-                            <label class="switch-group" style="display: flex; align-items: center; gap: 12px; cursor: pointer; flex-shrink: 0;">
-                                <div class="hemn-switch">
-                                    <input type="checkbox" id="extract-ddd-regiao">
-                                    <span class="hemn-slider"></span>
+                        <!-- SECTION 2: PERFIL DE NEGÓCIO -->
+                        <div class="filter-section">
+                            <div class="section-header">
+                                <i class="fas fa-user-tie"></i>
+                                <h2>Perfil de Negócio</h2>
+                            </div>
+                            <div class="titanium-grid">
+                                <div class="titanium-input-wrapper">
+                                    <label>Situação Cadastral</label>
+                                    <select id="extract-status" class="titanium-field">
+                                        <option value="02" selected>EMPRESAS ATIVAS (RECOMENDADO)</option>
+                                        <option value="01">SITUAÇÃO NULA</option>
+                                        <option value="03">SITUAÇÃO SUSPENSA</option>
+                                        <option value="04">SITUAÇÃO INAPTA</option>
+                                        <option value="08">SITUAÇÃO BAIXADA</option>
+                                        <option value="TODOS">TODAS AS SITUAÇÕES</option>
+                                    </select>
                                 </div>
-                                <span style="font-size: 12px; color: var(--text-2); font-weight: 700; text-transform: uppercase; white-space: nowrap; letter-spacing: 0.3px;">FILTRAR DDD DA REGIÃO</span>
-                            </label>
-
-                            <!-- Extreme Right: Texto + Switch -->
-                            <label class="switch-group" style="display: flex; align-items: center; gap: 12px; cursor: pointer; flex-shrink: 0;">
-                                <div class="hemn-switch">
-                                    <input type="checkbox" id="extract-sem-governo">
-                                    <span class="hemn-slider"></span>
+                                <div class="titanium-input-wrapper">
+                                    <label>Perfil da Empresa</label>
+                                    <select id="extract-perfil" class="titanium-field">
+                                        <option value="TODOS" selected>TODOS OS PORTES</option>
+                                        <option value="MEI">APENAS MEI</option>
+                                        <option value="NAO MEI">NÃO MEI</option>
+                                    </select>
                                 </div>
-                                <span style="font-size: 12px; color: var(--text-2); font-weight: 700; text-transform: uppercase; white-space: nowrap; letter-spacing: 0.3px;">REMOVER ÓRGÃOS GOV</span>
-                            </label>
+                            </div>
                         </div>
 
-                        <div class="drop-zone" onclick="document.getElementById('file-input-cep').click()"
-                            style="margin-bottom: var(--s-5);">
-                            <i class="fas fa-map-marker-alt" style="font-size: 24px; margin-bottom: 10px;"></i>
-                            <p>Opcional: Subir Planilha CEP + Número (CSV/XLSX)</p>
+                        <!-- SECTION 3: CANAIS DE CONECTIVIDADE -->
+                        <div class="filter-section">
+                            <div class="section-header">
+                                <i class="fas fa-phone-alt"></i>
+                                <h2>Filtros de Conectividade</h2>
+                            </div>
+                            <div class="titanium-grid" style="margin-bottom: 30px;">
+                                <div class="titanium-input-wrapper">
+                                    <label>Tipo de Linha</label>
+                                    <select id="extract-tipo-tel" class="titanium-field">
+                                        <option value="TODOS">TODOS OS TELEFONES</option>
+                                        <option value="CELULAR">SOMENTE MÓVEL</option>
+                                        <option value="FIXO">SOMENTE FIXO</option>
+                                        <option value="AMBOS">AMBOS (ESTRATÉGICO)</option>
+                                    </select>
+                                </div>
+                                <div class="titanium-input-wrapper">
+                                    <label>Incluir Operadora</label>
+                                    <select id="extract-operadora-inc" class="titanium-field">
+                                        <option value="TODAS" selected>TODAS AS OPERADORAS</option>
+                                        <option value="VIVO">VIVO</option>
+                                        <option value="TIM">TIM</option>
+                                        <option value="CLARO">CLARO</option>
+                                    </select>
+                                </div>
+                                <div class="titanium-input-wrapper">
+                                    <label>Excluir Operadora</label>
+                                    <select id="extract-operadora-exc" class="titanium-field">
+                                        <option value="NENHUMA" selected>NENHUMA EXCLUSÃO</option>
+                                        <option value="VIVO">VIVO</option>
+                                        <option value="TIM">TIM</option>
+                                        <option value="CLARO">CLARO</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="tactical-switch-row">
+                                <label class="tactical-toggle">
+                                    <div class="hemn-switch">
+                                        <input type="checkbox" id="extract-ddd-regiao">
+                                        <span class="hemn-slider"></span>
+                                    </div>
+                                    <div class="toggle-info">
+                                        <span class="toggle-label">Otimização de DDD local</span>
+                                    </div>
+                                </label>
+                                <label class="tactical-toggle">
+                                    <div class="hemn-switch">
+                                        <input type="checkbox" id="extract-sem-governo">
+                                        <span class="hemn-slider"></span>
+                                    </div>
+                                    <div class="toggle-info">
+                                        <span class="toggle-label">Remover Órgãos Públicos</span>
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- SECTION 4: ENRIQUECIMENTO -->
+                        <div class="premium-drop-zone" onclick="document.getElementById('file-input-cep').click()">
+                            <i class="fas fa-file-invoice"></i>
+                            <p>ENRIQUECIMENTO GEOGRÁFICO PERSONALIZADO</p>
+                            <span>Clique para subir Planilha de CEPs (Opcional)</span>
                             <input type="file" id="file-input-cep" hidden onchange="app.handleFiles(this, 'cep')">
                         </div>
-                        <div id="file-list-cep" style="margin-bottom: var(--s-5);"></div>
+                        <div id="file-list-cep" style="margin-bottom: 25px;"></div>
 
-                        <button class="btn-primary" onclick="app.startExtract()"
-                            style="width: 100%; justify-content: center;">
-                            <i class="fas fa-rocket"></i> Iniciar Processamento Massivo (1 Cr por registro)
+                        <button class="titanium-action-btn" onclick="app.startExtract()">
+                            <i class="fas fa-check-circle"></i>
+                            INICIAR EXTRAÇÃO TITÂNIO
                         </button>
-                        <h3 id="title-extract" style="display:none; margin-top: 25px; margin-bottom: 10px; font-size: 14px; font-weight: 700; color: var(--text-1); border-left: 3px solid var(--accent); padding-left: 10px;">Pesquisas:</h3>
-                        <div id="tasks-extract" style="margin-top: var(--s-2);"></div>
+
+                        <h3 id="title-extract" style="display:none; margin-top: 35px; color: var(--text-1);">Status do Processamento:</h3>
+                        <div id="tasks-extract" style="margin-top: 15px;"></div>
                     </div>
                 </section>
 
