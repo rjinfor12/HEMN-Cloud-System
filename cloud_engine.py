@@ -568,7 +568,7 @@ class CloudEngine:
             # 2. Fallback: Se não houver timestamp VPS ou ele for antigo, buscar no histórico de tarefas
             # Isso resolve casos onde a atualização terminou mas o metadado falhou por trava de base ou permissão.
             task_row = conn.execute("""
-                SELECT created_at, updated_at 
+                SELECT created_at 
                 FROM background_tasks 
                 WHERE module = 'CARRIER_UPDATE' AND (status = 'COMPLETED' OR progress = 100)
                 ORDER BY created_at DESC LIMIT 1
@@ -577,7 +577,7 @@ class CloudEngine:
             if task_row:
                 import dateutil.parser
                 # Use a data de criação ou atualização da tarefa como fallback (Normalizamos para ISO UTC)
-                task_ts = task_row['updated_at'] if task_row['updated_at'] else task_row['created_at']
+                task_ts = task_row['created_at']
                 
                 # Se o timestamp da tarefa for mais recente que o metadado manual, usamos ele
                 if not info["last_update"] or task_ts > info["last_update"]:
@@ -626,6 +626,9 @@ class CloudEngine:
                     import dateutil.parser
                     ftp_dt = dateutil.parser.parse(info["last_ftp"])
                     vps_dt = dateutil.parser.parse(info["last_update"])
+                    
+                    if ftp_dt.tzinfo: ftp_dt = ftp_dt.replace(tzinfo=None)
+                    if vps_dt.tzinfo: vps_dt = vps_dt.replace(tzinfo=None)
                     
                     if (ftp_dt - vps_dt).total_seconds() > 3600: # Mais de 1h de diferença real
                         info["update_available"] = True
@@ -1696,6 +1699,7 @@ class CloudEngine:
                     estab.cnae_fiscal AS CNAE, 
                     estab.logradouro AS RUA,
                     estab.numero AS NUMERO,
+                    estab.complemento AS COMPLEMENTO,
                     estab.bairro AS BAIRRO,
                     estab.CIDADE AS CIDADE, 
                     estab.uf AS UF, 
@@ -1943,7 +1947,14 @@ class CloudEngine:
         if 'SITUACAO CADASTRAL' in df.columns:
             df['SITUACAO CADASTRAL'] = df['SITUACAO CADASTRAL'].astype(str).str.zfill(2).map(sit_map).fillna(df['SITUACAO CADASTRAL'])
 
-        final_columns = ['CNPJ', 'NOME DA EMPRESA', 'SITUACAO CADASTRAL', 'CNAE', 'LOGRADOURO', 'NUMERO DA FAIXADA', 'BAIRRO', 'CIDADE', 'UF', 'CEP', 'TELEFONE SOLICITADO', 'OPERADORA DO TELEFONE']
+        final_columns = ['CNPJ', 'NOME DA EMPRESA', 'SITUACAO CADASTRAL', 'CNAE', 'LOGRADOURO', 'NUMERO DA FAIXADA']
+        
+        # Inclusao do complemento sob demanda (Regiao Centro-Oeste)
+        uf_req = str(filters.get("uf", "")).strip().upper()
+        if uf_req in ["DF", "GO", "MT", "MS"]:
+            final_columns.append('COMPLEMENTO')
+            
+        final_columns.extend(['BAIRRO', 'CIDADE', 'UF', 'CEP', 'TELEFONE SOLICITADO', 'OPERADORA DO TELEFONE'])
         for c in final_columns:
             if c not in df.columns: df[c] = ""
             else: df[c] = df[c].astype(str).replace(['nan', 'NaN', 'None', '<NA>'], "")
