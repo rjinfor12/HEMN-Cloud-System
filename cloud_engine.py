@@ -1704,7 +1704,7 @@ class CloudEngine:
                     estab.telefone1 AS TEL1, 
                     estab.ddd2 AS DDD2, 
                     estab.telefone2 AS TEL2
-                FROM hemn.empresas e
+FROM hemn.empresas AS e
                 INNER JOIN (
                     SELECT estab_inner.*, m.descricao as CIDADE 
                     FROM hemn.estabelecimento estab_inner 

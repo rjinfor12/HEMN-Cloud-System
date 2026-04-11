@@ -438,15 +438,21 @@ def cancel_task(task_id: str, user: dict = Depends(get_current_user)):
 
 @app.post("/login")
 async def login(request: Request):
-    try: data = await request.form()
-    except: data = await request.json()
+    try:
+        data = await request.form()
+    except:
+        data = await request.json()
+
     u, p = data.get("username"), data.get("password")
-    
+    if not u or not p:
+        raise HTTPException(status_code=400, detail="Nome de usuário e senha são obrigatórios.")
+
     conn = sqlite3.connect(DB_PATH, timeout=30)
     conn.execute("PRAGMA journal_mode=WAL")
     conn.row_factory = sqlite3.Row
     user = conn.execute("SELECT * FROM users WHERE username = ? COLLATE NOCASE", (u,)).fetchone()
-    
+
+    is_correct = False
     if user:
         stored_password = user["password"]
         if verify_password(p, stored_password):
@@ -454,22 +460,22 @@ async def login(request: Request):
             # Migration check: if not already pbkdf2_sha256, migrate it
             # (In this context, if the verify works but it wasn't hashed with the current scheme)
             if not stored_password.startswith("$pbkdf2-sha256$"):
-                 new_hash = get_password_hash(p)
-                 conn.execute("UPDATE users SET password = ? WHERE username = ? COLLATE NOCASE", (new_hash, u))
-                 conn.commit()
+                new_hash = get_password_hash(p)
+                conn.execute("UPDATE users SET password = ? WHERE username = ? COLLATE NOCASE", (new_hash, u))
+                conn.commit()
 
-        if is_correct:
-            if user["status"] != "ACTIVE": 
-                conn.close()
-                raise HTTPException(status_code=403, detail="Acesso bloqueado.")
-            token = create_token(u)
-            conn.execute("UPDATE users SET last_login = ? WHERE username = ? COLLATE NOCASE", (datetime.now().isoformat(), u))
-            conn.commit()
+    if is_correct:
+        if user["status"] != "ACTIVE":
             conn.close()
-            return {"access_token": token, "token_type": "bearer"}
-    
+            raise HTTPException(status_code=403, detail="Acesso bloqueado.")
+        token = create_token(u)
+        conn.execute("UPDATE users SET last_login = ? WHERE username = ? COLLATE NOCASE", (datetime.now().isoformat(), u))
+        conn.commit()
+        conn.close()
+        return {"access_token": token, "token_type": "bearer"}
+
     conn.close()
-    raise HTTPException(status_code=401, detail="Usu\u00e1rio ou senha incorretos.")
+    raise HTTPException(status_code=401, detail="Usuário ou senha incorretos.")
 
 @app.get("/me")
 def get_me(user: dict = Depends(get_current_user)):
