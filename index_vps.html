@@ -5475,31 +5475,8 @@
                 }
             },
 
-            async recoverActiveTasks() {
-                try {
-                    const res = await fetch(`${API}/tasks/active`, { headers: { 'Authorization': `Bearer ${this.token}` } });
-                    if (!res.ok) return;
-                    const activeTasks = await res.json();
-                    if (activeTasks && Array.isArray(activeTasks)) {
-                        activeTasks.forEach(task => {
-                            if (!this.tasks.find(t => t.id === task.id)) {
-                                const mid = task.module.toLowerCase();
-                                const taskInfo = {
-                                    id: task.id,
-                                    mid: mid,
-                                    startTime: new Date(task.created_at).getTime(),
-                                    done: task.status === 'COMPLETED' || task.status === 'FAILED' || task.status === 'CANCELLED'
-                                };
-                                this.tasks.push(taskInfo);
-                                this.renderTaskCard(task.id, mid, task);
-                                this.renderGlobalTaskCard(task.id, mid, task);
-                            }
-                        });
-                    }
-                } catch (e) {
-                    console.error("Task recovery failed", e);
-                }
-            },
+            // recoverActiveTasks REMOVED - CONSOLIDATED BELOW V2.5.2
+
 
             renderGlobalTaskCard(tid, mid, savedData = null) {
                 const container = document.getElementById('global-task-list');
@@ -5657,40 +5634,8 @@
                 }
             },
 
-            async dismissTask(tid, mid) {
-                const el = document.getElementById(`task-${tid}`);
-                const gel = document.getElementById(`gtask-${tid}`);
-                if (el) el.remove();
-                if (gel) gel.remove();
-                
-                try {
-                    // Além de esconder, cancela o processo no backend
-                    fetch(`${API}/tasks/${tid}/cancel`, {
-                        method: 'POST',
-                        headers: { 'Authorization': `Bearer ${this.token}` }
-                    });
+            // dismissTask REMOVED - CONSOLIDATED BELOW V2.5.2
 
-                    await fetch(`${API}/tasks/${tid}/hide`, {
-                        method: 'POST',
-                        headers: { 'Authorization': `Bearer ${this.token}` }
-                    });
-
-                    // Cleanup Local State
-                    this.tasks = this.tasks.filter(x => x.id !== tid);
-                    let saved = JSON.parse(localStorage.getItem('hemn_active_tasks') || '[]');
-                    saved = saved.filter(x => x.id !== tid);
-                    localStorage.setItem('hemn_active_tasks', JSON.stringify(saved));
-                } catch (e) {
-                    console.error("Failed to cancel/hide task", e);
-                }
-
-                // Se não houver mais cards, esconde o título
-                const container = document.getElementById(`tasks-${mid}`);
-                if (container && container.children.length === 0) {
-                    const title = document.getElementById(`title-${mid}`);
-                    if (title) title.style.display = 'none';
-                }
-            },
 
             toggleManualMode(isPJ) {
                 document.getElementById('manual-fields-pf').style.display = isPJ ? 'none' : 'grid';
@@ -5857,6 +5802,64 @@
                     btn.style.color = 'inherit';
                 }
             },
+
+            async recoverActiveTasks() {
+                try {
+                    const res = await fetch(`${API}/tasks/state/active?t=${Date.now()}`, { headers: { 'Authorization': `Bearer ${this.token}` } });
+                    if (!res.ok) return;
+                    const serverTasks = await res.json();
+                    
+                    if (!Array.isArray(serverTasks)) return;
+
+                    // HEMN V2.5.2: Sistema de dismiss persistente (localStorage)
+                    const dismissed = JSON.parse(localStorage.getItem('hemn_dismissed_tasks') || '[]');
+
+                    serverTasks.forEach(st => {
+                        // Se a tarefa já está na lista ou foi descartada pelo usuário, pula
+                        if (this.tasks.find(t => t.id === st.id)) return;
+                        if (dismissed.includes(st.id)) return;
+
+                        // Adiciona à lista de memória
+                        const t = {
+                            id: st.id,
+                            mid: st.module,
+                            status: st.status,
+                            message: st.message,
+                            progress: st.progress,
+                            record_count: st.record_count,
+                            startTime: Date.now() - (st.progress * 100), // Estimativa baseada no progresso
+                            done: ['COMPLETED', 'SUCCESS', 'FAILED', 'CANCELLED'].includes(st.status.toUpperCase()),
+                            remaining: null
+                        };
+                        this.tasks.push(t);
+                        
+                        // Renderiza o card no módulo correspondente
+                        this.renderTaskCard(t.id, t.mid, st);
+                    });
+                } catch (e) {
+                    console.error("[RECOVERY] Falha ao sincronizar tarefas:", e);
+                }
+            },
+
+            dismissTask(taskId) {
+                // Remove visualmente
+                const card = document.getElementById(`task-${taskId}`);
+                if (card) {
+                    card.style.opacity = '0';
+                    setTimeout(() => card.remove(), 300);
+                }
+                
+                // Salva permanentemente no navegador para não voltar no refresh
+                const dismissed = JSON.parse(localStorage.getItem('hemn_dismissed_tasks') || '[]');
+                if (!dismissed.includes(taskId)) {
+                    dismissed.push(taskId);
+                    localStorage.setItem('hemn_dismissed_tasks', JSON.stringify(dismissed));
+                }
+
+                // Remove da lista de memória para parar o polling
+                this.tasks = this.tasks.filter(t => t.id !== taskId);
+            },
+
 
             async pollTasks() {
                 // Tique global para contagem regressiva em tempo real (Otimizado: Corre apenas se houver tarefas ativas e visíveis)
