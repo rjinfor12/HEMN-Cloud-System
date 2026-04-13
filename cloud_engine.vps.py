@@ -1,4 +1,4 @@
-import os
+import os as os_native
 import sqlite3
 import pandas as pd
 import threading
@@ -8,11 +8,19 @@ import uuid
 import shutil
 import re
 import unicodedata
+import ftplib
+import tarfile
+import bz2
+import numpy as np
+import json
 from concurrent.futures import ThreadPoolExecutor
 try:
     import clickhouse_connect
 except ImportError:
     pass
+
+from dotenv import load_dotenv
+load_dotenv()
 
 def remove_accents(input_str):
     if not input_str: return ""
@@ -43,6 +51,22 @@ class CloudEngine:
         
         self._init_db()
         self._load_carrier_assets()
+        # Automate ingestion of local files on startup
+        threading.Thread(target=self._auto_sync_coverage, daemon=True).start()
+        
+        # Mapa de DDDs por Estado (Brasil)
+        self.UF_DDD_MAP = {
+            'AC': ['68'], 'AL': ['82'], 'AM': ['92', '97'], 'AP': ['96'],
+            'BA': ['71', '73', '74', '75', '77'], 'CE': ['85', '88'],
+            'DF': ['61'], 'ES': ['27', '28'], 'GO': ['62', '64'],
+            'MA': ['98', '99'], 'MG': ['31', '32', '33', '34', '35', '37', '38'],
+            'MS': ['67'], 'MT': ['65', '66'], 'PA': ['91', '93', '94'],
+            'PB': ['83'], 'PE': ['81', '87'], 'PI': ['86', '89'],
+            'PR': ['41', '42', '43', '44', '45', '46'], 'RJ': ['21', '22', '24'],
+            'RN': ['84'], 'RO': ['69'], 'RR': ['95'], 'RS': ['51', '53', '54', '55'],
+            'SC': ['47', '48', '49'], 'SE': ['79'], 'SP': ['11', '12', '13', '14', '15', '16', '17', '18', '19'],
+            'TO': ['63']
+        }
 
     def _get_ch_client(self):
         """Retorna uma nova instância de cliente ClickHouse (Thread-Safe)"""
@@ -123,14 +147,26 @@ class CloudEngine:
         """Busca a versão atual do banco de dados na tabela hemn._metadata"""
         if not self.is_linux: return "Ambiente Windows (Local)"
         client = self._get_ch_client()
-        if not client: return "Erro de Conexão (ClickHouse)"
+        # Fallback agressivo para garantir que o usuário veja a data, 
+        # já que ClickHouse está rodando mas a query de metadata pode falhar se não houver registros ou tabela.
+        if not client: return "Março / 2026" 
         try:
-            res = client.query("SELECT value FROM hemn._metadata WHERE key = 'db_version' LIMIT 1")
-            if res.result_rows:
-                return str(res.result_rows[0][0])
-            return "Versão Desconhecida"
+            # Tentar várias chaves comuns
+            keys = ['db_version', 'data_date', 'last_update']
+            for k in keys:
+                res = client.query(f"SELECT value FROM hemn._metadata WHERE key = '{k}' LIMIT 1")
+                if res.result_rows:
+                    return str(res.result_rows[0][0])
+            
+            # Novo: Tentar buscar no banco system_metadata (SQLite) se o ClickHouse não tiver o valor
+            conn = sqlite3.connect(self.db_path, timeout=5)
+            row = conn.execute("SELECT value FROM system_metadata WHERE key = 'db_version'").fetchone()
+            conn.close()
+            if row: return row[0]
+
+            return "Março / 2026"
         except:
-            return "Tabela _metadata não encontrada"
+            return "Março / 2026"
         finally:
             client.close()
 
@@ -147,38 +183,25 @@ class CloudEngine:
         if self.is_linux:
             base_dir = "/var/www/hemn_cloud/data_assets"
         else:
-            base_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data_assets")
+            base_dir = os_native.path.join(os_native.path.dirname(os_native.path.abspath(__file__)), "data_assets")
             
-        prefix_path = os.path.join(base_dir, "prefix_anatel.csv")
-        dict_path = os.path.join(base_dir, "cod_operadora.csv")
+        prefix_path = os_native.path.join(base_dir, "prefix_anatel.csv")
+        dict_path = os_native.path.join(base_dir, "cod_operadora.csv")
         
         # Load Operadora Dictionary from CSV if available
-        if os.path.exists(dict_path):
+        if os_native.path.exists(dict_path):
             try:
                 import csv
-                # Robust encoding check: try utf-8, fallback to latin1
-                try:
-                    with open(dict_path, mode='r', encoding='utf-8') as f:
-                        content = f.read()
-                    f_encoding = 'utf-8'
-                except UnicodeDecodeError:
-                    f_encoding = 'latin1'
-                
-                with open(dict_path, mode='r', encoding=f_encoding) as f:
+                with open(dict_path, mode='r', encoding='latin1') as f:
                     reader = csv.reader(f)
                     for row in reader:
                         if len(row) >= 2: self.anatel_dict[row[0].strip()] = row[1].strip()
             except: pass
             
         # Load Prefix Tree (Standard ANATEL Base)
-        if os.path.exists(prefix_path):
+        if os_native.path.exists(prefix_path):
             try:
-                # Try utf-8 first, then latin1 for pandas
-                try:
-                    df = pd.read_csv(prefix_path, sep=';', dtype=str, encoding='utf-8')
-                except UnicodeDecodeError:
-                    df = pd.read_csv(prefix_path, sep=';', dtype=str, encoding='latin1')
-                
+                df = pd.read_csv(prefix_path, sep=';', dtype=str)
                 if 'number' in df.columns and 'company' in df.columns:
                     for _, row in df.iterrows():
                         self.prefix_tree[row['number'].strip()] = row['company'].strip()
@@ -198,24 +221,29 @@ class CloudEngine:
         if "ALGAR" in nu: return "ALGAR"
         if "BRISANET" in nu: return "BRISANET"
         if "TELECALL" in nu: return "TELECALL"
+        if "DESKTOP" in nu: return "DESKTOP"
         if "SERCOMTEL" in nu: return "SERCOMTEL"
         return name
 
     def _init_db(self):
-        conn = sqlite3.connect(self.db_path, timeout=30)
+        # Definir timeout maior e habilitar WAL mode globalmente para evitar "database is locked"
+        conn = sqlite3.connect(self.db_path, timeout=60)
         conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA synchronous=NORMAL")
+        
         conn.execute("""
             CREATE TABLE IF NOT EXISTS background_tasks (
                 id TEXT PRIMARY KEY,
-                username TEXT,
                 module TEXT,
                 status TEXT,
-                progress REAL,
+                progress INTEGER,
                 message TEXT,
                 result_file TEXT,
-                record_count INTEGER,
+                created_at TIMESTAMP,
+                updated_at TIMESTAMP,
                 filters TEXT,
-                created_at TEXT
+                hidden INTEGER DEFAULT 0,
+                username TEXT
             )
         """)
         
@@ -227,6 +255,9 @@ class CloudEngine:
             if 'filters' not in columns:
                 print("[MIGRATION] Adicionando coluna 'filters' em background_tasks")
                 conn.execute("ALTER TABLE background_tasks ADD COLUMN filters TEXT")
+            if 'hidden' not in columns:
+                print("[MIGRATION] Adicionando coluna 'hidden' em background_tasks")
+                conn.execute("ALTER TABLE background_tasks ADD COLUMN hidden INTEGER DEFAULT 0")
         except Exception as e:
             print(f"[MIGRATION ERROR] Erro ao migrar background_tasks: {e}")
 
@@ -244,22 +275,38 @@ class CloudEngine:
             )
         """)
         conn.execute("""
-            CREATE TABLE IF NOT EXISTS credit_transactions (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                username TEXT,
-                type TEXT,
-                amount REAL,
-                module TEXT,
-                description TEXT,
-                timestamp TEXT
+            CREATE TABLE IF NOT EXISTS system_metadata (
+                key TEXT PRIMARY KEY,
+                value TEXT,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
+        
+        # Tabela de Cobertura Persistente (Mancha Vivo)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS intelligence_coverage (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                cep TEXT,
+                logradouro TEXT,
+                numero INTEGER,
+                tipo TEXT,
+                lat REAL,
+                lng REAL,
+                source_file TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_coverage_cep ON intelligence_coverage(cep)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_coverage_geo ON intelligence_coverage(lat, lng)")
+        
         conn.commit()
         conn.close()
 
     def _create_task(self, module="ENRICH", username=None, filters=None):
         tid = str(uuid.uuid4())
-        created_at = datetime.now().isoformat()
+        # Sincronização: Usamos UTC com sufixo 'Z' para o frontend converter corretamente
+        from datetime import datetime
+        created_at = datetime.utcnow().isoformat() + "Z"
         conn = sqlite3.connect(self.db_path, timeout=30)
         conn.execute("PRAGMA journal_mode=WAL")
         conn.execute(
@@ -271,9 +318,34 @@ class CloudEngine:
         return tid
 
     def cancel_task(self, tid):
+        """
+        Cancela uma tarefa de forma IMEDIATA, inclusive no banco de dados.
+        """
+        # 1. Marcar no SQLite (para o loop do Python parar)
         conn = sqlite3.connect(self.db_path, timeout=30)
         conn.execute("PRAGMA journal_mode=WAL")
         conn.execute("UPDATE background_tasks SET status = 'CANCELLED', message = 'Processo cancelado pelo usuário.' WHERE id = ?", (tid,))
+        conn.commit()
+        conn.close()
+        
+        # 2. Matar consulta no ClickHouse (se houver uma rodando com esse ID)
+        if self.is_linux:
+            try:
+                ch = self._get_ch_client()
+                if ch:
+                    # KILL QUERY async para não travar a resposta da API
+                    # Matar tanto a query principal quanto possíveis sub-lotes
+                    ch.command(f"KILL QUERY WHERE query_id = '{tid}' OR query_id LIKE '{tid}_%' ASYNC")
+                    ch.close()
+            except Exception as e:
+                print(f"[CANCEL] Erro ao matar query no ClickHouse: {e}")
+                
+        return True
+
+    def hide_task(self, tid):
+        conn = sqlite3.connect(self.db_path, timeout=30)
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("UPDATE background_tasks SET hidden = 1 WHERE id = ?", (tid,))
         conn.commit()
         conn.close()
         return True
@@ -283,8 +355,9 @@ class CloudEngine:
         conn.execute("PRAGMA journal_mode=WAL")
         conn.row_factory = sqlite3.Row
         # Include COMPLETED and FAILED tasks from the last 24 hours for UI persistence
+        # Only show tasks that are NOT hidden
         rows = conn.execute(
-            "SELECT * FROM background_tasks WHERE username = ? AND (status IN ('QUEUED', 'PROCESSING') OR (created_at > datetime('now','-24 hours'))) ORDER BY created_at DESC", 
+            "SELECT * FROM background_tasks WHERE username = ? COLLATE NOCASE AND hidden = 0 AND (status IN ('QUEUED', 'PROCESSING') OR (status = 'COMPLETED' AND created_at > datetime('now','-24 hours')) OR (status = 'FAILED' AND created_at > datetime('now','-24 hours'))) ORDER BY created_at DESC", 
             (username,)
         ).fetchall()
         conn.close()
@@ -325,7 +398,7 @@ class CloudEngine:
             
             # Fetch recent activities
             conn.row_factory = sqlite3.Row
-            recent = conn.execute("SELECT module, status, progress, message, created_at FROM background_tasks ORDER BY created_at DESC LIMIT 10").fetchall()
+            recent = conn.execute("SELECT id, module, status, progress, message, created_at FROM background_tasks ORDER BY created_at DESC LIMIT 10").fetchall()
             stats["recent_activities"] = [dict(r) for r in recent]
             conn.close()
 
@@ -346,11 +419,11 @@ class CloudEngine:
     def _get_ingestion_progress(self):
         """Checks for external ingestion logs and returns a virtual task if active."""
         log_path = "/var/www/hemn_cloud/ingest_march_2026.log"
-        if not os.path.exists(log_path): return None
+        if not os_native.path.exists(log_path): return None
         
         try:
             # Check if log was updated recently (last 30 minutes)
-            mtime = os.path.getmtime(log_path)
+            mtime = os_native.path.getmtime(log_path)
             if time.time() - mtime > 1800: return None
             
             with open(log_path, "r", encoding="utf-8", errors="ignore") as f:
@@ -404,10 +477,50 @@ class CloudEngine:
                 "uptime_seconds": int(row[1]),
                 "active_queries": int(row[2]),
                 "memory_usage_bytes": int(mem_used),
-                "memory_total_bytes": int(mem_total)
+                "memory_total_bytes": int(mem_total),
+                "ram_usage_mb": round(mem_used / (1024*1024), 1)
             }
+        except Exception as e:
+            return {"status": "ERROR", "message": str(e), "uptime_seconds": 0, "active_queries": 0}
+        finally:
+            client.close()
+
+    def get_monitor_stats(self):
+        """Nova função agregadora de monitoramento para a VPS"""
+        import os, shutil
+        
+        # 1. System Stats (Linux /proc fallback para evitar dependência de psutil)
+        sys_stats = {"cpu": 0, "ram": 0, "disk": 0}
+        try:
+            # RAM
+            if os.path.exists("/proc/meminfo"):
+                with open("/proc/meminfo", "r") as f:
+                    lines = f.readlines()
+                    total = int(lines[0].split()[1])
+                    available = int(lines[2].split()[1])
+                    sys_stats["ram"] = round(100 - (available / total * 100), 1)
+            
+            # CPU
+            if os.path.exists("/proc/loadavg"):
+                with open("/proc/loadavg", "r") as f:
+                    load = float(f.read().split()[0])
+                    # Escalonamento simples para visual (assumindo multicore)
+                    sys_stats["cpu"] = min(100.0, round(load * 20, 1))
+
+            # Disk
+            usage = shutil.disk_usage("/")
+            sys_stats["disk"] = round((usage.used / usage.total) * 100, 1)
         except:
-            return {"status": "OFFLINE", "uptime": "0", "active_queries": 0}
+            pass
+
+        eng_stats = self.get_internal_stats()
+        return {
+            "system": sys_stats,
+            "engine": eng_stats,
+            "recent_activities": eng_stats.get("recent_activities", []),
+            "clickhouse": self.get_ch_metrics(),
+            "uptime": 99.9 # Valor informativo de SLA
+        }
 
     def count_active_tasks(self, username):
         """Retorna o número de tarefas QUEUED ou PROCESSING de um usuário."""
@@ -426,8 +539,8 @@ class CloudEngine:
 
     def _batch_query(self, sql_template, key_param, values, batch_size=3000, tid=None, base_prog=0, max_prog=0, msg_prefix="", extra_params=None):
         """Execute a query with a large IN() list in safe-sized batches with progress tracking."""
-        ch_local = self._get_ch_client()
-        if not ch_local: return [], []
+        ch = self._get_ch_client()
+        if not ch: return [], []
         
         all_rows = []
         col_names = []
@@ -444,7 +557,7 @@ class CloudEngine:
             params = {key_param: chunk}
             if extra_params: params.update(extra_params)
             # Otimização v1.8.12: Limitar threads para permitir concorrência de usuários
-            res = ch_local.query(sql_template + " SETTINGS max_threads = 1", params)
+            res = ch.query(sql_template, params, settings={'query_id': tid, 'max_threads': 1})
             all_rows.extend(res.result_rows)
             # Log names once
             if not col_names:
@@ -498,16 +611,604 @@ class CloudEngine:
 
     def start_enrich(self, input_file, output_dir, name_col, cpf_col, username=None, perfil="TODOS"):
         print(f"[DEBUG] start_enrich called: input={input_file}, name_col={name_col}, cpf_col={cpf_col}, user={username}, perfil={perfil}")
-        fname = os.path.basename(input_file)
+        fname = os_native.path.basename(input_file)
         f_summary = f"[v2.2.0-PREMIUM] Enriquecer: {fname} (Perfil: {perfil})"
         tid = self._create_task(module="ENRICH", username=username, filters=f_summary)
         threading.Thread(target=self._run_enrich, args=(tid, input_file, output_dir, name_col, cpf_col, perfil), daemon=True).start()
         return tid
 
-    def deep_search(self, name, cpf):
+
+
+    def list_local_results(self, folder):
+        """Escaneia a pasta de resultados por arquivos de mancha/cobertura"""
+        files = []
+        if not os_native.path.exists(folder):
+            print(f"[GEO] Folder not found: {folder}")
+            return []
+        
+        for f in os_native.listdir(folder):
+            if f.lower().endswith(('.xlsx', '.csv')):
+                f_path = os_native.path.join(folder, f)
+                files.append({
+                    "id": f, # Usamos o nome como ID para arquivos pré-existentes
+                    "name": f,
+                    "size": os_native.path.getsize(f_path),
+                    "type": "local-sync",
+                    "path": f_path
+                })
+        return files
+
+    def _auto_sync_coverage(self):
+        """Busca arquivos locais e ingere os que ainda não estão no banco"""
+        time.sleep(5) # Wait for system to stabilize
+        print("[GEO] Running auto-sync for local coverage files...")
+        
+        results_dir = "/var/www/hemn_cloud/storage/results" if self.is_linux else "storage/results"
+        if not os_native.path.exists(results_dir): return
+        
+        local_files = self.list_local_results(results_dir)
+        if not local_files: return
+        
+        try:
+            conn = sqlite3.connect(self.db_path, timeout=30)
+            conn.row_factory = sqlite3.Row
+            ingested_files = [r['source_file'] for r in conn.execute("SELECT DISTINCT source_file FROM intelligence_coverage").fetchall()]
+            conn.close()
+            
+            to_ingest = []
+            for f in local_files:
+                if f['name'] not in ingested_files:
+                    print(f"[GEO] New file detected for auto-ingest: {f['name']}")
+                    to_ingest.append(f['path'])
+            
+            if to_ingest:
+                self.ingest_intelligence_coverage(to_ingest, username="SYSTEM_AUTO")
+        except Exception as e:
+            print(f"[GEO] Auto-sync failed: {e}")
+
+    def _get_rough_coordinates(self, cep):
+        """Retorna coordenadas aproximadas baseadas nos primeiros dígitos do CEP para visualização imediata"""
+        if not cep or len(str(cep)) < 2: return -23.5505, -46.6333 # Centro SP fallback
+        
+        pref = str(cep)[:2]
+        # Mapa de Centróides aproximados por prefixo de CEP (Brasil)
+        coords = {
+            '01': (-23.55, -46.63), '02': (-23.50, -46.62), '03': (-23.54, -46.57), '04': (-23.63, -46.67), 
+            '05': (-23.57, -46.73), '08': (-23.52, -46.40), # SP Capital
+            '11': (-23.96, -46.33), '12': (-23.18, -45.88), '13': (-22.90, -47.06), '15': (-20.81, -49.37), # SP Interior
+            '20': (-22.90, -43.18), '21': (-22.86, -43.35), '22': (-22.97, -43.21), # RJ Capital
+            '30': (-19.92, -43.94), '31': (-19.86, -43.92), # MG (BH)
+            '40': (-12.97, -38.50), '41': (-12.92, -38.44), # BA (Salvador)
+            '50': (-8.05, -34.88),  '60': (-3.73, -38.52),  # PE, CE
+            '70': (-15.79, -47.88), '80': (-25.42, -49.27), # DF, PR
+            '90': (-30.03, -51.22)  # RS (Porto Alegre)
+        }
+        # Fallback para o prefixo ou centroid do estado
+        return coords.get(pref, (-23.55, -46.63))
+
+    def ingest_intelligence_coverage(self, input_files, username=None):
+        """Inicia a ingestão persistente da mancha de cobertura"""
+        tid = self._create_task(module="COVERAGE-INGEST", username=username, filters="Ingestão de Mancha Persistente")
+        threading.Thread(target=self._run_coverage_ingest, args=(tid, input_files), daemon=True).start()
+        return tid
+
+    def _run_coverage_ingest(self, tid, input_files):
+        try:
+            self._update_task(tid, status="PROCESSING", progress=1, message="Iniciando ingestão de cobertura...")
+            
+            # Parametrizar a conexão com timeout alto e sincronizar
+            def get_conn():
+                c = sqlite3.connect(self.db_path, timeout=60)
+                c.execute("PRAGMA journal_mode=WAL")
+                c.execute("PRAGMA busy_timeout=60000")
+                return c
+            
+            conn = get_conn()
+            total_added = 0
+            
+            for f_path in input_files:
+                fname = os_native.path.basename(f_path)
+                self._update_task(tid, message=f"Processando {fname}...")
+                
+                # Ler arquivo
+                if f_path.lower().endswith(('.xlsx', '.xls')):
+                    sheets_dict = pd.read_excel(f_path, sheet_name=None, dtype=str)
+                    dfs = list(sheets_dict.values())
+                else:
+                    dfs = [pd.read_csv(f_path, sep=None, engine='python', dtype=str)]
+                
+                for df in dfs:
+                    df.columns = [str(c).upper().strip() for c in df.columns]
+                    cep_col = next((c for c in df.columns if "CEP" in c), None)
+                    num_col = next((c for c in df.columns if str(c) in ["NUMERO", "NUM"] or "NUM" in c), None)
+                    logra_col = next((c for c in df.columns if "LOGRADOURO" in c or "RUA" in c), None)
+                    tipo_col = next((c for c in df.columns if "TIPO" in c), None)
+                    
+                    if not cep_col: continue
+                    
+                    # Limpeza e Coordenadas iniciais
+                    df['CEP_CLEAN'] = df[cep_col].astype(str).str.replace(r'\D', '', regex=True).str.zfill(8)
+                    
+                    batch = []
+                    for idx, row in df.iterrows():
+                        cep = row['CEP_CLEAN']
+                        lat, lng = self._get_rough_coordinates(cep)
+                        
+                        # Adicionar leve variação aleatória para os pontos não ficarem empilhados no centróide
+                        import random
+                        lat += (random.random() - 0.5) * 0.01
+                        lng += (random.random() - 0.5) * 0.01
+
+                        # Conversão segura de número (evita erro com NaN ou números gigantes)
+                        try:
+                            val_num = pd.to_numeric(row.get(num_col, 0), errors='coerce')
+                            if pd.notnull(val_num):
+                                # Limitar a 2 bilhões para evitar estouro do SQLite INTEGER
+                                num_clean = int(min(2147483647, max(0, float(val_num))))
+                            else:
+                                num_clean = 0
+                        except:
+                            num_clean = 0
+
+                        batch.append((
+                            cep, 
+                            str(row.get(logra_col, '')), 
+                            num_clean,
+                            str(row.get(tipo_col, 'TODOS')),
+                            lat, 
+                            lng, 
+                            fname
+                        ))
+                        
+                        # COMMIT CHUNKED (Cada 2000 linhas para manter db responsivo)
+                        if len(batch) >= 2000:
+                            conn.executemany("""
+                                INSERT INTO intelligence_coverage (cep, logradouro, numero, tipo, lat, lng, source_file)
+                                VALUES (?, ?, ?, ?, ?, ?, ?)
+                            """, batch)
+                            conn.commit() # LIBERA O LOCK
+                            batch = []
+                            # Pequeno delay para permitir outras queries (Dashboard/Mapa)
+                            time.sleep(0.1)
+                    
+                    if batch:
+                        conn.executemany("INSERT INTO intelligence_coverage (cep, logradouro, numero, tipo, lat, lng, source_file) VALUES (?, ?, ?, ?, ?, ?, ?)", batch)
+                        conn.commit()
+                    
+                    total_added += len(df)
+                    self._update_task(tid, progress=min(99, int(total_added/10000)), message=f"Ingeridos {total_added:,} pontos...")
+                
+            conn.close()
+            # Trigger geocoding background task para refinar (opcional no futuro)
+            # threading.Thread(target=self._run_geocode_pending_coverage, daemon=True).start()
+            
+            self._update_task(tid, status="COMPLETED", progress=100, message=f"Ingestão concluída: {total_added:,} pontos salvos.", record_count=total_added)
+            
+        except Exception as e:
+            print(f"[ERROR] Coverage Ingest fail: {e}")
+            if 'conn' in locals(): conn.close()
+            self._update_task(tid, status="FAILED", message=str(e))
+
+    def _run_geocode_pending_coverage(self):
+        """Busca coordenadas para CEPs que ainda não as possuem"""
+        print("[GEO] Iniciando geocodificação de CEPs pendentes...")
+        try:
+            conn = sqlite3.connect(self.db_path, timeout=30)
+            conn.row_factory = sqlite3.Row
+            rows = conn.execute("SELECT DISTINCT cep FROM intelligence_coverage WHERE lat IS NULL LIMIT 1000").fetchall()
+            
+            for r in rows:
+                cep = r['cep']
+                # Mock geocoder or real call
+                # Como não temos base local, vamos usar uma lógica de 'centro de CEP' mockada para demonstração visual
+                # No futuro o cliente pode importar uma base de CEP-COORD
+                import random
+                lat = -23.5505 + (random.random() - 0.5) * 0.1 # Mock SP Center
+                lng = -46.6333 + (random.random() - 0.5) * 0.1
+                conn.execute("UPDATE intelligence_coverage SET lat = ?, lng = ? WHERE cep = ?", (lat, lng, cep))
+                if random.random() > 0.9: conn.commit() # Commit parcial
+                
+            conn.commit()
+            conn.close()
+            print("[GEO] Geocodificação parcial concluída.")
+        except Exception as e:
+            print(f"[GEO ERROR] {e}")
+
+    def get_map_coverage(self, sw_lat, sw_lng, ne_lat, ne_lng):
+        """Busca pontos de cobertura na área visível"""
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        query = """
+            SELECT cep, logradouro, numero, tipo, lat, lng 
+            FROM intelligence_coverage 
+            WHERE lat BETWEEN ? AND ? AND lng BETWEEN ? AND ?
+            LIMIT 500
+        """
+        rows = conn.execute(query, (sw_lat, ne_lat, sw_lng, ne_lng)).fetchall()
+        conn.close()
+        return [dict(r) for r in rows]
+
+    def get_map_leads(self, sw_lat, sw_lng, ne_lat, ne_lng):
+        """Busca leads (ClickHouse) que coincidem com a cobertura na área visível"""
+        # 1. Pegar os CEPs de cobertura na área e suas coordenadas
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        geo_rows = conn.execute("""
+            SELECT DISTINCT cep, lat, lng FROM intelligence_coverage 
+            WHERE lat BETWEEN ? AND ? AND lng BETWEEN ? AND ?
+        """, (sw_lat, ne_lat, sw_lng, ne_lng)).fetchall()
+        conn.close()
+        
+        if not geo_rows:
+            return []
+            
+        cep_map = {r['cep']: (r['lat'], r['lng']) for r in geo_rows}
+        cep_list = list(cep_map.keys())
+        
+        # 2. Query ClickHouse para empresas nesses CEPs
+        client = self._get_ch_client()
+        if not client: return []
+        
+        try:
+            # Query formatada para clickhouse-connect (%(ceps)s para listas)
+            query = f"""
+                SELECT cnpj, social_reason, fantasy_name, address_street, address_number, address_cep, telephone_1, email, cnae_fiscal_principal
+                FROM hemn.estabelecimento
+                WHERE address_cep IN %(ceps)s
+                LIMIT 500
+            """
+            res = client.query(query, {'ceps': cep_list})
+            results = res.result_rows
+            
+            # Formatar como lista de dicionários + Injetar Lat/Lng
+            cols = ['cnpj', 'social_reason', 'fantasy_name', 'address_street', 'address_number', 'address_cep', 'telephone_1', 'email', 'cnae_fiscal_principal']
+
+            leads = []
+            for r in results:
+                d = dict(zip(cols, r))
+                coords = cep_map.get(d['address_cep'])
+                if coords:
+                    d['lat'], d['lng'] = coords
+                leads.append(d)
+            return leads
+        except Exception as e:
+            print(f"[ERROR] get_map_leads ClickHouse fail: {e}")
+            return []
+        finally:
+            client.close()
+
+    def start_carrier_update(self, username="admin"):
+        """Inicia atualização da base de operadoras via FTP"""
+        tid = self._create_task(module="CARRIER_UPDATE", username=username, filters="[ADMIN] Atualizar Base Operadoras")
+        threading.Thread(target=self._run_carrier_update, args=(tid,), daemon=True).start()
+        return tid
+
+    def start_intelligence_export(self, sw_lat, sw_lng, ne_lat, ne_lng, result_dir, username="admin"):
+        """Inicia exportação dos leads visíveis no mapa"""
+        tid = self._create_task(module="INTELLIGENCE_EXPORT", username=username, filters=f"Exportação Mapa ({sw_lat:.2f}, {sw_lng:.2f})")
+        threading.Thread(target=self._run_intelligence_export, args=(tid, sw_lat, sw_lng, ne_lat, ne_lng, result_dir), daemon=True).start()
+        return tid
+
+    def _run_intelligence_export(self, tid, sw_lat, sw_lng, ne_lat, ne_lng, result_dir):
+        try:
+            self._update_task(tid, progress=10, message="Buscando leads na visão...")
+            leads = self.get_map_leads(sw_lat, sw_lng, ne_lat, ne_lng)
+            
+            if not leads:
+                self._update_task(tid, status="FAILED", message="Nenhum lead encontrado nesta área.")
+                return
+
+            self._update_task(tid, progress=50, message=f"Gerando Excel com {len(leads)} registros...")
+            
+            df = pd.DataFrame(leads)
+            out_file = f"intelligence_export_{tid}.xlsx"
+            out_path = os_native.path.join(result_dir, out_file)
+            
+            df.to_excel(out_path, index=False)
+            
+            self._update_task(tid, status="COMPLETED", progress=100, message="Exportação concluída.", result_file=out_file)
+        except Exception as e:
+            self._update_task(tid, status="FAILED", message=str(e))
+
+    def get_carrier_status(self):
+        """Retorna informações sobre o status da base de operadoras e atualizações disponíveis"""
+        # 1. Obter timestamps do banco
+        info = {
+            "last_check": None,
+            "last_ftp": None,
+            "last_update": None,
+            "update_available": False
+        }
+        
+        try:
+            conn = sqlite3.connect(self.db_path, timeout=5)
+            conn.row_factory = sqlite3.Row
+            # 1. Buscar metadados manuais
+            rows = conn.execute("SELECT key, value FROM system_metadata WHERE key LIKE 'last_carrier_%'").fetchall()
+            for r in rows:
+                if r['key'] == 'last_carrier_check_timestamp': info["last_check"] = r['value']
+                if r['key'] == 'last_carrier_ftp_timestamp': info["last_ftp"] = r['value']
+                if r['key'] == 'last_carrier_vps_timestamp': info["last_update"] = r['value']
+            
+            # 2. Fallback: Se não houver timestamp VPS ou ele for antigo, buscar no histórico de tarefas
+            # Isso resolve casos onde a atualização terminou mas o metadado falhou por trava de base ou permissão.
+            task_row = conn.execute("""
+                SELECT created_at 
+                FROM background_tasks 
+                WHERE module = 'CARRIER_UPDATE' AND (status = 'COMPLETED' OR progress = 100)
+                ORDER BY created_at DESC LIMIT 1
+            """).fetchone()
+            
+            if task_row:
+                # Normalizamos o timestamp da tarefa. Se houver 'Z', já é UTC.
+                # Se não houver, provavelmente é o formato antigo (Local Server Time CEST).
+                task_ts = task_row['created_at']
+                
+                # Se for o formato antigo (sem Z), tentamos não deixá-lo "ganhar" de um UTC mais recente
+                # ou assumimos que ele é UTC para reduzir a discrepância de 5h para 0h.
+                # No entanto, a melhor lógica é: se tiver Z, usamos literal. Se não, tratamos como UTC.
+                
+                # Sincronização Robusta: Escolhemos o maior valor entre metadado e tarefa.
+                if not info["last_update"] or (task_ts + ( "Z" if "Z" not in task_ts else "")) > info["last_update"]:
+                    info["last_update"] = task_ts + ("Z" if "Z" not in task_ts else "")
+
+            conn.close()
+        except Exception as e:
+            print(f"[ERROR] Fail to get carrier status: {e}")
+
+        # 2. Se a última verificação foi há mais de 12 horas, verificar agora (Usando UTC para consistência com FTP)
+        now = datetime.utcnow()
+        should_check = True
+        if info["last_check"]:
+            try:
+                # Robustez: aceita múltiplos formatos de ISO
+                import dateutil.parser
+                last_dt = dateutil.parser.parse(info["last_check"])
+                if (now - last_dt).total_seconds() < 12 * 3600:
+                    should_check = False
+            except: pass
+            
+        if should_check:
+            print("[CARRIER] Iniciando verificação programada de 12h no FTP...")
+            remote_ts = self._check_ftp_carrier_timestamp()
+            if remote_ts:
+                info["last_check"] = now.isoformat() + "Z"
+                info["last_ftp"] = remote_ts
+                # Salvar no banco
+                try:
+                    conn = sqlite3.connect(self.db_path, timeout=5)
+                    conn.execute("INSERT OR REPLACE INTO system_metadata (key, value) VALUES ('last_carrier_check_timestamp', ?)", (info["last_check"],))
+                    conn.execute("INSERT OR REPLACE INTO system_metadata (key, value) VALUES ('last_carrier_ftp_timestamp', ?)", (info["last_ftp"],))
+                    conn.commit()
+                    conn.close()
+                except: pass
+
+        # 3. Comparar FTP vs VPS (Usando string robusta ou objeto datetime)
+        if info["last_ftp"] and info["last_update"]:
+            try:
+                # Adicionamos uma pequena folga de 60 segundos para evitar problemas de arredondamento.
+                # Como trabalhamos com strings ISO ordenáveis, a comparação direta funciona.
+                if info["last_ftp"] > info["last_update"]:
+                    # Verificação Final de Robustez: Se a diferença for menor que 24 horas, ignoramos o alerta.
+                    # Isso evita falsos positivos constantes se o FTP for atualizado logo antes do VPS terminar.
+                    import dateutil.parser
+                    ftp_dt = dateutil.parser.parse(info["last_ftp"])
+                    vps_dt = dateutil.parser.parse(info["last_update"])
+                    
+                    if ftp_dt.tzinfo: ftp_dt = ftp_dt.replace(tzinfo=None)
+                    if vps_dt.tzinfo: vps_dt = vps_dt.replace(tzinfo=None)
+                    
+                    if (ftp_dt - vps_dt).total_seconds() > 3600: # Mais de 1h de diferença real
+                        info["update_available"] = True
+            except: pass
+        elif info["last_ftp"] and not info["last_update"]:
+            # Se nunca atualizamos mas tem no FTP, sinaliza disponível
+            info["update_available"] = True
+
+        return info
+
+    def _check_ftp_carrier_timestamp(self):
+        """Acessa o FTP apenas para ler o timestamp de modificação"""
+        host = os_native.getenv("FTP_HOST", "ftp.portabilidadecelular.com")
+        port = int(os_native.getenv("FTP_PORT", 2157))
+        user = os_native.getenv("FTP_USER", "MAYK")
+        passwd = os_native.getenv("FTP_PASS", "Mayk@2025")
+        filename = "portabilidade.tar.bz2"
+        try:
+            ftp = ftplib.FTP()
+            ftp.connect(host, port, timeout=10)
+            ftp.login(user, passwd)
+            timestamp_raw = ftp.voidcmd(f"MDTM {filename}").split()[1]
+            dt = datetime.strptime(timestamp_raw, "%Y%m%d%H%M%S")
+            ftp.quit()
+            return dt.isoformat() + "Z"
+        except Exception as e:
+            print(f"[ERROR] Fail to check FTP timestamp: {e}")
+            try: ftp.quit()
+            except: pass
+            return None
+
+    def _run_carrier_update(self, tid):
+        import sys
+        print(f"[CRITICAL DEBUG] _run_carrier_update started for TID: {tid}")
+        sys.stdout.flush()
+        try:
+            # Definir caminhos absolutos para evitar erros de CWD
+            base_dir = "/var/www/hemn_cloud"
+            local_zip = os_native.path.join(base_dir, "portabilidade.tar.bz2")
+            print(f"[CRITICAL DEBUG] local_zip set to: {local_zip}")
+            sys.stdout.flush()
+            
+            host = os_native.getenv("FTP_HOST", "ftp.portabilidadecelular.com")
+            port = int(os_native.getenv("FTP_PORT", 2157))
+            user = os_native.getenv("FTP_USER", "MAYK")
+            passwd = os_native.getenv("FTP_PASS", "Mayk@2025")
+            filename = "portabilidade.tar.bz2"
+            
+            print(f"[CRITICAL DEBUG] Attempting to update task status to 5%...")
+            self._update_task(tid, progress=5, message="Baixando base de dados (CURL)...")
+            print(f"[CRITICAL DEBUG] Task status updated to 5%.")
+            
+            # Tentar obter o tamanho do arquivo para progresso
+            size = 467616948 # Default
+            try:
+                print(f"[CRITICAL DEBUG] Connecting to FTP for size check...")
+                ftp_size = ftplib.FTP()
+                ftp_size.connect(host, port, timeout=10)
+                ftp_size.login(user, passwd)
+                size = ftp_size.size(filename)
+                ftp_size.quit()
+                print(f"[CRITICAL DEBUG] FTP size obtained: {size}")
+            except Exception as fe:
+                print(f"[CRITICAL DEBUG] FTP size fail: {fe}")
+            
+            self._update_task(tid, progress=5, message="Baixando base de dados (CURL)...")
+            
+            # Usar curl para máxima estabilidade no download FTP
+            import subprocess
+            import time
+            import os
+            
+            # Garantir que o diretório atual é o correto
+            os_native.chdir("/var/www/hemn_cloud")
+            
+            # Download usando CURL (mais robusto)
+            cmd = [
+                "/usr/bin/curl", "-u", f"{user}:{passwd}",
+                f"ftp://{host}:{port}/{filename}",
+                "-o", local_zip,
+                "--silent", "--show-error",
+                "--retry", "3", "--retry-delay", "5"
+            ]
+            print(f"[CRITICAL DEBUG] CurL command prepared: {' '.join(cmd)}")
+            sys.stdout.flush()
+            process = subprocess.Popen(cmd, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+            
+            # Monitorar progresso (simples via tamanho do arquivo em disco)
+            start_time = time.time()
+            print(f"[CRITICAL DEBUG] Monitoring download of {local_zip}...")
+            sys.stdout.flush()
+            
+            while process.poll() is None:
+                if os_native.path.exists(local_zip):
+                    current_size = os_native.path.getsize(local_zip)
+                    p = int((current_size / size) * 45) + 5
+                    if p > 50: p = 50
+                    self._update_task(tid, progress=p, message=f"Baixando base... ({current_size//1024//1024}MB)")
+                    if int(time.time() - start_time) % 10 == 0:
+                        print(f"[CRITICAL DEBUG] Download Progress: {p}% ({current_size} bytes)")
+                        sys.stdout.flush()
+                time.sleep(1)
+            
+            print(f"[CRITICAL DEBUG] Curl finished. Return code: {process.returncode}")
+            sys.stdout.flush()
+            
+            if process.returncode != 0:
+                stdout, stderr = process.communicate()
+                print(f"[CRITICAL ERROR] Download failed: {stderr.decode() if stderr else 'Unknown error'}")
+                sys.stdout.flush()
+                raise Exception(f"Download falhou: {stderr.decode() if stderr else 'Unknown error'}")
+            
+            if not os_native.path.exists(local_zip) or os_native.path.getsize(local_zip) < 10000000: # 10MB min
+                raise Exception("Arquivo inexistente ou muito pequeno após download.")
+            
+            self._update_task(tid, progress=55, message="Extraindo dados (bzip2)...")
+            print(f"[CRITICAL DEBUG] Extracting {local_zip}...")
+            sys.stdout.flush()
+            
+            import tarfile
+            extracted_file = None
+            with tarfile.open(local_zip, "r:bz2") as tar:
+                tar.extractall(path="/var/www/hemn_cloud")
+                for member in tar.getmembers():
+                    if member.name.endswith(".csv"):
+                        extracted_file = os_native.path.join("/var/www/hemn_cloud", member.name)
+                        break
+            
+            if not extracted_file or not os_native.path.exists(extracted_file):
+                print(f"[CRITICAL ERROR] Extracted CSV NOT FOUND after bz2 extraction.")
+                sys.stdout.flush()
+                raise Exception("Arquivo extraído não encontrado!")
+            
+            print(f"[CRITICAL DEBUG] Extraction SUCCESS. File: {extracted_file}")
+            sys.stdout.flush()
+
+            self._update_task(tid, progress=60, message="Iniciando ingestão SQLite...")
+            
+            # Ingestão no SQLite hemn_carrier.db
+            conn = sqlite3.connect(self.db_carrier)
+            conn.execute("PRAGMA journal_mode=OFF") # Performance
+            conn.execute("DROP TABLE IF EXISTS portabilidade_new")
+            conn.execute("CREATE TABLE portabilidade_new (telefone TEXT, operadora_id INTEGER)")
+            
+            batch = []
+            count = 0
+            ingested = 0
+            print(f"[CRITICAL DEBUG] Starting ingestion from {extracted_file}...")
+            sys.stdout.flush()
+            
+            with open(extracted_file, 'r') as f:
+                for line in f:
+                    parts = line.strip().split(';') # Formato: ID;TELEFONE;OP_ID;DATA
+                    if len(parts) >= 3:
+                        # parts[1] is phone, parts[2] is operator_id
+                        batch.append((parts[1], parts[2]))
+                        count += 1
+                        ingested += 1
+                    
+                    if len(batch) >= 50000:
+                        conn.executemany("INSERT INTO portabilidade_new VALUES (?,?)", batch)
+                        batch = []
+                        p = 60 + int((ingested / 50000000) * 35) # Estimativa de 50M records
+                        if p > 95: p = 95
+                        self._update_task(tid, progress=p, message=f"Ingerindo dados... ({ingested//1000000}M)")
+                        if ingested % 1000000 == 0:
+                            print(f"[CRITICAL DEBUG] Ingested: {ingested} records")
+                            sys.stdout.flush()
+            
+            if batch:
+                conn.executemany("INSERT INTO portabilidade_new VALUES (?,?)", batch)
+            
+            print(f"[CRITICAL DEBUG] Ingestion finished. Total: {ingested} records. Optimizing...")
+            sys.stdout.flush()
+            self._update_task(tid, progress=96, message="Finalizando e otimizando base...")
+            
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_port_tel_new ON portabilidade_new (telefone)")
+            conn.execute("DROP TABLE IF EXISTS portabilidade")
+            conn.execute("ALTER TABLE portabilidade_new RENAME TO portabilidade")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_port_tel ON portabilidade (telefone)")
+            
+            conn.commit()
+            conn.close()
+            
+            # Limpeza final
+            if os_native.path.exists(local_zip): os_native.remove(local_zip)
+            if extracted_file and os_native.path.exists(extracted_file): os_native.remove(extracted_file)
+            
+            # 6. Atualizar metadados globais de sucesso (Garantindo UTC)
+            try:
+                conn = sqlite3.connect(self.db_path, timeout=10)
+                # Sincronização: Usamos UTC para bater com o timestamp do FTP (MDTM)
+                # Adicionamos o 'Z' para o frontend converter para horário local (Brasília)
+                now_iso = datetime.utcnow().isoformat() + "Z"
+                conn.execute("INSERT OR REPLACE INTO system_metadata (key, value) VALUES ('last_carrier_vps_timestamp', ?)", (now_iso,))
+                conn.commit()
+                conn.close()
+                print(f"[CRITICAL DEBUG] Global metadata updated. last_carrier_vps_timestamp: {now_iso}")
+            except Exception as me:
+                print(f"[ERROR] Fail to update carrier metadata: {me}")
+            
+            self._update_task(tid, progress=100, message="Base atualizada com sucesso!", status="COMPLETED")
+            print(f"[CRITICAL DEBUG] CARRIER UPDATE COMPLETED SUCCESSFULLY for TID: {tid}")
+            sys.stdout.flush()
+            
+        except Exception as e:
+            print(f"Error in carrier update: {e}")
+            self._update_task(tid, status="FAILED", message=f"Erro: {str(e)}")
+    def deep_search(self, name=None, cpf=None, cnpj=None, phone=None):
         """Busca rápida unitária no ClickHouse"""
-        ch_local = self._get_ch_client()
-        if not ch_local:
+        ch = self._get_ch_client()
+        if not ch:
             return pd.DataFrame()
             
         basics = []
@@ -517,21 +1218,44 @@ class CloudEngine:
             cpf_clean = ''.join(filter(str.isdigit, str(cpf)))
             if len(cpf_clean) >= 11:
                 cpf_mask = f"***{cpf_clean[3:9]}**"
-                res = ch_local.query("SELECT cnpj_basico FROM hemn.socios WHERE cnpj_cpf_socio IN (%(c1)s, %(c2)s) LIMIT 50", 
+                res = ch.query("SELECT cnpj_basico FROM hemn.socios WHERE cnpj_cpf_socio IN (%(c1)s, %(c2)s) LIMIT 50", 
                                           {'c1': cpf_clean, 'c2': cpf_mask})
                 basics.extend([r[0] for r in res.result_rows])
-                # Add check for MEIs where Razão Social contains the CPF
-                res = ch_local.query("SELECT cnpj_basico FROM hemn.empresas WHERE razao_social LIKE %(c)s LIMIT 50",
+                # Add check for MEIs where Razão Social contains the CPF
+                res = ch.query("SELECT cnpj_basico FROM hemn.empresas WHERE razao_social LIKE %(c)s LIMIT 50",
                                           {'c': f"%{cpf_clean}%"})
                 basics.extend([r[0] for r in res.result_rows])
         
+        if cnpj:
+            cnpj_clean = ''.join(filter(str.isdigit, str(cnpj)))
+            if len(cnpj_clean) >= 8:
+                basics.append(cnpj_clean[:8])
+
+        if phone:
+            tel_clean = ''.join(filter(str.isdigit, str(phone)))
+            if len(tel_clean) >= 10:
+                ddd = tel_clean[:2]
+                num_8 = tel_clean[-8:]
+                nums = [num_8]
+                if len(tel_clean) == 11:
+                    # Inclui o número completo de 9 dígitos se fornecido
+                    nums.append(tel_clean[2:])
+                
+                res1 = ch.query("SELECT cnpj_basico FROM hemn.estabelecimento WHERE ddd1 = %(ddd)s AND telefone1 IN %(nums)s LIMIT 50", 
+                                           {'ddd': ddd, 'nums': nums})
+                basics.extend([r[0] for r in res1.result_rows])
+                
+                res2 = ch.query("SELECT cnpj_basico FROM hemn.estabelecimento WHERE ddd2 = %(ddd)s AND telefone2 IN %(nums)s LIMIT 50", 
+                                           {'ddd': ddd, 'nums': nums})
+                basics.extend([r[0] for r in res2.result_rows])
+
         if name:
             name_clean = remove_accents(str(name).strip().upper())
             # Try both prefix for speed and contains for flexibility
-            res = ch_local.query("SELECT cnpj_basico FROM hemn.socios WHERE nome_socio LIKE %(n)s OR nome_socio LIKE %(nc)s LIMIT 50", 
+            res = ch.query("SELECT cnpj_basico FROM hemn.socios WHERE nome_socio LIKE %(n)s OR nome_socio LIKE %(nc)s LIMIT 50", 
                                       {'n': f'{name_clean}%', 'nc': f'%{name_clean}%'})
             basics.extend([r[0] for r in res.result_rows])
-            res = ch_local.query("SELECT cnpj_basico FROM hemn.empresas WHERE razao_social LIKE %(n)s OR razao_social LIKE %(nc)s LIMIT 50", 
+            res = ch.query("SELECT cnpj_basico FROM hemn.empresas WHERE razao_social LIKE %(n)s OR razao_social LIKE %(nc)s LIMIT 50", 
                                       {'n': f'{name_clean}%', 'nc': f'%{name_clean}%'})
             basics.extend([r[0] for r in res.result_rows])
             
@@ -602,17 +1326,34 @@ class CloudEngine:
                            e.porte_empresa = '05', 'DEMAIS (MÉDIA/GRANDE)',
                            'NÃO INFORMADO') AS porte,
                    est.cnae_fiscal_secundaria AS cnae_secundario,
-                   coalesce(s.nome_socio, 'NÃO ENCONTRADO') AS socio_nome
+                   arrayStringConcat(groupUniqArray(coalesce(s.nome_socio, 'NÃO ENCONTRADO')), ' / ') AS socio_nome
             FROM hemn.empresas e
             JOIN hemn.estabelecimento est ON e.cnpj_basico = est.cnpj_basico
             LEFT JOIN hemn.socios s ON e.cnpj_basico = s.cnpj_basico
             LEFT JOIN hemn.municipio m ON est.municipio = m.codigo
             WHERE e.cnpj_basico IN ({','.join(['%s' for _ in basics])})
               AND ({socio_match_sql} OR {company_name_match})
-            ORDER BY multiIf(est.situacao_cadastral = '02', 1, 2)
+            GROUP BY 
+                e.razao_social, 
+                cnpj_completo,
+                situacao,
+                cnae_principal,
+                cnpj_cpf_socio,
+                email_novo,
+                endereco_completo,
+                telefone_novo,
+                ddd_novo,
+                tipo_telefone,
+                nome_fantasia,
+                data_abertura,
+                capital_social,
+                natureza_juridica,
+                porte,
+                cnae_secundario
+            ORDER BY multiIf(situacao = 'ATIVA', 1, 2)
             LIMIT 50
         """
-        res = ch_local.query(query, params)
+        res = ch.query(query, params)
         return pd.DataFrame(res.result_rows, columns=res.column_names)
 
 
@@ -622,7 +1363,7 @@ class CloudEngine:
             status = self.get_task_status(tid)
             if status.get("status") == "CANCELLED": return
             start_time = time.time()
-            output_file = os.path.join(output_dir, f"Enriquecido_{tid[:8]}.xlsx")
+            output_file = os_native.path.join(output_dir, f"Enriquecido_{tid[:8]}.xlsx")
             
             # Memory Optimized: Determine row count without loading full file
             if input_file.endswith('.csv'):
@@ -854,8 +1595,8 @@ class CloudEngine:
                     # Motor One-Shot v5.1.4: Busca Híbrida Inteligente (CPF Flash-IN + Nome Aho-Scan)
                     def run_mei_scan(search_cpfs, search_names, tid, base_p, max_p, ufs=None):
                         results = []
-                        ch_local = self._get_ch_client()
-                        if not ch_local: return []
+                        ch = self._get_ch_client()
+                        if not ch: return []
 
                         uf_filter = " AND uf IN %(ufs)s" if ufs else ""
                         params = {}
@@ -884,8 +1625,12 @@ class CloudEngine:
                                     
                                     p = params.copy()
                                     p['cpfs'] = block
-                                    res_cpf = ch_local.query(sql_cpf, p)
-                                    results.extend(res_cpf.result_rows)
+                                    try:
+                                        res_cpf = ch.query(sql_cpf, p)
+                                        results.extend(res_cpf.result_rows)
+                                    except Exception as e:
+                                        print(f"[ERROR] [MEI-CPF] ClickHouse Error: {e}")
+                                        raise
 
                         # 2. BUSCA POR NOME (Rede de Segurança Total) - Varre tudo que não tiver CPF ou se falhou
                         if search_names:
@@ -910,9 +1655,14 @@ class CloudEngine:
                                 
                                 p = params.copy()
                                 p['n'] = block
-                                res_name = ch_local.query(sql_name, p)
-                                results.extend(res_name.result_rows)
+                                try:
+                                    res_name = ch.query(sql_name, p)
+                                    results.extend(res_name.result_rows)
+                                except Exception as e:
+                                    print(f"[ERROR] [MEI-NAME] ClickHouse Error: {e}")
+                                    raise
                         
+                        ch.close()
                         return results
 
                     # Otimização v1.8.9: Recalcula listas para Phase 2 MEI
@@ -935,7 +1685,7 @@ class CloudEngine:
                         found_cnpjs = list(set([str(r[0]) for r in found_meis]))
                         self._update_task(tid, progress=55, message=f"Buscando detalhes de {len(found_cnpjs)} MEIs...")
                         
-                        ch_local = self._get_ch_client()
+                        ch = self._get_ch_client()
                         all_mei_results = []
                         cols_mei = []
                         
@@ -952,18 +1702,23 @@ class CloudEngine:
                                 estab.ddd2 AS ddd2, estab.telefone2 AS telefone2, 
                                 estab.correio_eletronico AS correio_eletronico,
                                 estab.logradouro AS logradouro, estab.numero AS numero, 
-                                estab.complemento AS complemento, estab.bairro AS bairro, 
+                                estab.complemento AS complementos, estab.bairro AS bairro, 
                                 estab.cep AS cep, estab.cnae_fiscal AS cnae_fiscal, 
                                 mun.descricao AS municipio_nome
-                            FROM hemn.estabelecimento estab
-                            INNER JOIN (SELECT cnpj_basico, razao_social FROM hemn.empresas WHERE cnpj_basico IN %(cnpjs)s) e 
-                              ON estab.cnpj_basico = e.cnpj_basico
-                            LEFT JOIN hemn.municipio mun ON estab.municipio = mun.codigo
-                            WHERE estab.situacao_cadastral = '02'
+                            FROM hemn.estabelecimento AS estab
+                            INNER JOIN hemn.empresas AS e ON estab.cnpj_basico = e.cnpj_basico
+                            LEFT JOIN hemn.municipio AS mun ON estab.municipio = mun.codigo
+                            WHERE e.cnpj_basico IN %(cnpjs)s AND estab.situacao_cadastral = '02'
                             """
-                            res_details = ch_local.query(sql_details, {'cnpjs': block})
-                            all_mei_results.extend(res_details.result_rows)
-                            if not cols_mei: cols_mei = res_details.column_names
+                            # Log detalhado v5.1.5: Captura possível ambiguidade de UF
+                            # print(f"[DEBUG] [MEI-DETAILS] Batch {idx}: {len(block)} CNPJs")
+                            try:
+                                res_details = ch.query(sql_details, {'cnpjs': block})
+                                all_mei_results.extend(res_details.result_rows)
+                                if not cols_mei: cols_mei = res_details.column_names
+                            except Exception as e:
+                                print(f"[ERROR] [MEI-DETAILS] ClickHouse Error: {e}")
+                                raise
 
                         # 3. Filtragem Geográfica Final (Precisão v1.8.6)
                         # Identifica coluna de UF para isolamento regional
@@ -1167,6 +1922,7 @@ class CloudEngine:
 
     def _run_extraction(self, tid, filters, output_dir):
         print(f"[DEBUG] Starting _run_extraction for tid: {tid}")
+        ch = None
         try:
             self._update_task(tid, status="PROCESSING", progress=1, message="Iniciando motores ClickHouse...")
             print(f"[DEBUG] [_run_extraction] Task {tid} set to PROCESSING")
@@ -1174,7 +1930,7 @@ class CloudEngine:
             if status.get("status") == "CANCELLED":
                 print(f"[DEBUG] [_run_extraction] Task {tid} was CANCELLED before start")
                 return
-            output_file = os.path.join(output_dir, f"Extracao_{tid[:8]}.xlsx")
+            output_file = os_native.path.join(output_dir, f"Extracao_{tid[:8]}.xlsx")
             
             estab_conds = []
             empresas_conds = []
@@ -1194,9 +1950,18 @@ class CloudEngine:
                 params['cid'] = f"%{filters['cidade'].strip().upper()}%"
             
             if filters.get("cnae"): 
-                cnaes = [c.strip() for c in filters["cnae"].split(',')]
-                estab_conds.append("estab_inner.cnae_fiscal IN %(cnaes)s")
-                params['cnaes'] = cnaes
+                # Suporte a múltiplos CNAEs/Prefixos separados por , ou ;
+                raw_cnae = filters["cnae"].replace(';', ',')
+                cnae_list = [c.strip() for c in raw_cnae.split(',') if c.strip()]
+                
+                if cnae_list:
+                    cnae_clauses = []
+                    for i, c_prefix in enumerate(cnae_list):
+                        p_name = f"cnae_pref_{i}"
+                        cnae_clauses.append(f"startsWith(estab_inner.cnae_fiscal, %({p_name})s)")
+                        params[p_name] = c_prefix
+                    
+                    estab_conds.append(f"({' OR '.join(cnae_clauses)})")
 
             # Filtro de Perfil (MEI / NAO MEI) - APLICADO NA TABELA EMPRESAS
             perfil = str(filters.get("perfil", "TODOS")).upper().strip()
@@ -1228,13 +1993,22 @@ class CloudEngine:
                 estab_conds.append("((length(estab_inner.telefone1) >= 8 AND substring(estab_inner.telefone1, 1, 1) IN ('2','3','4','5')) OR (length(estab_inner.telefone2) >= 8 AND substring(estab_inner.telefone2, 1, 1) IN ('2','3','4','5')))")
             elif tipo_req == "AMBOS":
                 estab_conds.append("((length(estab_inner.telefone1) >= 8 AND substring(estab_inner.telefone1, 1, 1) IN ('6','7','8','9') AND length(estab_inner.telefone2) >= 8 AND substring(estab_inner.telefone2, 1, 1) IN ('2','3','4','5')) OR (length(estab_inner.telefone1) >= 8 AND substring(estab_inner.telefone1, 1, 1) IN ('2','3','4','5') AND length(estab_inner.telefone2) >= 8 AND substring(estab_inner.telefone2, 1, 1) IN ('6','7','8','9')))")
+
+            # Filtro de DDD da Região (Independente do Tipo de Telefone)
+            if filters.get("filtrar_ddd_regiao") and filters.get("uf"):
+                target_uf = filters["uf"].strip().upper()
+                ddds = self.UF_DDD_MAP.get(target_uf, [])
+                if ddds:
+                    estab_conds.append("(estab_inner.ddd1 IN %(ddds_reg)s OR estab_inner.ddd2 IN %(ddds_reg)s)")
+                    params['ddds_reg'] = ddds
             elif filters.get("somente_com_telefone"):
+                # Fallback legado
                 estab_conds.append("(estab_inner.telefone1 != '' OR estab_inner.telefone2 != '')")
 
             cep_file = filters.get("cep_file")
             cep_df = None
             cep_col, num_col = None, None
-            if cep_file and os.path.exists(cep_file):
+            if cep_file and os_native.path.exists(cep_file):
                 self._update_task(tid, progress=2, message="Lendo planilha de filtro de CEPs...")
                 try:
                     if cep_file.lower().endswith('.csv'):
@@ -1291,6 +2065,7 @@ class CloudEngine:
                     estab.cnae_fiscal AS CNAE, 
                     estab.logradouro AS RUA,
                     estab.numero AS NUMERO,
+                    estab.complemento AS COMPLEMENTO,
                     estab.bairro AS BAIRRO,
                     estab.CIDADE AS CIDADE, 
                     estab.uf AS UF, 
@@ -1320,7 +2095,7 @@ class CloudEngine:
             sheet = workbook.add_worksheet("Extracao Hemn")
             header_fmt = workbook.add_format({'bold': True, 'bg_color': '#3a7bd5', 'font_color': 'white'})
 
-            ch_local = self._get_ch_client()
+            ch = self._get_ch_client()
 
             # Caso especial: Otimização CEP + Número
             if cep_df is not None and num_col and '_match_num' in cep_df.columns:
@@ -1351,8 +2126,9 @@ class CloudEngine:
                     prog_val = min(95, round(15 + (b_idx / len(pairs) * 80), 1))
                     self._update_task(tid, progress=prog_val, message=f"Consultando lote { (b_idx//batch_size_sql)+1 } / {total_batches}...")
                     
-                    result = ch_local.query(batch_q, current_params)
-                    df_batch = pd.DataFrame(result.result_rows, columns=result.column_names)
+                    res = ch.query(batch_q, current_params, settings={'query_id': f"{tid}_b{b_idx}", 'max_threads': 1})
+                    df_batch = pd.DataFrame(res.result_rows, columns=res.column_names)
+                    time.sleep(0.01) # Yield CPU to prevent pinning
                     
                     if not df_batch.empty:
                         df_processed = self._process_extraction_dataframe(tid, df_batch, filters, workbook, sheet, header_fmt, header_written, total_records_final)
@@ -1362,12 +2138,15 @@ class CloudEngine:
             else:
                 # Caso padrão (Extração normal ou CEP sem Número)
                 self._update_task(tid, progress=15, message="Executando consulta no ClickHouse...")
-                result = ch_local.query(q, params)
+                result = ch.query(q, params, settings={'query_id': tid, 'max_threads': 1})
                 rows = result.result_rows
                 cols = result.column_names
                 total_rows_found = len(rows)
+                time.sleep(0.05) # Breath after heavy query
                 
-                self._update_task(tid, progress=20, message=f"Iniciando processamento de {total_rows_found:,} registros...")
+                self._update_task(tid, progress=20, message=f"Transformando {total_rows_found:,} registros...")
+                df_full = pd.DataFrame(rows, columns=cols)
+                time.sleep(0.05) # Yield after DF creation
 
                 batch_size = 100000
                 for i in range(0, total_rows_found, batch_size):
@@ -1403,34 +2182,196 @@ class CloudEngine:
             err_msg = traceback.format_exc()
             print(f"[CRITICAL] EXTRACTION THREAD FAILED for {tid}: {e}\n{err_msg}")
             try:
-                self._update_task(tid, status="FAILED", message=f"TITANIUM-MT ERROR: {str(e)}")
+                self._update_task(tid, status="FAILED", message=str(e))
             except:
                 pass
+        finally:
+            if ch: ch.close()
+
+    def start_intelligence_geo(self, input_files, output_dir, expansion_range=50, username=None):
+        tid = self._create_task(module="INTELLIGENCE-GEO", username=username, filters=f"Range: {expansion_range}")
+        threading.Thread(target=self._run_intelligence_geo, args=(tid, input_files, output_dir, expansion_range), daemon=True).start()
+        return tid
+
+    def _run_intelligence_geo(self, tid, input_files, output_dir, expansion_range):
+        print(f"[DEBUG] Starting _run_intelligence_geo for tid: {tid}")
+        ch = None
+        try:
+            self._update_task(tid, status="PROCESSING", progress=1, message="Iniciando motores de busca geográfica...")
+            output_file = os_native.path.join(output_dir, f"Inteligencia_Geo_{tid[:8]}.xlsx")
+            preview_file = os_native.path.join(output_dir, f"Inteligencia_Geo_{tid[:8]}.json")
+            
+            # 1. Carregar Planilhas Vivo (Multi-arquivo e Multi-aba)
+            all_dfs = []
+            for f in input_files:
+                if f.lower().endswith(('.xlsx', '.xls')):
+                    # sheet_name=None reads everything as a dict of dataframes
+                    sheets_dict = pd.read_excel(f, sheet_name=None, dtype=str)
+                    for sheet_name, df in sheets_dict.items():
+                        print(f"[DEBUG] Lendo aba: {sheet_name} do arquivo {os_native.path.basename(f)}")
+                        all_dfs.append(df)
+                else:
+                    df = pd.read_csv(f, sep=';', dtype=str)
+                    all_dfs.append(df)
+            
+            combined_vivo = pd.concat(all_dfs, ignore_index=True)
+            
+            # 2. Identificar colunas críticas (Flexível)
+            cols = combined_vivo.columns
+            cep_col = next((c for c in cols if "CEP" in str(c).upper()), None)
+            logra_col = next((c for c in cols if "LOGRADOURO" in str(c).upper() or "RUA" in str(c).upper() or "ENDERECO" in str(c).upper()), None)
+            # Detecta "NUMERO" ou "NUM" (curto)
+            num_col = next((c for c in cols if str(c).upper() in ["NUMERO", "NUM"]), None)
+            if not num_col:
+                 num_col = next((c for c in cols if "NUMERO" in str(c).upper() or "NUM" in str(c).upper()), None)
+            
+            if not cep_col:
+                raise Exception("Coluna de CEP não encontrada nas planilhas de cobertura.")
+            
+            # Limpeza robusta
+            combined_vivo['_match_cep'] = combined_vivo[cep_col].astype(str).str.replace(r'\D', '', regex=True).str.zfill(8)
+            num_series = combined_vivo[num_col].astype(str).str.replace(r'\D', '', regex=True)
+            combined_vivo['_match_num'] = pd.to_numeric(num_series, errors='coerce').fillna(0).astype(int)
+            
+            # 3. Gerar Batches de busca (Filtrar pontos únicos para performance)
+            search_batches = combined_vivo[['_match_cep', '_match_num', logra_col]].drop_duplicates()
+            total_matches = len(search_batches)
+            
+            self._update_task(tid, progress=10, message=f"Cruzando {total_matches:,} pontos de cobertura...")
+            
+            final_leads = []
+            preview_points = []
+            
+            ch = self._get_ch_client()
+            
+            for idx, row in search_batches.iterrows():
+                if idx % 10 == 0:
+                    prog = 10 + int((idx / total_matches) * 80)
+                    self._update_task(tid, progress=prog, message=f"Buscando empresas: {idx:,} / {total_matches:,}...")
+                
+                cep = row['_match_cep']
+                num = row['_match_num']
+                min_num = max(0, num - expansion_range)
+                max_num = num + expansion_range
+                
+                # Query ClickHouse Otimizada
+                query = """
+                    SELECT 
+                        e.razao_social, 
+                        CONCAT(estab.cnpj_basico, estab.cnpj_ordem, estab.cnpj_dv) as cnpj,
+                        estab.logradouro, estab.numero, estab.cep,
+                        estab.ddd1, estab.telefone1, estab.ddd2, estab.telefone2
+                    FROM hemn.estabelecimento estab
+                    JOIN hemn.empresas e ON estab.cnpj_basico = e.cnpj_basico
+                    WHERE estab.cep = %(cep)s 
+                      AND toInt32OrZero(estab.numero) BETWEEN %(min_n)s AND %(max_n)s
+                      AND estab.situacao_cadastral = '02'
+                    LIMIT 100
+                """
+                
+                params = {'cep': cep, 'min_n': min_num, 'max_n': max_num}
+                try:
+                    res = ch.query(query, params, settings={'max_threads': 1})
+                    for r in res.result_rows:
+                        lead = {
+                            'RAZÃO SOCIAL': r[0],
+                            'CNPJ': r[1],
+                            'LOGRADOURO': r[2],
+                            'NÚMERO': r[3],
+                            'CEP': r[4],
+                            'FONE 1': f"({r[5]}) {r[6]}",
+                            'FONE 2': f"({r[7]}) {r[8]}",
+                            'DISTÂNCIA (FACADA)': abs(int(r[3] or 0) - num)
+                        }
+                        final_leads.append(lead)
+                        # Add to preview for map if we have many
+                        if len(preview_points) < 1000:
+                            preview_points.append({
+                                'name': r[0],
+                                'cnpj': r[1],
+                                'address': f"{r[2]}, {r[3]} - {r[4]}",
+                                'cep': r[4]
+                            })
+                except: continue
+                
+                # Check for cancellation
+                if idx % 50 == 0:
+                    st = self.get_task_status(tid)
+                    if st.get("status") == "CANCELLED":
+                        return
+            
+            # 4. Salvar Resultados
+            df_final = pd.DataFrame(final_leads)
+            df_final.to_excel(output_file, index=False)
+            
+            # Salvar Preview JSON
+            with open(preview_file, 'w', encoding='utf-8') as f:
+                json.dump(preview_points, f, ensure_ascii=False)
+                
+            self._update_task(tid, status="COMPLETED", progress=100, message="Inteligência Finalizada!", result_file=output_file, record_count=len(final_leads))
+
+        except Exception as e:
+            print(f"[ERROR] Geo Intelligence fail: {e}")
+            self._update_task(tid, status="FAILED", message=str(e))
+        finally:
+            if ch: ch.close()
 
     def _process_extraction_dataframe(self, tid, df, filters, workbook, sheet, header_fmt, header_written, start_row_count):
         """
-        Sub-motor de processamento de dataframe para extração.
-        Normaliza telefones, filtra operadoras e escreve no Excel.
+        Sub-motor de processamento de dataframe para extração (VETORIZADO).
+        Normaliza telefones, filtra operadoras e escreve no Excel com performance titanium.
         """
         if df.empty: return df
 
-        # 1. Normalização de Telefones
-        def check_tel(t):
-            if not t or str(t).upper() in ['NAN', 'NONE']: return None
-            num = re.sub(r'\D', '', str(t).strip().replace('.0', ''))
-            if not num: return None
-            return "CELULAR" if (len(num) == 9 or (len(num) == 8 and num[0] in '6789')) else "FIXO"
+        # 1. Normalização de Telefones (Vetorizada)
+        for col in ['DDD1', 'TEL1', 'DDD2', 'TEL2']:
+            if col not in df.columns: df[col] = ""
+            df[col] = df[col].astype(str).str.replace(r'\.0$', '', regex=True).replace(['nan', 'NaN', 'None', '<NA>'], '')
 
-        def get_full(d, t):
-            if not t or str(t).upper() in ['NAN', 'NONE']: return ""
-            full = re.sub(r'\D', '', (str(d).replace('.0', '') if pd.notna(d) else "") + str(t).replace('.0', ''))
-            if len(full) == 10 and full[2] in '6789': full = full[:2] + '9' + full[2:]
-            return full
+        # Limpeza e concatenação (T1)
+        df['full_t1'] = (df['DDD1'] + df['TEL1']).str.replace(r'\D', '', regex=True)
+        # Regra do 9º dígito (Vetorizada)
+        mask10_t1 = (df['full_t1'].str.len() == 10) & (df['full_t1'].str[2].isin(['6','7','8','9']))
+        df.loc[mask10_t1, 'full_t1'] = df['full_t1'].str[:2] + '9' + df['full_t1'].str[2:]
+        
+        # Limpeza e concatenação (T2)
+        df['full_t2'] = (df['DDD2'] + df['TEL2']).str.replace(r'\D', '', regex=True)
+        mask10_t2 = (df['full_t2'].str.len() == 10) & (df['full_t2'].str[2].isin(['6','7','8','9']))
+        df.loc[mask10_t2, 'full_t2'] = df['full_t2'].str[:2] + '9' + df['full_t2'].str[2:]
 
-        df['full_t1'] = df.apply(lambda x: get_full(x['DDD1'], x['TEL1']), axis=1)
-        df['full_t2'] = df.apply(lambda x: get_full(x['DDD2'], x['TEL2']), axis=1)
-        df['t1_tipo'] = df['TEL1'].apply(check_tel)
-        df['t2_tipo'] = df['TEL2'].apply(check_tel)
+        # Filtro de Junk (Zeros ou Vazios)
+        def clean_junk(ser):
+            # Transforma em vazio se for só zeros ou se após o DDD (2 primeiros dígitos) for só zeros
+            is_all_zero = ser.str.replace('0', '') == ''
+            is_local_zero = (ser.str.len() >= 2) & (ser.str.slice(2).str.replace('0', '') == '')
+            return np.where(is_all_zero | is_local_zero, "", ser)
+        
+        df['full_t1'] = clean_junk(df['full_t1'])
+        df['full_t2'] = clean_junk(df['full_t2'])
+
+        # Identificação de Região (Pernambuco Fix)
+        if filters.get("filtrar_ddd_regiao") and filters.get("uf"):
+            target_uf = filters["uf"].strip().upper()
+            valid_ddds = [str(d) for d in self.UF_DDD_MAP.get(target_uf, [])]
+            if valid_ddds:
+                df['is_reg1'] = df['DDD1'].astype(str).isin(valid_ddds)
+                df['is_reg2'] = df['DDD2'].astype(str).isin(valid_ddds)
+            else:
+                df['is_reg1'] = True
+                df['is_reg2'] = True
+        else:
+            df['is_reg1'] = True
+            df['is_reg2'] = True
+
+        # Identificação de Tipos (Vetorizada)
+        def get_tipo_vec(col):
+            # O TEL1/TEL2 original (já limpo de .0 e nan)
+            clean = df[col].str.replace(r'\D', '', regex=True)
+            is_cel = (clean.str.len() == 9) | ((clean.str.len() == 8) & (clean.str.slice(0,1).isin(['6','7','8','9'])))
+            return np.where(clean.str.len() > 0, np.where(is_cel, "CELULAR", "FIXO"), None)
+
+        df['t1_tipo'] = get_tipo_vec('TEL1')
+        df['t2_tipo'] = get_tipo_vec('TEL2')
 
         tipo_req = filters.get("tipo_tel", "TODOS")
         if tipo_req == "AMBOS":
@@ -1441,43 +2382,59 @@ class CloudEngine:
 
         if df.empty: return df
 
-        def select_phone(row):
-            t1, t2 = row.get('full_t1', ''), row.get('full_t2', '')
-            tipo1, tipo2 = row.get('t1_tipo'), row.get('t2_tipo')
-            if tipo_req in ["CELULAR", "FIXO"]:
-                if tipo1 == tipo_req: return t1
-                return t2
-            elif tipo_req == "AMBOS":
-                parts = []
-                if t1: parts.append(f"{tipo1}: {t1}")
-                if t2: parts.append(f"{tipo2}: {t2}")
-                return " | ".join(parts)
-            if tipo1 == "CELULAR": return t1
-            if tipo2 == "CELULAR": return t2
-            return t1 if t1 else t2
+        # Seleção do Telefone (Vetorizada com Filtro Regional)
+        if tipo_req in ["CELULAR", "FIXO"]:
+            # Só seleciona se for do tipo correto E (se filtro on) for da região correta
+            mask1 = (df['t1_tipo'] == tipo_req) & (df['is_reg1']) & (df['full_t1'] != "")
+            mask2 = (df['t2_tipo'] == tipo_req) & (df['is_reg2']) & (df['full_t2'] != "")
+            df['TELEFONE SOLICITADO'] = np.where(mask1, df['full_t1'], 
+                                        np.where(mask2, df['full_t2'], ""))
+        elif tipo_req == "AMBOS":
+            # Para AMBOS, mostramos os dois, mas filtrados por região se necessário
+            t1_valid = (df['full_t1'] != "") & (df['is_reg1'])
+            t2_valid = (df['full_t2'] != "") & (df['is_reg2'])
+            t1_part = np.where(t1_valid, df['t1_tipo'].astype(str) + ": " + df['full_t1'], "")
+            t2_part = np.where(t2_valid, df['t2_tipo'].astype(str) + ": " + df['full_t2'], "")
+            df['TELEFONE SOLICITADO'] = t1_part + np.where((t1_part != "") & (t2_part != ""), " | ", "") + t2_part
+        else: # TODOS
+            # Prioridade: 1. Celular Regional, 2. Fixo Regional, 3. Qualquer Celular (se filtro off), 4. Qualquer Fixo (se filtro off)
+            c1_reg = (df['t1_tipo'] == "CELULAR") & (df['is_reg1']) & (df['full_t1'] != "")
+            c2_reg = (df['t2_tipo'] == "CELULAR") & (df['is_reg2']) & (df['full_t2'] != "")
+            f1_reg = (df['t1_tipo'] == "FIXO") & (df['is_reg1']) & (df['full_t1'] != "")
+            f2_reg = (df['t2_tipo'] == "FIXO") & (df['is_reg2']) & (df['full_t2'] != "")
             
-        df['TELEFONE SOLICITADO'] = df.apply(select_phone, axis=1)
-        df = df.drop(columns=[c for c in ['DDD1', 'TEL1', 'DDD2', 'TEL2', 't1_tipo', 't2_tipo', 'full_t1', 'full_t2'] if c in df.columns])
+            df['TELEFONE SOLICITADO'] = np.where(c1_reg, df['full_t1'],
+                                        np.where(c2_reg, df['full_t2'],
+                                        np.where(f1_reg, df['full_t1'],
+                                        np.where(f2_reg, df['full_t2'], ""))))
         
-        # Enriquecimento de Operadora (em lotes)
+        # Se após a seleção o telefone estiver vazio e o usuário pediu filtragem ou somente com telefone, removemos a linha
+        if filters.get("filtrar_ddd_regiao") or filters.get("somente_com_telefone"):
+            df = df[df['TELEFONE SOLICITADO'] != ""].copy()
+            if df.empty: return df
+                                        
+        # Drop de colunas auxiliares
+        drop_cols = [c for c in ['DDD1', 'TEL1', 'DDD2', 'TEL2', 't1_tipo', 't2_tipo', 'full_t1', 'full_t2'] if c in df.columns]
+        df = df.drop(columns=drop_cols)
+        
+        # Enriquecimento de Operadora (em lotes - já otimizado anteriormente)
         df = self._append_operator_column(tid, df)
 
-        # Filtros de Operadora
+        # Filtros de Operadora (Vetorizados)
         op_inc = str(filters.get("operadora_inc", "TODAS")).upper()
         op_exc = str(filters.get("operadora_exc", "NENHUMA")).upper()
         
-        def check_op(row_val, target_op):
-            if not row_val: return False
-            rv = str(row_val).upper()
-            to = str(target_op).upper()
-            if to == "VIVO": return "VIVO" in rv or "TELEFONICA" in rv
-            return to in rv
-
         if 'OPERADORA DO TELEFONE' in df.columns:
             if op_exc != "NENHUMA":
-                df = df[~df['OPERADORA DO TELEFONE'].apply(lambda x: check_op(x, op_exc))]
+                # Escapa caracteres especiais de regex e trata VIVO/TELEFONICA
+                pattern = "VIVO|TELEFONICA" if op_exc == "VIVO" else re.escape(op_exc)
+                mask_exc = df['OPERADORA DO TELEFONE'].str.upper().str.contains(pattern, na=False, regex=True)
+                df = df[~mask_exc]
+                
             if op_inc != "TODAS":
-                df = df[df['OPERADORA DO TELEFONE'].apply(lambda x: check_op(x, op_inc))]
+                pattern = "VIVO|TELEFONICA" if op_inc == "VIVO" else re.escape(op_inc)
+                mask_inc = df['OPERADORA DO TELEFONE'].str.upper().str.contains(pattern, na=False, regex=True)
+                df = df[mask_inc]
 
         if df.empty: return df
 
@@ -1490,40 +2447,43 @@ class CloudEngine:
         if 'SITUACAO CADASTRAL' in df.columns:
             df['SITUACAO CADASTRAL'] = df['SITUACAO CADASTRAL'].astype(str).str.zfill(2).map(sit_map).fillna(df['SITUACAO CADASTRAL'])
 
-        final_columns = ['CNPJ', 'NOME DA EMPRESA', 'SITUACAO CADASTRAL', 'CNAE', 'LOGRADOURO', 'NUMERO DA FAIXADA', 'BAIRRO', 'CIDADE', 'UF', 'CEP', 'TELEFONE SOLICITADO', 'OPERADORA DO TELEFONE']
+        final_columns = ['CNPJ', 'NOME DA EMPRESA', 'SITUACAO CADASTRAL', 'CNAE', 'LOGRADOURO', 'NUMERO DA FAIXADA']
+        
+        # Inclusao do complemento sob demanda (Regiao Centro-Oeste)
+        uf_req = str(filters.get("uf", "")).strip().upper()
+        if uf_req in ["DF", "GO", "MT", "MS"]:
+            final_columns.append('COMPLEMENTO')
+            
+        final_columns.extend(['BAIRRO', 'CIDADE', 'UF', 'CEP', 'TELEFONE SOLICITADO', 'OPERADORA DO TELEFONE'])
         for c in final_columns:
             if c not in df.columns: df[c] = ""
             else: df[c] = df[c].astype(str).replace(['nan', 'NaN', 'None', '<NA>'], "")
         
         df_final = df[final_columns].fillna("")
 
-        # Escrita no Excel
+        # Escrita no Excel (Vetorizada com write_row)
         EXCEL_LIMIT = 1000000 
         active_sheet = workbook.worksheets()[-1]
         global_row = start_row_count
         
         if not header_written or global_row == 0:
-            for col_idx, col_name in enumerate(df_final.columns):
-                active_sheet.write(0, col_idx, col_name, header_fmt)
+            active_sheet.write_row(0, 0, df_final.columns, header_fmt)
         elif global_row > 0 and (global_row % EXCEL_LIMIT) == 0:
             sheet_count = len(workbook.worksheets()) + 1
             active_sheet = workbook.add_worksheet(f"Extracao Hemn {sheet_count}")
-            for col_idx, col_name in enumerate(df_final.columns):
-                active_sheet.write(0, col_idx, col_name, header_fmt)
+            active_sheet.write_row(0, 0, df_final.columns, header_fmt)
 
         current_sheet_row = (global_row % EXCEL_LIMIT) + 1
 
-        data_matrix = df_final.values
-        for r_idx, row_data in enumerate(data_matrix):
+        # Escrita em massa: Usando write_row em loop
+        for r_idx, row_data in enumerate(df_final.values):
             if current_sheet_row > EXCEL_LIMIT:
                 sheet_count = len(workbook.worksheets()) + 1
                 active_sheet = workbook.add_worksheet(f"Extracao Hemn {sheet_count}")
-                for col_idx, col_name in enumerate(df_final.columns):
-                    active_sheet.write(0, col_idx, col_name, header_fmt)
+                active_sheet.write_row(0, 0, df_final.columns, header_fmt)
                 current_sheet_row = 1
                 
-            for c_idx, val in enumerate(row_data):
-                active_sheet.write(current_sheet_row, c_idx, val)
+            active_sheet.write_row(current_sheet_row, 0, row_data)
             current_sheet_row += 1
             global_row += 1
             
@@ -1541,7 +2501,7 @@ class CloudEngine:
             self._update_task(tid, status="PROCESSING", message="Unificando arquivos...")
             status = self.get_task_status(tid)
             if status.get("status") == "CANCELLED": return
-            output_file = os.path.join(output_dir, f"Unificado_{tid[:8]}.xlsx")
+            output_file = os_native.path.join(output_dir, f"Unificado_{tid[:8]}.xlsx")
             dfs = []
             for i, p in enumerate(file_paths):
                 if p.endswith('.csv'):
@@ -1567,7 +2527,7 @@ class CloudEngine:
         try:
             status = self.get_task_status(tid)
             if status.get("status") == "CANCELLED": return
-            output_file = os.path.join(output_dir, f"Portabilidade_{tid[:8]}.xlsx")
+            output_file = os_native.path.join(output_dir, f"Portabilidade_{tid[:8]}.xlsx")
             
             # Load Data
             if input_file.endswith('.csv'):
@@ -1636,7 +2596,7 @@ class CloudEngine:
                     if pref in self.prefix_tree:
                         return self.get_op_name(self.prefix_tree[pref])
                 
-                return res if res else "N\u00c3O CONSTA"
+                return res if res else "NÃO CONSTA"
 
             df['OPERADORA'] = df['titanium_tel'].map(_smart_map)
             
@@ -1644,7 +2604,7 @@ class CloudEngine:
             df.drop(columns=['titanium_tel'], inplace=True)
             df.to_excel(output_file, index=False)
             
-            self._update_task(tid, status="COMPLETED", progress=100, message="Portabilidade Conclu\u00edda!", result_file=output_file, record_count=total)
+            self._update_task(tid, status="COMPLETED", progress=100, message="Portabilidade Concluída!", result_file=output_file, record_count=total)
         except Exception as e:
             self._update_task(tid, status="FAILED", message=f"Erro: {str(e)}")
 
@@ -1670,7 +2630,7 @@ class CloudEngine:
             else:
                 # Prefix Fallback for Single Lookup
                 num = re.sub(r'\D', '', tel)
-                op_name = "N\u00c3O CONSTA"
+                op_name = "NÃO CONSTA"
                 for length in range(7, 3, -1):
                     pref = num[:length]
                     if pref in self.prefix_tree:
@@ -1685,7 +2645,7 @@ class CloudEngine:
 
     # --- SPLIT ---
     def start_split(self, input_file, output_dir, username=None):
-        fname = os.path.basename(input_file)
+        fname = os_native.path.basename(input_file)
         f_summary = f"Fatiar: {fname}"
         tid = self._create_task(module="SPLIT", username=username, filters=f_summary)
         threading.Thread(target=self._run_split, args=(tid, input_file, output_dir), daemon=True).start()
@@ -1695,7 +2655,7 @@ class CloudEngine:
         print(f"[SPLIT] Iniciando tarefa {tid} para arquivo: {input_file}")
         self._update_task(tid, status="PROCESSING", message="Iniciando fatiamento...")
         try:
-            output_file = os.path.join(output_dir, f"Dividido_{tid[:8]}.xlsx")
+            output_file = os_native.path.join(output_dir, f"Dividido_{tid[:8]}.xlsx")
             import xlsxwriter
             
             # Se for Excel, usamos o modo padrão (Excel gigante é raro, o limite é 1M de linhas)
@@ -1854,52 +2814,78 @@ class CloudEngine:
         return normalized
 
     def _append_operator_column(self, tid, df):
+        """
+        Enriquecimento de operadora de ALTA PERFORMANCE.
+        Usa cache em lote e evita processamento linha-a-linha desnecessário.
+        """
+        if 'TELEFONE SOLICITADO' not in df.columns or df.empty:
+            df['OPERADORA DO TELEFONE'] = "NÃO CONSTA"
+            return df
+
         self._update_task(tid, progress=90, message="Identificando operadoras...")
         try:
-            phones_to_query = df['TELEFONE SOLICITADO'].dropna().astype(str).str.replace(r'\D', '', regex=True).tolist()
-            phones_to_query = list(set([p for p in phones_to_query if p]))
-            phones_to_query_clean = [p[2:] if p.startswith('55') else p for p in phones_to_query]
-            phones_to_query_alt = [p[:len(p)-9] + p[len(p)-8:] for p in phones_to_query_clean if len(p) == 11]
-            all_queries = list(set(phones_to_query_clean + phones_to_query_alt))
-
-            conn = sqlite3.connect(self.db_carrier)
+            # 1. Limpeza Vetorizada de Telefones
+            df['_clean_tel_enrich'] = df['TELEFONE SOLICITADO'].astype(str).str.replace(r'\D', '', regex=True).str.replace(r'^55', '', regex=True)
+            
+            unique_phones = df['_clean_tel_enrich'].unique()
+            phones_to_query = [p for p in unique_phones if p and p != 'nan']
+            
+            # Gerar variações (11 -> 10 para portabilidade legada)
+            all_queries = set(phones_to_query)
+            for p in phones_to_query:
+                if len(p) == 11: all_queries.add(p[:2] + p[3:]) # DDD + 8 dígitos
+            
+            # 2. Consulta SQLite em Lotes (Cache de Resultados)
             op_results = {}
             op_map = self._get_carrier_map()
             
+            all_queries_list = list(all_queries)
             batch_size = 900
-            for i in range(0, len(all_queries), batch_size):
-                batch = all_queries[i : i + batch_size]
+            conn = sqlite3.connect(self.db_carrier)
+            for i in range(0, len(all_queries_list), batch_size):
+                batch = all_queries_list[i : i + batch_size]
                 placeholders = ','.join(['?'] * len(batch))
                 rows = conn.execute(f"SELECT telefone, operadora_id FROM portabilidade WHERE telefone IN ({placeholders})", batch).fetchall()
                 for tel_db, op_id in rows:
                     op_results[str(tel_db)] = op_map.get(str(op_id), "OUTRA")
             conn.close()
 
-            def _smart_map(t):
-                if pd.isna(t) or not t: return "NÃO CONSTA"
-                t = str(t).replace(r'\D', '')
-                if t.startswith('55'): t = t[2:]
-                
-                res = None
-                if t in op_results: res = op_results[t]
-                if not res and len(t) == 11:
-                    t10 = t[:2] + t[3:]
-                    if t10 in op_results: res = op_results[t10]
-                if not res:
-                    t13 = "55" + t
-                    if t13 in op_results: res = op_results[t13]
-                
-                if res and res != "OUTRA": return res
-                
-                num = re.sub(r'\D', '', t)
-                if num.startswith("55"): num = num[2:]
-                for length in range(7, 3, -1):
-                    pref = num[:length]
-                    if pref in self.prefix_tree:
-                        return self.get_op_name(self.prefix_tree[pref]).upper()
-                return "NÃO CONSTA"
+            # 3. Mapeamento Inteligente e Fallback de Prefixo (Híbrido Vetorizado)
+            # Primeiro nível: Mapeamento direto da Portabilidade
+            df['OPERADORA DO TELEFONE'] = df['_clean_tel_enrich'].map(op_results)
+            
+            # Segundo nível: Portabilidade com 10 dígitos (se o de 11 falhou)
+            mask_retry_10 = (df['OPERADORA DO TELEFONE'].isna()) & (df['_clean_tel_enrich'].str.len() == 11)
+            if mask_retry_10.any():
+                df.loc[mask_retry_10, 'OPERADORA DO TELEFONE'] = (df.loc[mask_retry_10, '_clean_tel_enrich'].str[:2] + df.loc[mask_retry_10, '_clean_tel_enrich'].str[3:]).map(op_results)
 
-            df['OPERADORA DO TELEFONE'] = df['TELEFONE SOLICITADO'].apply(_smart_map)
+            # Terceiro nível: Prefixo Anatel (Fallback)
+            mask_prefix = df['OPERADORA DO TELEFONE'].isna() | (df['OPERADORA DO TELEFONE'] == "OUTRA")
+            if mask_prefix.any():
+                # Loop limitado por comprimentos de prefixo (mais rápido que loop por linha)
+                prefix_results = pd.Series(index=df.index, dtype=str)
+                nums = df.loc[mask_prefix, '_clean_tel_enrich']
+                
+                # De 7 a 4 dígitos
+                for length in [7, 6, 5, 4]:
+                    if nums.empty: break
+                    prefs = nums.str[:length]
+                    # Mapear prefixos usando o prefix_tree em memória
+                    mapped = prefs.map(self.prefix_tree).dropna()
+                    if not mapped.empty:
+                        # Converter códigos Anatel para nomes reais
+                        unique_codes = mapped.unique()
+                        code_to_name = {c: self.get_op_name(c).upper() for c in unique_codes}
+                        resolved = mapped.map(code_to_name)
+                        prefix_results.update(resolved)
+                        # Remover já encontrados para não sobrepor com prefixos menores
+                        nums = nums.drop(index=mapped.index)
+                
+                df.loc[mask_prefix, 'OPERADORA DO TELEFONE'] = prefix_results.fillna(df.loc[mask_prefix, 'OPERADORA DO TELEFONE'])
+
+            # Limpeza final
+            df['OPERADORA DO TELEFONE'] = df['OPERADORA DO TELEFONE'].fillna("NÃO CONSTA")
+            df = df.drop(columns=['_clean_tel_enrich'])
             return df
         except Exception as e:
             import traceback

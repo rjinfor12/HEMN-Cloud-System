@@ -1849,10 +1849,20 @@ class CloudEngine:
         df['full_t1'] = clean_junk(df['full_t1'])
         df['full_t2'] = clean_junk(df['full_t2'])
 
-        # Identificação de Região (Pernambuco Fix)
+        # Identificação de Região (Pernambuco Fix) - RIGOROSO v2.0
         if filters.get("filtrar_ddd_regiao") and filters.get("uf"):
-            target_uf = filters["uf"].strip().upper()
-            valid_ddds = [str(d) for d in self.UF_DDD_MAP.get(target_uf, [])]
+            target_uf = str(filters.get("uf")).upper().strip()
+            # Mapa real de DDDs por UF (Caso self.UF_DDD_MAP falhe)
+            ddd_map = self.UF_DDD_MAP if hasattr(self, 'UF_DDD_MAP') else {
+                'AC':['68'], 'AL':['82'], 'AP':['96'], 'AM':['92','97'], 'BA':['71','73','74','75','77'],
+                'CE':['85','88'], 'DF':['61'], 'ES':['27','28'], 'GO':['62','64'], 'MA':['98','99'],
+                'MT':['65','66'], 'MS':['67'], 'MG':['31','32','33','34','35','37','38'],
+                'PA':['91','93','94'], 'PB':['83'], 'PR':['41','42','43','44','45', '46'],
+                'PE':['81','87'], 'PI':['86','89'], 'RJ':['21','22','24'], 'RN':['84'],
+                'RS':['51','53','54','55'], 'RO':['69'], 'RR':['95'], 'SC':['47','48','49'],
+                'SP':['11','12','13','14','15','16','17','18','19'], 'SE':['79'], 'TO':['63']
+            }
+            valid_ddds = [str(d) for d in ddd_map.get(target_uf, [])]
             if valid_ddds:
                 df['is_reg1'] = df['DDD1'].astype(str).isin(valid_ddds)
                 df['is_reg2'] = df['DDD2'].astype(str).isin(valid_ddds)
@@ -1938,42 +1948,77 @@ class CloudEngine:
 
         if df.empty: return df
 
-        # Formatação Final
-        df.columns = [str(c).upper().replace('_', ' ').strip() for c in df.columns]
-        final_mapping = {'NOME': 'NOME DA EMPRESA', 'SITUACAO': 'SITUACAO CADASTRAL', 'RUA': 'LOGRADOURO', 'NUMERO': 'NUMERO DA FAIXADA'}
+        # Formatação Final (Paridade Total com o Print)
+        # 1. Normalização de nomes técnicos para amigáveis
+        final_mapping = {
+            'NOME': 'NOME DA EMPRESA', 
+            'SITUACAO': 'SITUACAO CADASTRAL', 
+            'RUA': 'LOGRADOURO', 
+            'NUMERO': 'NUMERO DA FAIXADA',
+            'CEP': 'CEP',
+            'BAIRRO': 'BAIRRO',
+            'CIDADE': 'CIDADE',
+            'UF': 'UF',
+            'CNAE': 'CNAE',
+            'CNPJ': 'CNPJ',
+            'TELEFONE SOLICITADO': 'TELEFONE SOLICITADO',
+            'OPERADORA DO TELEFONE': 'OPERADORA DO TELEFONE'
+        }
+        
+        # Filtro de colunas extras e renomeação
         df = df.rename(columns=final_mapping)
         
         sit_map = {'01':'NULA','02':'ATIVA','03':'SUSPENSA','04':'INAPTA','08':'BAIXADA'}
         if 'SITUACAO CADASTRAL' in df.columns:
             df['SITUACAO CADASTRAL'] = df['SITUACAO CADASTRAL'].astype(str).str.zfill(2).map(sit_map).fillna(df['SITUACAO CADASTRAL'])
 
+        # ORDEM EXATA DO PRINT GOLDEN:
+        # CNPJ | NOME DA EMPRESA | SITUACAO CADASTRAL | CNAE | LOGRADOURO | NUMERO DA FAIXADA | [COMPLEMENTO se Regional] | BAIRRO | CIDADE | UF | CEP | TELEFONE | OPERADORA
         final_columns = ['CNPJ', 'NOME DA EMPRESA', 'SITUACAO CADASTRAL', 'CNAE', 'LOGRADOURO', 'NUMERO DA FAIXADA']
         
-        # Inclusao do complemento sob demanda (Regiao Centro-Oeste)
         uf_req = str(filters.get("uf", "")).strip().upper()
         if uf_req in ["DF", "GO", "MT", "MS"]:
+            if 'COMPLEMENTO' not in df.columns: df['COMPLEMENTO'] = ""
             final_columns.append('COMPLEMENTO')
             
         final_columns.extend(['BAIRRO', 'CIDADE', 'UF', 'CEP', 'TELEFONE SOLICITADO', 'OPERADORA DO TELEFONE'])
+        
+        # Assegurar que todas existem
         for c in final_columns:
             if c not in df.columns: df[c] = ""
             else: df[c] = df[c].astype(str).replace(['nan', 'NaN', 'None', '<NA>'], "")
         
         df_final = df[final_columns].fillna("")
 
-        # Escrita no Excel (Vetorizada com write_row)
+        # Escrita no Excel (Vetorizada com write_row e Split de Abas)
         EXCEL_LIMIT = 1000000 
-        current_sheet_row = (start_row_count % EXCEL_LIMIT) + 1
+        global_row = start_row_count
         
-        # Primeiro lote: Escrever Header
-        if not header_written:
-            sheet.write_row(0, 0, df_final.columns, header_fmt)
-            current_sheet_row = 1
+        # Acessar a última worksheet ativa ou criar a primeira
+        if not header_written or not workbook.worksheets():
+            if not workbook.worksheets():
+                active_sheet = workbook.add_worksheet("Extracao_1")
+            else:
+                active_sheet = workbook.worksheets()[-1]
+            
+            # ESCREVER CABEÇALHO SEMPRE NA LINHA 0
+            active_sheet.write_row(0, 0, df_final.columns, header_fmt)
+        else:
+            active_sheet = workbook.worksheets()[-1]
 
-        # Escrita em massa: Usando write_row em loop (Muito mais rápido que sheet.write individual)
+        # Escrita em massa
         for r_idx, row_data in enumerate(df_final.values):
-            sheet.write_row(current_sheet_row, 0, row_data)
-            current_sheet_row += 1
+            # Verificar se atingiu o limite para trocar de aba
+            if global_row > 0 and (global_row % EXCEL_LIMIT) == 0:
+                sheet_idx = (global_row // EXCEL_LIMIT) + 1
+                active_sheet = workbook.add_worksheet(f"Extracao_{sheet_idx}")
+                active_sheet.write_row(0, 0, df_final.columns, header_fmt)
+            
+            # LINHA 0 É SEMPRE O CABEÇALHO. DADOS COMEÇAM NA LINHA 1.
+            row_in_sheet = (global_row % EXCEL_LIMIT) + 1
+            active_sheet.write_row(row_in_sheet, 0, row_data)
+            global_row += 1
+
             
         return df_final
 
@@ -2212,7 +2257,7 @@ class CloudEngine:
 
     def _get_carrier_map(self):
         op_map = {
-            "55320":"VIVO", "55323":"VIVO", "55215":"VIVO", "55324":"VIVO", "55377":"VIVO",
+            "55320":"VIVO / TELEFONICA", "55323":"VIVO / TELEFONICA", "55215":"VIVO / TELEFONICA", "55324":"VIVO / TELEFONICA", "55377":"VIVO / TELEFONICA",
             "55321":"CLARO", "55351":"CLARO", "55322":"CLARO", "55371":"CLARO", "55306":"ALGAR",
             "55341":"TIM", "55343":"SERCOMTEL", "55331":"OI", "55312":"ALGAR", "55345":"ALGAR",
             "55112":"ALGAR", "55121":"CLARO", "55123":"TIM", "55131":"OI", "55141":"TIM",
@@ -2294,10 +2339,7 @@ class CloudEngine:
             if "TELEFONICA" in vu or "VIVO" in vu: normalized[k] = "VIVO / TELEFONICA"
             elif "CLARO" in vu: normalized[k] = "CLARO"
             elif "TIM" in vu: normalized[k] = "TIM"
-            elif vu == "OI" or vu.startswith("OI ") or "OI S.A" in vu or "OI MOVEL" in vu or "TELEMAR" in vu: 
-                normalized[k] = "OI"
-            elif "ALGAR" in vu: normalized[k] = "ALGAR"
-            elif "BRISANET" in vu: normalized[k] = "BRISANET"
+            elif vu == "OI" or vu.startswith("OI ") or "OI S.A" in vu or "OI FIXO" in vu: normalized[k] = "OI / TELEMAR"
             else: normalized[k] = vu
         return normalized
 
@@ -2328,14 +2370,25 @@ class CloudEngine:
             op_map = self._get_carrier_map()
             
             all_queries_list = list(all_queries)
-            batch_size = 900
+            batch_size = 1000  # Aumentado para melhor performance
+            total_queries = len(all_queries_list)
+            
+            # OTIMIZAÇÃO CRÍTICA: Abrir conexão UMA VEZ
             conn = sqlite3.connect(self.db_carrier)
-            for i in range(0, len(all_queries_list), batch_size):
+            cursor = conn.cursor()
+            
+            for i in range(0, total_queries, batch_size):
+                # Feedback de progresso para evitar a percepção de travamento em 90%
+                if i % 5000 == 0 or i == 0:
+                    p_val = 90 + int((i / max(1, total_queries)) * 9)
+                    self._update_task(tid, progress=p_val, message=f"Consultando Operadoras: {i:,}/{total_queries:,}...")
+
                 batch = all_queries_list[i : i + batch_size]
                 placeholders = ','.join(['?'] * len(batch))
-                rows = conn.execute(f"SELECT telefone, operadora_id FROM portabilidade WHERE telefone IN ({placeholders})", batch).fetchall()
+                rows = cursor.execute(f"SELECT telefone, operadora_id FROM portabilidade WHERE telefone IN ({placeholders})", batch).fetchall()
                 for tel_db, op_id in rows:
                     op_results[str(tel_db)] = op_map.get(str(op_id), "OUTRA")
+            
             conn.close()
 
             # 3. Mapeamento Inteligente e Fallback de Prefixo (Híbrido Vetorizado)
@@ -2371,7 +2424,6 @@ class CloudEngine:
                 
                 df.loc[mask_prefix, 'OPERADORA DO TELEFONE'] = prefix_results.fillna(df.loc[mask_prefix, 'OPERADORA DO TELEFONE'])
 
-            # Limpeza final
             df['OPERADORA DO TELEFONE'] = df['OPERADORA DO TELEFONE'].fillna("NÃO CONSTA")
             df = df.drop(columns=['_clean_tel_enrich'])
             return df

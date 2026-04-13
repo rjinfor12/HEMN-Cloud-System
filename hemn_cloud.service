@@ -1,0 +1,13 @@
+[Unit]
+Description=HEMN Cloud Server
+After=network.target
+
+[Service]
+User=root
+WorkingDirectory=/var/www/hemn_cloud
+Environment="PATH=/var/www/hemn_cloud/venv/bin"
+ExecStart=/var/www/hemn_cloud/venv/bin/uvicorn HEMN_Cloud_Server:app --host 127.0.0.1 --port 8000 --proxy-headers
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
