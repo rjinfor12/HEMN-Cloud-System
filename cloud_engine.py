@@ -309,6 +309,29 @@ class CloudEngine:
                 
         return True
 
+    def cleanup_all_tasks(self):
+        """Cancela todas as tarefas pendentes ou em processamento (Limpeza Global)."""
+        try:
+            conn = sqlite3.connect(self.db_path, timeout=30)
+            conn.execute("PRAGMA journal_mode=WAL")
+            # Cancela tarefas que não terminaram
+            conn.execute("UPDATE background_tasks SET status = 'CANCELLED', message = 'Cancelado via Limpeza Global pelo Administrador.' WHERE status IN ('QUEUED', 'PROCESSING')")
+            conn.commit()
+            conn.close()
+            
+            # Tentar limpar ClickHouse também (opcional mas recomendado)
+            if self.is_linux:
+                try:
+                    ch = self._get_ch_client()
+                    if ch:
+                        ch.command("KILL QUERY WHERE query_id != '' ASYNC")
+                        ch.close()
+                except: pass
+            return True
+        except Exception as e:
+            print(f"[CLEANUP] Erro na limpeza global: {e}")
+            return False
+
     def hide_task(self, tid):
         conn = sqlite3.connect(self.db_path, timeout=30)
         conn.execute("PRAGMA journal_mode=WAL")

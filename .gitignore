@@ -1,41 +1,39 @@
-# Databases
-*.db
-
-# Logs
+# HEMN System GitIgnore
+__pycache__/
+*.py[cod]
+*$py.class
+.env
+.venv
+env/
+venv/
 *.log
-*.txt
-server_stderr.log
-server_stdout.log
-upload_progress.log
-
-# Data and Results
+*.sqlite
+*.db
 *.xlsx
 *.csv
-*.json
-*.zip
-*.tar.gz
-results/
 storage/
-temp/
+data_assets/
+*.png
+*.webp
+*.ico
 
-# Binary and Build artifacts
-*.exe
-*.spec
-build/
-dist/
-dist_v*/
-__pycache__/
-*.pyc
+# Ignorar scripts de diagnóstico temporários (check_*, diag_*, test_*)
+check_*.py
+diag_*.py
+test_*.py
+fix_*.py
+read_*.py
+deploy_*.py
+apply_*.py
+find_*.py
+inspect_*.py
+run_*.py
+remote_*.py
+force_*.py
+tmp_*.py
+vps_*.py
+match_*.py
 
-# Environment and IDE
-venv/
-.venv/
-.vscode/
-.idea/
-
-# Large binaries from list_dir
-static/demo.mp4
-
-# OS files
-.DS_Store
-Thumbs.db
+# Manter scripts legítimos em data_analysis/
+!data_analysis/overkill_deploy.py
+!data_analysis/refine_ui_layout.py

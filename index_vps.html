@@ -1583,7 +1583,7 @@
             </button>
             <div class="logo-container">
                 <img src="/areadocliente/static/logo.png" class="logo logo-3d logo-reveal" alt="HEMN WEB Logo">
-                <div class="brand-name">HEMN WEB <small id="display-version" style="font-size: 10px; opacity: 0.5;">...</small></div>
+                <div class="brand-name">HEMN SYSTEM <small id="display-version" style="font-size: 10px; opacity: 0.5;"></small></div>
             </div>
 
             <nav class="nav-menu">
@@ -2950,6 +2950,7 @@
                                     <i class="fas fa-sync-alt"></i>
                                     ATUALIZAR BASE OPERADORA
                                 </button>
+                                
                                 <div id="carrier-update-status" style="font-size: 11px; color: #000000; font-weight: 800; display: none; align-items: center; gap: 4px; margin-top: 2px;">
                                     <i class="fas fa-exclamation-circle"></i> NOVA BASE DISPONÍVEL
                                 </div>
@@ -3044,6 +3045,10 @@
                                     <span style="color:var(--text-2)">Concluídas Hoje</span>
                                     <span id="mon-engine-completed" style="font-weight:700">0</span>
                                 </div>
+                                 <button onclick="app.cleanupAllTasks()" class="btn-primary" style="margin-top: 15px; width: 100%; background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); border: none; justify-content: center; font-size: 13px; font-weight: 700;">
+                                     <i class="fas fa-broom"></i>
+                                     LIMPAR FILA GLOBAL
+                                 </button>
                             </div>
                         </div>
 
@@ -7031,6 +7036,27 @@
                     this.openCheckout('recharge', 100);
                 } else {
                     this.openCheckout('plan', planId.toLowerCase());
+                }
+            },
+
+            async cleanupAllTasks() {
+                const confirmed = await this.confirm("Limpar Fila Global", "⚠️ ATENÇÃO: Isso irá CANCELAR todas as tarefas em andamento de TODOS os usuários. Deseja continuar?", { type: 'error', confirmText: 'Confirmar Limpeza' });
+                if (!confirmed) return;
+                
+                try {
+                    const resp = await fetch(`${API}/admin/tasks/cleanup`, {
+                        method: 'POST',
+                        headers: { 'Authorization': `Bearer ${this.token}` }
+                    });
+                    const data = await resp.json();
+                    if (data.status === 'ok') {
+                        this.showToast("Fila global limpa com sucesso!", "success");
+                        setTimeout(() => location.reload(), 1500);
+                    } else {
+                        this.showToast("Erro ao limpar fila.", "error");
+                    }
+                } catch (e) {
+                    this.showToast("Falha na comunicação com servidor.", "error");
                 }
             },
 

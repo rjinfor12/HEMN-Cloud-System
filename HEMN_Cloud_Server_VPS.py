@@ -638,6 +638,12 @@ async def start_carrier_update(user: dict = Depends(get_current_user)):
     tid = engine.start_carrier_update(user["username"])
     return {"status": "ok", "task_id": tid}
 
+@router.post("/admin/tasks/cleanup")
+async def cleanup_tasks(user: dict = Depends(get_current_user)):
+    if user["role"] != "ADMIN": raise HTTPException(status_code=403)
+    success = engine.cleanup_all_tasks()
+    return {"status": "ok" if success else "error"}
+
 @router.get("/admin/monitor/stats_legacy")
 def get_monitor_stats_legacy(user: dict = Depends(get_current_user)):
     if user["role"] != "ADMIN": 
