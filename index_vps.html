@@ -5813,40 +5813,47 @@
 
                     // HEMN V2.5.2: Sistema de dismiss persistente (localStorage)
                     const dismissed = JSON.parse(localStorage.getItem('hemn_dismissed_tasks') || '[]');
+                    console.log("[RECOVERY] Sincronizando tarefas do servidor:", serverTasks);
 
                     serverTasks.forEach(st => {
-                        // Se a tarefa já está na lista ou foi descartada pelo usuário, pula
                         if (this.tasks.find(t => t.id === st.id)) return;
                         if (dismissed.includes(st.id)) return;
 
-                        // Adiciona à lista de memória
                         const t = {
                             id: st.id,
-                            mid: st.module,
+                            mid: st.module || 'extract',
                             status: st.status,
                             message: st.message,
                             progress: st.progress,
                             record_count: st.record_count,
-                            startTime: Date.now() - (st.progress * 100), // Estimativa baseada no progresso
+                            startTime: Date.now() - (st.progress * 1000), 
                             done: ['COMPLETED', 'SUCCESS', 'FAILED', 'CANCELLED'].includes(st.status.toUpperCase()),
                             remaining: null
                         };
                         this.tasks.push(t);
                         
-                        // Renderiza o card no módulo correspondente
+                        console.log(`[RECOVERY] Renderizando card para ${t.id} (${t.mid})`);
+                        // Renderiza em AMBOS os containers para garantir visibilidade em qualquer módulo
                         this.renderTaskCard(t.id, t.mid, st);
+                        this.renderGlobalTaskCard(t.id, t.mid, st);
                     });
                 } catch (e) {
                     console.error("[RECOVERY] Falha ao sincronizar tarefas:", e);
                 }
             },
 
-            dismissTask(taskId) {
-                // Remove visualmente
+            dismissTask(taskId, mid) {
+                // Remove visualmente de ambos os possíveis containers
                 const card = document.getElementById(`task-${taskId}`);
+                const gcard = document.getElementById(`gtask-${taskId}`);
+                
                 if (card) {
                     card.style.opacity = '0';
                     setTimeout(() => card.remove(), 300);
+                }
+                if (gcard) {
+                    gcard.style.opacity = '0';
+                    setTimeout(() => gcard.remove(), 300);
                 }
                 
                 // Salva permanentemente no navegador para não voltar no refresh
@@ -5858,6 +5865,15 @@
 
                 // Remove da lista de memória para parar o polling
                 this.tasks = this.tasks.filter(t => t.id !== taskId);
+                
+                // Limpeza de UI se necessário
+                if (mid) {
+                    const container = document.getElementById(`tasks-${mid}`);
+                    if (container && container.children.length === 0) {
+                        const title = document.getElementById(`title-${mid}`);
+                        if (title) title.style.display = 'none';
+                    }
+                }
             },
 
 
