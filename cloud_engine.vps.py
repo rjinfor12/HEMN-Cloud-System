@@ -52,7 +52,12 @@ class CloudEngine:
         self._init_db()
         self._load_carrier_assets()
         # Automate ingestion of local files on startup
+        import threading
         threading.Thread(target=self._auto_sync_coverage, daemon=True).start()
+        
+        # Monitor Cache (Otimização de CPU)
+        self._monitor_cache = None
+        self._monitor_cache_time = 0
         
         # Mapa de DDDs por Estado (Brasil)
         self.UF_DDD_MAP = {
@@ -114,7 +119,8 @@ class CloudEngine:
         query = f"SELECT DISTINCT cpf, nome, dt_nascimento, uf, regiao FROM hemn.leads WHERE {where_str} LIMIT 100"
         
         try:
-            result = client.query(query, parameters=params)
+            # Otimização: Forçar uso de apenas 1 núcleo para buscas básicas/unitárias
+            result = client.query(query, parameters=params, settings={'max_threads': 1})
             columns = ['cpf', 'nome', 'dt_nascimento', 'uf', 'regiao']
             leads = []
             today = datetime.now()
@@ -487,8 +493,13 @@ class CloudEngine:
 
     def get_monitor_stats(self):
         """Nova função agregadora de monitoramento para a VPS"""
-        import os, shutil
+        import os, shutil, time
         
+        # Otimização: Cache de 5 segundos
+        now = time.time()
+        if self._monitor_cache and (now - self._monitor_cache_time < 5):
+            return self._monitor_cache
+            
         # 1. System Stats (Linux /proc fallback para evitar dependência de psutil)
         sys_stats = {"cpu": 0, "ram": 0, "disk": 0}
         try:
@@ -514,13 +525,19 @@ class CloudEngine:
             pass
 
         eng_stats = self.get_internal_stats()
-        return {
+        result = {
             "system": sys_stats,
             "engine": eng_stats,
             "recent_activities": eng_stats.get("recent_activities", []),
             "clickhouse": self.get_ch_metrics(),
             "uptime": 99.9 # Valor informativo de SLA
         }
+        
+        # Atualizar cache
+        self._monitor_cache = result
+        self._monitor_cache_time = now
+        
+        return result
 
     def count_active_tasks(self, username):
         """Retorna o número de tarefas QUEUED ou PROCESSING de um usuário."""

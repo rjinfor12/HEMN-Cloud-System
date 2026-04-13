@@ -51,6 +51,10 @@ class CloudEngine:
         self._init_db()
         self._load_carrier_assets()
         
+        # Monitor Cache (Otimização de CPU)
+        self._monitor_cache = None
+        self._monitor_cache_time = 0
+        
         # Mapa de DDDs por Estado (Brasil)
         self.UF_DDD_MAP = {
             'AC': ['68'], 'AL': ['82'], 'AM': ['92', '97'], 'AP': ['96'],
@@ -111,7 +115,8 @@ class CloudEngine:
         query = f"SELECT DISTINCT cpf, nome, dt_nascimento, uf, regiao FROM hemn.leads WHERE {where_str} LIMIT 100"
         
         try:
-            result = client.query(query, parameters=params)
+            # Otimização: Forçar uso de apenas 1 núcleo para buscas básicas/unitárias
+            result = client.query(query, parameters=params, settings={'max_threads': 1})
             columns = ['cpf', 'nome', 'dt_nascimento', 'uf', 'regiao']
             leads = []
             today = datetime.now()
@@ -439,10 +444,61 @@ class CloudEngine:
                 "uptime_seconds": int(row[1]),
                 "active_queries": int(row[2]),
                 "memory_usage_bytes": int(mem_used),
-                "memory_total_bytes": int(mem_total)
+                "memory_total_bytes": int(mem_total),
+                "ram_usage_mb": round(mem_used / (1024*1024), 1)
             }
+        except Exception as e:
+            return {"status": "ERROR", "message": str(e), "uptime_seconds": 0, "active_queries": 0}
+        finally:
+            client.close()
+
+    def get_monitor_stats(self):
+        """Nova função agregadora de monitoramento para a VPS"""
+        import os, shutil, time
+        
+        # Otimização: Cache de 5 segundos
+        now = time.time()
+        if self._monitor_cache and (now - self._monitor_cache_time < 5):
+            return self._monitor_cache
+            
+        # 1. System Stats (Linux /proc fallback para evitar dependência de psutil)
+        sys_stats = {"cpu": 0, "ram": 0, "disk": 0}
+        try:
+            # RAM
+            if os.path.exists("/proc/meminfo"):
+                with open("/proc/meminfo", "r") as f:
+                    lines = f.readlines()
+                    total = int(lines[0].split()[1])
+                    available = int(lines[2].split()[1])
+                    sys_stats["ram"] = round(100 - (available / total * 100), 1)
+            
+            # CPU
+            if os.path.exists("/proc/loadavg"):
+                with open("/proc/loadavg", "r") as f:
+                    load = float(f.read().split()[0])
+                    # Escalonamento simples para visual (assumindo multicore)
+                    sys_stats["cpu"] = min(100.0, round(load * 20, 1))
+
+            # Disk
+            usage = shutil.disk_usage("/")
+            sys_stats["disk"] = round((usage.used / usage.total) * 100, 1)
         except:
-            return {"status": "OFFLINE", "uptime": "0", "active_queries": 0}
+            pass
+
+        eng_stats = self.get_internal_stats()
+        result = {
+            "system": sys_stats,
+            "engine": eng_stats,
+            "recent_activities": eng_stats.get("recent_activities", []),
+            "clickhouse": self.get_ch_metrics(),
+            "uptime": 99.9 # Valor informativo de SLA
+        }
+        
+        # Atualizar cache
+        self._monitor_cache = result
+        self._monitor_cache_time = now
+        
+        return result
 
     def count_active_tasks(self, username):
         """Retorna o número de tarefas QUEUED ou PROCESSING de um usuário."""
