@@ -5842,7 +5842,25 @@
                 }
             },
 
-            dismissTask(taskId, mid) {
+            async dismissTask(taskId, mid) {
+                // HEMN V2.5.4: Ao clicar no 'X', se a tarefa estiver ativa, oferece cancelar
+                const task = this.tasks.find(t => t.id === taskId);
+                if (task && !task.done) {
+                    const ok = await this.confirm("Cancelar e Fechar", "Deseja realmente interromper este processo e remover o card?", { type: 'warning' });
+                    if (!ok) return;
+                    
+                    // Dispara cancelamento no servidor (Fire and forget ou await opcional)
+                    try {
+                        fetch(`${API}/tasks/${taskId}/cancel`, {
+                            method: 'POST',
+                            headers: { 'Authorization': `Bearer ${this.token}` }
+                        });
+                        this.showToast("Cancelamento solicitado", "info");
+                    } catch (e) { 
+                        console.error("Erro ao cancelar via dismiss:", e); 
+                    }
+                }
+
                 // Remove visualmente de ambos os possíveis containers
                 const card = document.getElementById(`task-${taskId}`);
                 const gcard = document.getElementById(`gtask-${taskId}`);

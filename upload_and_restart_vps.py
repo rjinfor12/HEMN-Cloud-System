@@ -42,6 +42,7 @@ def upload_and_restart():
     sftp.put(os.path.join(local_project, "static", "index.html"), f"{remote_root}/static/index.html")
     sftp.put(os.path.join(local_project, "static", "design-system.css"), f"{remote_root}/static/design-system.css")
     sftp.put(local_index, f"{remote_root}/index_vps.html")
+    sftp.put(local_index, f"{remote_root}/index.html")
 
     # MIGRATION: Upload spreadsheets from Desktop "NV COKPIT"
     if os.path.exists(desktop_folder):
