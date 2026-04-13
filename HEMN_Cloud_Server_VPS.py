@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Depends, Header, Request, UploadFile, File, BackgroundTasks
+from fastapi import FastAPI, HTTPException, Depends, Header, Request, UploadFile, File, BackgroundTasks, APIRouter, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
@@ -28,6 +28,7 @@ print(f"[DEBUG] cloud_engine file: {cloud_engine.__file__}")
 from cloud_engine import CloudEngine
 
 app = FastAPI(title="HEMN Web Suite API")
+router = APIRouter()
 
 import sys
 
@@ -62,10 +63,17 @@ os.makedirs(RESULT_DIR, exist_ok=True)
 async def get_system_version():
     return {"version": SYSTEM_VERSION}
 
-app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
-
 @app.get("/")
-async def read_index():
+async def read_index_landing():
+    return FileResponse(os.path.join(APP_DIR, "index.html"))
+
+# Static Mounts
+app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+app.mount("/areadocliente/static", StaticFiles(directory=STATIC_DIR), name="static_prefixed")
+
+@router.get("/")
+@router.get("/index.html")
+async def read_index(request: Request):
     # Prefer index_vps.html in root, then static
     root_vps = os.path.join(APP_DIR, "index_vps.html")
     if os.path.exists(root_vps):
@@ -75,10 +83,9 @@ async def read_index():
     if os.path.exists(static_vps):
         return FileResponse(static_vps)
         
-    # Fallback to index.html in root
     return FileResponse(os.path.join(APP_DIR, "index.html"))
 
-@app.get("/admin/monitor")
+@router.get("/admin/monitor")
 async def read_monitor():
     root_vps = os.path.join(APP_DIR, "admin_monitor_vps.html")
     if os.path.exists(root_vps):
@@ -131,6 +138,11 @@ class ExtractionFilter(BaseModel):
     somente_com_telefone: Optional[bool] = False
     sem_governo: Optional[bool] = False
     cep_file: Optional[str] = None
+    filtrar_ddd_regiao: Optional[bool] = False
+    operadora_inc: Optional[str] = "TODAS"
+    operadora_exc: Optional[str] = "NENHUMA"
+    perfil: Optional[str] = "TODOS"
+    filterSummary: Optional[str] = None
 
 class UnifyRequest(BaseModel):
     file_ids: List[str]
@@ -159,6 +171,10 @@ class LeadSearchRequest(BaseModel):
     uf: Optional[str] = None
     regiao_nome: Optional[str] = None
 
+class MultiFileRequest(BaseModel):
+    file_ids: List[str]
+    filterSummary: Optional[str] = None
+
 # --- AUTH HELPERS ---
 def verify_password(plain_password, hashed_password):
     try:
@@ -176,12 +192,18 @@ def create_token(username: str):
     expire = datetime.utcnow() + timedelta(hours=24)
     return jwt.encode({"sub": username, "exp": expire}, SECRET_KEY, algorithm=ALGORITHM)
 
-def get_current_user(authorization: str = Header(None)):
-    if not authorization or not authorization.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="N\u00e3o autorizado")
-    token = authorization.split(" ")[1]
+def get_current_user(authorization: str = Header(None), token: Optional[str] = None):
+    auth_token = None
+    if authorization and authorization.startswith("Bearer "):
+        auth_token = authorization.split(" ")[1]
+    elif token:
+        auth_token = token
+        
+    if not auth_token:
+        raise HTTPException(status_code=401, detail="Não autorizado")
+        
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        payload = jwt.decode(auth_token, SECRET_KEY, algorithms=[ALGORITHM])
         username = payload.get("sub")
         conn = sqlite3.connect(DB_PATH, timeout=30)
         conn.execute("PRAGMA journal_mode=WAL")
@@ -191,7 +213,7 @@ def get_current_user(authorization: str = Header(None)):
         if not user: raise HTTPException(status_code=401)
         return dict(user)
     except:
-        raise HTTPException(status_code=401, detail="Sess\u00e3o expirada")
+        raise HTTPException(status_code=401, detail="Sessão expirada")
 
 def check_clinicas_access(user: dict = Depends(get_current_user)):
     if user["role"] not in ["ADMIN", "CLINICAS"]:
@@ -217,7 +239,7 @@ def log_transaction(username: str, type: str, amount: float, module: str, descri
 
 # --- ENDPOINTS DE ARQUIVOS ---
 
-@app.post("/upload")
+@router.post("/upload")
 async def upload_file(file: UploadFile = File(...), user: dict = Depends(get_current_user)):
     file_id = f"{uuid.uuid4()}_{file.filename}"
     file_path = os.path.join(UPLOAD_DIR, file_id)
@@ -225,7 +247,7 @@ async def upload_file(file: UploadFile = File(...), user: dict = Depends(get_cur
         shutil.copyfileobj(file.file, buffer)
     return {"file_id": file_id, "filename": file.filename}
 
-@app.get("/download/{task_id}")
+@router.get("/download/{task_id}")
 async def download_result(task_id: str, user: dict = Depends(get_current_user)):
     task = engine.get_task_status(task_id)
     if task["status"] != "COMPLETED":
@@ -268,6 +290,53 @@ async def download_result(task_id: str, user: dict = Depends(get_current_user)):
     
     return FileResponse(task["result_file"], filename=os.path.basename(task["result_file"]))
 
+@router.get("/download-direct/{task_id}")
+async def download_direct(task_id: str, user: dict = Depends(get_current_user)):
+    """Versão do download projetada para window.location.href (browser direto com token na URL)"""
+    task = engine.get_task_status(task_id)
+    if not task or task.get("status") == "NOT_FOUND":
+        raise HTTPException(status_code=404, detail="Tarefa não encontrada")
+        
+    if task["status"] != "COMPLETED" or not task.get("result_file"):
+        raise HTTPException(status_code=400, detail="Arquivo ainda não está pronto.")
+    
+    count = task.get("record_count", 0)
+    
+    # Conferir se já foi pago
+    conn = sqlite3.connect(DB_PATH, timeout=30)
+    conn.execute("PRAGMA journal_mode=WAL")
+    already_paid = conn.execute(
+        "SELECT 1 FROM credit_transactions WHERE username = ? AND task_id = ? AND type = 'DEBIT'",
+        (user["username"], task_id)
+    ).fetchone()
+    conn.close()
+
+    if not already_paid:
+        # Descontar créditos se não for limit >= 9 Mi ou perfil MAYK
+        if user["total_limit"] < 9000000 and user["role"] != "MAYK":
+            available = user["total_limit"] - user["current_usage"]
+            if available < count:
+                raise HTTPException(status_code=403, detail=f"Saldo insuficiente ({available:,.0f} Cr)")
+                
+            conn = sqlite3.connect(DB_PATH, timeout=30)
+            conn.execute("PRAGMA journal_mode=WAL")
+            conn.execute("UPDATE users SET current_usage = current_usage + ? WHERE username = ?", (count, user["username"]))
+            conn.commit()
+            conn.close()
+
+        # Logar transação
+        module = task.get("module", "DOWNLOAD")
+        log_transaction(
+            user["username"], 
+            "DEBIT", 
+            count, 
+            module, 
+            f"Download Direct: {count:,} registros",
+            task_id=task_id
+        )
+    
+    return FileResponse(task["result_file"], filename=os.path.basename(task["result_file"]))
+
 # --- ENDPOINTS DE TAREFAS (HEMN SUITE) ---
 
 import json
@@ -286,20 +355,20 @@ class NpEncoder(json.JSONEncoder):
             return obj.tolist()
         return super(NpEncoder, self).default(obj)
 
-@app.get("/tasks/{task_id}")
+@router.get("/tasks/{task_id}")
 def get_task(task_id: str, user: dict = Depends(get_current_user)):
     status_data = engine.get_task_status(task_id)
     # The ultimate JSON-safe sanitizer: serialize to string and back to dict
     clean_json_str = json.dumps(status_data, cls=NpEncoder)
     return json.loads(clean_json_str)
 
-@app.post("/tasks/unify")
+@router.post("/tasks/unify")
 def start_unify(req: UnifyRequest, user: dict = Depends(get_current_user)):
     paths = [os.path.join(UPLOAD_DIR, fid) for fid in req.file_ids]
     tid = engine.start_unify(paths, RESULT_DIR, username=user["username"])
     return {"task_id": tid}
 
-@app.post("/leads/search")
+@router.post("/leads/search")
 def search_leads(req: LeadSearchRequest, user: dict = Depends(check_clinicas_access)):
     # Limpeza básica do termo
     term = req.search_term.strip()
@@ -331,7 +400,7 @@ def search_leads(req: LeadSearchRequest, user: dict = Depends(check_clinicas_acc
         print(f"[ERROR] Lead Search failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.post("/tasks/enrich")
+@router.post("/tasks/enrich")
 def start_enrich(req: EnrichRequest, user: dict = Depends(get_current_user)):
     if req.manual:
         # Limpeza básica do CPF
@@ -368,7 +437,7 @@ def start_enrich(req: EnrichRequest, user: dict = Depends(get_current_user)):
     log_transaction(user["username"], "CREDIT", 0, "ENRICH", f"Iniciado processamento em lote: {req.file_id}")
     return {"task_id": tid}
 
-@app.post("/tasks/extract")
+@router.post("/tasks/extract")
 def start_extract(filters: ExtractionFilter, user: dict = Depends(get_current_user)):
     # Otimização v1.9.0: Trava de Concorrência
     if user["role"] != "ADMIN" and engine.count_active_tasks(user["username"]) > 0:
@@ -383,9 +452,11 @@ def start_extract(filters: ExtractionFilter, user: dict = Depends(get_current_us
         print(f"[DEBUG] start_extract: resolved cep_file to {f_dict['cep_file']}")
         
     tid = engine.start_extraction(f_dict, RESULT_DIR, username=user["username"])
+    # Notificar o motor das mudanças (Force update)
+    print(f"[EXTRACT] Iniciando com filtros: {f_dict}")
     return {"task_id": tid}
 
-@app.post("/tasks/carrier")
+@router.post("/tasks/carrier")
 def start_carrier(req: CarrierRequest, user: dict = Depends(get_current_user)):
     # Otimização v1.9.0: Trava de Concorrência
     if user["role"] != "ADMIN" and engine.count_active_tasks(user["username"]) > 0:
@@ -397,7 +468,7 @@ def start_carrier(req: CarrierRequest, user: dict = Depends(get_current_user)):
     log_transaction(user["username"], "CREDIT", 0, "CARRIER", f"Iniciada consulta de operadoras em lote")
     return {"task_id": tid}
 
-@app.get("/tasks/carrier/single")
+@router.get("/tasks/carrier/single")
 def get_single_carrier(phone: str, user: dict = Depends(get_current_user)):
     # Débito de Consulta de Operadora se não for ilimitado ou MAYK
     if user["total_limit"] < 9000000 and user["role"] != "MAYK":
@@ -413,19 +484,71 @@ def get_single_carrier(phone: str, user: dict = Depends(get_current_user)):
     return engine.get_single_carrier(phone)
 
 
-@app.get("/tasks/active")
-def get_active_tasks(user: dict = Depends(get_current_user)):
-    return engine.get_user_tasks(user["username"])
+# --- INTELIGÊNCIA COMERCIAL (MAPA) ---
 
-@app.get("/tasks/{task_id}")
-def get_task_status(task_id: str, user: dict = Depends(get_current_user)):
-    # Simple status check for specific ID (Safety net for individual polling)
+@router.get("/tasks/intelligence/map-leads")
+async def get_map_leads(sw_lat: float, sw_lng: float, ne_lat: float, ne_lng: float, user: dict = Depends(get_current_user)):
+    return engine.get_map_leads(sw_lat, sw_lng, ne_lat, ne_lng)
+
+@router.get("/tasks/intelligence/map-coverage")
+async def get_map_coverage(sw_lat: float, sw_lng: float, ne_lat: float, ne_lng: float, user: dict = Depends(get_current_user)):
+    return engine.get_map_coverage(sw_lat, sw_lng, ne_lat, ne_lng)
+
+@router.post("/tasks/intelligence/export-view")
+async def start_intelligence_export(sw_lat: float, sw_lng: float, ne_lat: float, ne_lng: float, user: dict = Depends(get_current_user)):
+    tid = engine.start_intelligence_export(sw_lat, sw_lng, ne_lat, ne_lng, RESULT_DIR, username=user["username"])
+    # Logar início de exportação
+    log_transaction(user["username"], "CREDIT", 0, "INTELLIGENCE", f"Iniciada exportação geográfica da visão do mapa")
+    return {"task_id": tid}
+
+@router.post("/tasks/intelligence/ingest")
+async def start_intelligence_ingest(req: MultiFileRequest, user: dict = Depends(get_current_user)):
+    # Mapear IDs para caminhos reais
+    paths = []
+    for fid in req.file_ids:
+        # Se for um arquivo de sync local (id == name), procurar em results
+        if os.path.exists(os.path.join(RESULT_DIR, fid)):
+            paths.append(os.path.join(RESULT_DIR, fid))
+        else:
+            paths.append(os.path.join(UPLOAD_DIR, fid))
+            
+    tid = engine.ingest_intelligence_coverage(paths, username=user["username"])
+    # Logar início de ingestão
+    log_transaction(user["username"], "CREDIT", 0, "INTELLIGENCE", f"Iniciada ingestão permanente de cobertura ({len(paths)} arquivos)")
+    return {"task_id": tid}
+
+@router.post("/admin/geo/sync-local")
+async def sync_local_geo(user: dict = Depends(get_current_user)):
+    if user["role"] != "ADMIN": raise HTTPException(status_code=403)
+    files = engine.list_local_results(RESULT_DIR)
+    return {"status": "ok", "files": files}
+
+@router.get("/tasks/state/active")
+@router.get("/tasks/active")
+def get_active_tasks(response: Response, user: dict = Depends(get_current_user)):
+    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, post-check=0, pre-check=0"
+    response.headers["Pragma"] = "no-cache"
+    # Incluir tarefas concluídas recentemente para o frontend pegar o download_url
+    conn = sqlite3.connect(DB_PATH, timeout=30)
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.row_factory = sqlite3.Row
+    tasks = conn.execute(
+        "SELECT * FROM background_tasks WHERE username = ? COLLATE NOCASE AND (status IN ('QUEUED', 'PROCESSING') OR (status IN ('COMPLETED', 'FAILED') AND created_at > datetime('now','-5 hours'))) ORDER BY created_at DESC",
+        (user["username"],)
+    ).fetchall()
+    conn.close()
+    return [dict(t) for t in tasks]
+
+@router.get("/tasks/{task_id}")
+def get_task_status(task_id: str, response: Response, user: dict = Depends(get_current_user)):
+    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate"
+    # Simple status check for specific ID
     status = engine.get_task_status(task_id)
     if not status or status.get("username") != user["username"] and user["role"] != "ADMIN":
         return {"status": "NOT_FOUND"}
     return status
 
-@app.post("/tasks/{task_id}/cancel")
+@router.post("/tasks/{task_id}/cancel")
 def cancel_task(task_id: str, user: dict = Depends(get_current_user)):
     # Verify ownership
     status = engine.get_task_status(task_id)
@@ -436,7 +559,7 @@ def cancel_task(task_id: str, user: dict = Depends(get_current_user)):
 
 # --- AUTH & ADMIN (LEGACY COMPAT) ---
 
-@app.post("/login")
+@router.post("/login")
 async def login(request: Request):
     try: data = await request.form()
     except: data = await request.json()
@@ -471,19 +594,18 @@ async def login(request: Request):
     conn.close()
     raise HTTPException(status_code=401, detail="Usu\u00e1rio ou senha incorretos.")
 
-@app.get("/me")
+@router.get("/me")
 def get_me(user: dict = Depends(get_current_user)):
     user_data = dict(user)
     user_data["system_version"] = SYSTEM_VERSION
     return user_data
 
-@app.get("/me/db_version")
+@router.get("/me/db_version")
 def get_db_version(user: dict = Depends(get_current_user)):
-    if user["role"] != "ADMIN":
-        raise HTTPException(status_code=403, detail="Acesso negado")
-    return {"db_version": engine.get_db_version()}
+    # Remove restriction to allow all users to see the base date in the UI
+    return {"version": engine.get_db_version()}
 
-@app.get("/admin/users")
+@router.get("/admin/users")
 def list_users(user: dict = Depends(get_current_user)):
     if user["role"] != "ADMIN": 
         raise HTTPException(status_code=403, detail="Acesso restrito.")
@@ -494,8 +616,24 @@ def list_users(user: dict = Depends(get_current_user)):
     conn.close()
     return [dict(u) for u in users]
 
-@app.get("/admin/monitor/stats")
-def get_monitor_stats(user: dict = Depends(get_current_user)):
+@router.get("/admin/monitor/stats")
+async def get_monitor_stats(user: dict = Depends(get_current_user)):
+    if user["role"] != "ADMIN": raise HTTPException(status_code=403)
+    return engine.get_monitor_stats()
+
+@router.get("/admin/monitor/carrier-status")
+async def get_carrier_status(user: dict = Depends(get_current_user)):
+    if user["role"] != "ADMIN": raise HTTPException(status_code=403)
+    return engine.get_carrier_status()
+
+@router.post("/admin/monitor/update-carrier")
+async def start_carrier_update(user: dict = Depends(get_current_user)):
+    if user["role"] != "ADMIN": raise HTTPException(status_code=403)
+    tid = engine.start_carrier_update(user["username"])
+    return {"status": "ok", "task_id": tid}
+
+@router.get("/admin/monitor/stats_legacy")
+def get_monitor_stats_legacy(user: dict = Depends(get_current_user)):
     if user["role"] != "ADMIN": 
         raise HTTPException(status_code=403, detail="Acesso restrito a administradores.")
     
@@ -538,7 +676,29 @@ def get_monitor_stats(user: dict = Depends(get_current_user)):
         "timestamp": datetime.now().isoformat()
     }
 
-@app.put("/admin/users/{username}")
+@router.get("/admin/debug/tasks")
+def debug_tasks(user: dict = Depends(get_current_user)):
+    if user["role"] != "ADMIN": raise HTTPException(status_code=403)
+    conn = sqlite3.connect(DB_PATH, timeout=30)
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.row_factory = sqlite3.Row
+    tasks = conn.execute("SELECT * FROM background_tasks ORDER BY created_at DESC LIMIT 20").fetchall()
+    conn.close()
+    
+    logs = []
+    if os.path.exists("cloud_engine_debug.log"):
+        try:
+            with open("cloud_engine_debug.log", "r") as f:
+                logs = f.readlines()[-50:]
+        except:
+            pass
+            
+    return {
+        "database_tasks": [dict(t) for t in tasks],
+        "engine_logs": logs
+    }
+
+@router.put("/admin/users/{username}")
 def update_user(username: str, data: dict, user: dict = Depends(get_current_user)):
     if user["role"] != "ADMIN": raise HTTPException(status_code=403)
     conn = sqlite3.connect(DB_PATH, timeout=30)
@@ -580,7 +740,7 @@ def update_user(username: str, data: dict, user: dict = Depends(get_current_user
     conn.close()
     return {"status": "ok"}
 
-@app.get("/credits/statement")
+@router.get("/credits/statement")
 def get_statement(days: Optional[int] = None, user: dict = Depends(get_current_user), limit: int = 100):
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
@@ -599,7 +759,7 @@ def get_statement(days: Optional[int] = None, user: dict = Depends(get_current_u
     conn.close()
     return [dict(l) for l in logs]
 
-@app.get("/admin/statement/{target_username}")
+@router.get("/admin/statement/{target_username}")
 def get_user_statement(target_username: str, days: Optional[int] = None, user: dict = Depends(get_current_user), limit: int = 200):
     if user["role"] != "ADMIN":
         raise HTTPException(status_code=403, detail="Acesso restrito a administradores.")
@@ -619,7 +779,7 @@ def get_user_statement(target_username: str, days: Optional[int] = None, user: d
     conn.close()
     return [dict(l) for l in logs]
 
-@app.get("/admin/stats/{target_username}")
+@router.get("/admin/stats/{target_username}")
 def get_user_stats(target_username: str, user: dict = Depends(get_current_user)):
     if user["role"] != "ADMIN":
         raise HTTPException(status_code=403, detail="Acesso restrito a administradores.")
@@ -667,7 +827,7 @@ def get_user_stats(target_username: str, user: dict = Depends(get_current_user))
         "viewing_user": target_username
     }
 
-@app.get("/credits/stats")
+@router.get("/credits/stats")
 def get_stats(user: dict = Depends(get_current_user)):
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
@@ -709,13 +869,13 @@ def get_stats(user: dict = Depends(get_current_user)):
         "valor_mensal": user.get("valor_mensal")
     }
 
-@app.post("/admin/users")
+@router.post("/admin/users")
 def create_user(data: dict, user: dict = Depends(get_current_user)):
     if user["role"] != "ADMIN": raise HTTPException(status_code=403)
     conn = sqlite3.connect(DB_PATH)
     try:
         if "password" in data:
-            data["password"] = bcrypt.hash(data["password"])
+            data["password"] = get_password_hash(data["password"])
         cols = ", ".join(data.keys())
         placeholders = ", ".join(["?"] * len(data))
         conn.execute(f"INSERT INTO users ({cols}) VALUES ({placeholders})", list(data.values()))
@@ -725,6 +885,9 @@ def create_user(data: dict, user: dict = Depends(get_current_user)):
         raise HTTPException(status_code=400, detail=str(e))
     conn.close()
     return {"status": "ok"}
+
+# Include Router
+app.include_router(router)
 
 if __name__ == "__main__":
     import uvicorn
