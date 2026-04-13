@@ -1,30 +1,24 @@
 import paramiko
-import sys
+
+ip = "86.48.17.194"
+user = "root"
+pw = "^QP67kXax9AyuvF%"
 
 def get_logs():
-    host = "129.121.45.136"
-    port = 22022
-    username = "root"
-    password = 'ChangeMe123!'
-    
+    client = paramiko.SSHClient()
+    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     try:
-        ssh = paramiko.SSHClient()
-        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        ssh.connect(host, port=port, username=username, password=password)
+        client.connect(ip, username=user, password=pw, timeout=20)
         
-        # Obter processos do ClickHouse
-        stdin, stdout, stderr = ssh.exec_command("clickhouse-client -q 'SELECT query_id, user, elapsed, query FROM system.processes'")
-        print("--- CLICKHOUSE PROCESSLIST ---")
-        print(stdout.read().decode('utf-8'))
+        # Obter os últimos logs do serviço
+        stdin, stdout, stderr = client.exec_command("journalctl -u hemn_cloud -n 100 --no-pager")
+        logs = stdout.read().decode('utf-8', 'ignore')
+        print("--- LOGS DO SERVICO ---")
+        print(logs)
         
-        # Logs do serviço (últimas 20 linhas)
-        stdin, stdout, stderr = ssh.exec_command('journalctl -u hemn_cloud.service -n 20 --no-pager')
-        print("--- SERVICE LOGS ---")
-        print(stdout.read().decode('utf-8'))
-        
-        ssh.close()
+        client.close()
     except Exception as e:
-        print(f"ERROR: {e}")
+        print(f"FAILED: {e}")
 
 if __name__ == "__main__":
     get_logs()

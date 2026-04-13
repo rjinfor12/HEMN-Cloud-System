@@ -13,6 +13,13 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="format-detection" content="telephone=no">
     <link rel="icon" type="image/png" href="/areadocliente/static/logo.png">
+    <!-- LEAFLET.JS (OpenStreetMap - GRATUITO) -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+    <!-- MarkerCluster Plugin -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
+    <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
     <script>
         // BLOQUEIO ULTRA-RÁPIDO (PRIMEIRA LINHA)
         (function () {
@@ -96,8 +103,8 @@
             justify-content: center;
             gap: 15px;
             min-height: 280px;
-            backdrop-filter: var(--glass-blur);
             -webkit-backdrop-filter: var(--glass-blur);
+            backdrop-filter: var(--glass-blur);
             box-shadow: var(--glass-shadow);
         }
         [data-theme="dark"] .plan-card {
@@ -181,6 +188,211 @@
             margin-top: 4px;
         }
         .plan-validity { font-size: 11px; color: var(--text-3); font-weight: 600; text-transform: uppercase; letter-spacing: 1px; }
+          /* --- HYPER-PREMIUM REDESIGN: OBSIDIAN SILVER V6.0 (LIGHT LUXURY) --- */
+        #module-extract .glass-card {
+            background: rgba(255, 255, 255, 0.85); /* Back to Pure Light Glass */
+            -webkit-backdrop-filter: blur(30px) saturate(180%);
+            backdrop-filter: blur(30px) saturate(180%);
+            border: 1px solid rgba(0, 85, 255, 0.15);
+            box-shadow: 
+                0 30px 80px rgba(0, 50, 150, 0.1), 
+                0 10px 20px rgba(0, 0, 0, 0.02),
+                inset 0 0 0 1px rgba(255, 255, 255, 0.6);
+            padding: 55px 45px;
+            border-radius: 40px;
+            position: relative;
+            z-index: 10;
+            overflow: hidden;
+            transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.4s ease;
+        }
+
+        [data-theme="dark"] #module-extract .glass-card {
+            background: rgba(20, 25, 40, 0.7);
+            border-color: rgba(255, 255, 255, 0.1);
+            box-shadow: 0 40px 100px rgba(0, 0, 0, 0.4);
+        }
+
+        /* Subtle Silver Silk Animation */
+        #module-extract .glass-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: -100%;
+            width: 100%; height: 3px;
+            background: linear-gradient(90deg, transparent, #0077ff, #00ddff, transparent);
+            animation: silverStroke 8s infinite ease-in-out;
+            opacity: 0.6;
+        }
+
+        @keyframes silverStroke {
+            0% { left: -100%; }
+            50% { left: 100%; }
+            100% { left: -100%; }
+        }
+
+        .filter-section {
+            margin-bottom: 25px;
+            border-bottom: 1px solid rgba(0, 85, 255, 0.06);
+            padding-bottom: 20px;
+        }
+
+        .filter-section:last-of-type { border-bottom: none; }
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .section-header i {
+            font-size: 20px;
+            color: #0066ff;
+            background: rgba(0, 102, 255, 0.08);
+            width: 45px;
+            height: 45px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 10px rgba(0, 102, 255, 0.1);
+        }
+
+        .section-header h2 {
+            font-size: 14.5px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: #1a1a1a; /* Professional High Contrast */
+            font-family: var(--font-heading);
+        }
+
+        [data-theme="dark"] .section-header h2 { color: #fff; }
+
+        .titanium-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 15px;
+        }
+
+        /* Obsidian Precision Inputs */
+        .titanium-input-wrapper {
+            position: relative;
+        }
+
+        .titanium-input-wrapper label {
+            font-size: 10.5px;
+            font-weight: 800;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            margin-bottom: 6px;
+            display: block;
+            margin-left: 2px;
+        }
+
+        .titanium-field {
+            width: 100%;
+            background: rgba(0, 85, 255, 0.02);
+            border: 1px solid rgba(0, 85, 255, 0.12);
+            border-radius: 12px;
+            padding: 12px 16px;
+            font-size: 14px;
+            color: #222;
+            font-weight: 600;
+            transition: all 0.3s;
+            outline: none;
+            font-family: var(--font-main);
+        }
+
+        [data-theme="dark"] .titanium-field {
+            background: rgba(255, 255, 255, 0.03);
+            color: #fff;
+            border-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .titanium-field:focus {
+            border-color: #0066ff;
+            background: #fff;
+            box-shadow: 0 8px 25px rgba(0, 102, 255, 0.12);
+            transform: translateY(-2px);
+        }
+
+        /* Obsidian Switches */
+        .tactical-switch-row {
+            display: flex;
+            gap: 30px;
+            margin-top: 15px;
+        }
+
+        .tactical-toggle {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            cursor: pointer;
+        }
+
+        .toggle-info .toggle-label {
+            font-size: 12px;
+            font-weight: 700;
+            color: #333;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        [data-theme="dark"] .toggle-info .toggle-label { color: #ccc; }
+
+        /* Premium Indigo Action Button */
+        .titanium-action-btn {
+            background: linear-gradient(135deg, #0055ff 0%, #0088ff 100%);
+            color: #fff;
+            border: none;
+            padding: 22px;
+            border-radius: 18px;
+            font-size: 15px;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            cursor: pointer;
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            box-shadow: 0 15px 35px rgba(0, 85, 255, 0.25);
+            margin-top: 10px;
+        }
+
+        .titanium-action-btn:hover {
+            transform: translateY(-4px) scale(1.01);
+            box-shadow: 0 25px 50px rgba(0, 85, 255, 0.4);
+            filter: brightness(1.1);
+        }
+
+        .titanium-action-btn:active { transform: scale(0.98); }
+
+        .titanium-action-btn i { font-size: 18px; }
+
+        /* Blueprint Drop Zone */
+        .premium-drop-zone {
+            background: rgba(0, 85, 255, 0.03);
+            border: 2px dashed rgba(0, 85, 255, 0.15);
+            border-radius: 20px;
+            padding: 40px;
+            text-align: center;
+            transition: all 0.3s;
+            margin-bottom: 30px;
+            cursor: pointer;
+        }
+
+        .premium-drop-zone:hover {
+            background: rgba(0, 85, 255, 0.05);
+            border-color: #0066ff;
+        }
+
+        .premium-drop-zone i { font-size: 32px; color: #0066ff; margin-bottom: 12px; }
+        .premium-drop-zone p { font-size: 13px; font-weight: 700; color: #333; margin: 0; }
+        .premium-drop-zone span { font-size: 11px; color: #777; font-weight: 600; }
         
         /* Premium Status Card - COMPACT LIGHT */
         .premium-status-container {
@@ -1380,10 +1592,14 @@
                     <i class="icon fas fa-home"></i>
                     <span translate="no">Início</span>
                 </a>
-                <div class="nav-label" id="label-intelligence">Inteligência</div>
+                <div class="nav-label" id="label-intelligence">Inteligência Estratégica</div>
                 <a href="#" class="nav-link" id="nav-manual" onclick="app.showModule('manual', this)">
                     <i class="icon fas fa-search"></i>
                     <span translate="no">Busca Unitária</span>
+                </a>
+                <a href="#" class="nav-link" id="nav-intelligence-geo" onclick="app.showModule('intelligence-geo', this)">
+                    <i class="icon fas fa-map-marked-alt"></i>
+                    <span>Inteligência Comercial</span>
                 </a>
                 <a href="#" class="nav-link" id="nav-enrich" onclick="app.showModule('enrich', this)">
                     <i class="icon fas fa-database"></i>
@@ -1537,7 +1753,7 @@
                     style="position: fixed; inset: 0; background: transparent; z-index: 2000; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(5px); padding: 15px; overflow: hidden;">
                     <div class="aurora-container">
                         <div class="aurora-blob blob-1"></div>
-                        <div class="aurora-blob blob-2"></div>
+                        <div class="aurora-blob blob-2:"></div>
                         <div class="aurora-blob blob-3"></div>
                     </div>
                     <div class="glass-card"
@@ -1547,7 +1763,7 @@
                                 style="width: 80px; height: 80px; margin-bottom: var(--s-4);">
                         </div>
                         <h2 style="margin-bottom: var(--s-5); font-family: var(--font-heading);">Acesso HEMN SYSTEM <span class="responsive-icon" style="font-size: 0.8em; vertical-align: middle;">💠</span></h2>
-                        <!-- Fake fields to trick aggressive browser autofill -->
+                        
                         <div style="position: absolute; opacity: 0; pointer-events: none; z-index: -1;">
                             <input type="text" name="fake-username-field" tabindex="-1">
                             <input type="password" name="fake-password-field" tabindex="-1">
@@ -1582,7 +1798,6 @@
                         </div>
                     </div>
                 </div>
-
 
                 <!-- MODULE: INÍCIO (Home) -->
                 <section id="module-inicio" class="module-view" style="display:none;">
@@ -1649,6 +1864,14 @@
                             <div class="icon-box"><i class="fas fa-search"></i></div>
                             <h3>Busca Unitária</h3>
                             <p>Consulte CPFs, CNPJs e nomes em nossas bases de alta performance.</p>
+                            <i class="fas fa-chevron-right arrow"></i>
+                        </div>
+
+                        <div class="action-card" id="intelligence-geo-card"
+                            onclick="app.showModule('intelligence-geo', document.getElementById('nav-intelligence-geo'))">
+                            <div class="icon-box"><i class="fas fa-map-marked-alt"></i></div>
+                            <h3>Inteligência Comercial</h3>
+                            <p>Mapa de oportunidades: Coverage da Vivo cruzado com empresas.</p>
                             <i class="fas fa-chevron-right arrow"></i>
                         </div>
 
@@ -1789,123 +2012,209 @@
                     </div>
                 </section>
 
-                <!-- MODULE: EXTRACT -->
+                <!-- MODULE: EXTRACT (V6.0 OBSIDIAN SILVER) -->
                 <section id="module-extract" class="module-view" style="display:none;">
                     <div class="page-header">
                         <div>
                             <h1 class="page-title">PESQUISA: Extração Massiva</h1>
-                            <p class="page-subtitle">Gere leads qualificados filtrando por UF, Cidade e CNAE.</p>
+                            <p class="page-subtitle">Sinfonia de dados em tempo real para identificação de leads estratégicos.</p>
                         </div>
                     </div>
 
                     <div class="glass-card">
-                        <div class="form-grid" style="margin-bottom: var(--s-5);">
-                            <div class="form-group">
-                                <label>ESTADO (UF) <span style="font-size: 10px; opacity: 0.6;">(Obrigatório)</span></label>
-                                <input type="text" id="extract-uf" placeholder="Ex: RJ (Sigla)">
+                        <!-- SECTION 1: GEOLOCALIZAÇÃO -->
+                        <div class="filter-section">
+                            <div class="section-header">
+                                <i class="fas fa-map-pin"></i>
+                                <h2>Localização Estratégica</h2>
                             </div>
-                            <div class="form-group">
-                                <label>CIDADE <span style="font-size: 10px; opacity: 0.6;">(Opcional)</span></label>
-                                <input type="text" id="extract-cidade" placeholder="Ex: RIO DE JANEIRO">
-                            </div>
-                            <div class="form-group">
-                                <label>CNAE (PREFIXO)</label>
-                                <input type="text" id="extract-cnae" placeholder="Ex: 4712;4713">
-                            </div>
-                            <div class="form-group">
-                                <label>FILTRAR TELEFONE</label>
-                                <select id="extract-tipo-tel">
-                                    <option value="TODOS">TODOS</option>
-                                    <option value="CELULAR">SOMENTE MÓVEL</option>
-                                    <option value="FIXO">SOMENTE FIXO</option>
-                                    <option value="AMBOS">AMBOS (MOBILE + FIXO)</option>
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label>SITUAÇÃO CADASTRAL</label>
-                                <select id="extract-status">
-                                    <option value="02" selected>ATIVA</option>
-                                    <option value="01">NULA</option>
-                                    <option value="03">SUSPENSA</option>
-                                    <option value="04">INAPTA</option>
-                                    <option value="08">BAIXADA</option>
-                                    <option value="TODOS">TODAS</option>
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label>OPERADORA (INCLUIR)</label>
-                                <select id="extract-operadora-inc">
-                                    <option value="TODAS" selected>TODAS</option>
-                                    <option value="DESKTOP">DESKTOP</option>
-                                    <option value="VIVO">VIVO</option>
-                                    <option value="CLARO">CLARO</option>
-                                    <option value="TIM">TIM</option>
-                                    <option value="ALGAR">ALGAR</option>
-                                    <option value="SERCOMTEL">SERCOMTEL</option>
-                                    <option value="BRISANET">BRISANET</option>
-                                    <option value="TELECALL">TELECALL</option>
-                                    <option value="OI">OI</option>
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label>OPERADORA (EXCLUIR)</label>
-                                <select id="extract-operadora-exc">
-                                    <option value="NENHUMA" selected>NENHUMA</option>
-                                    <option value="DESKTOP">DESKTOP</option>
-                                    <option value="VIVO">VIVO</option>
-                                    <option value="CLARO">CLARO</option>
-                                    <option value="TIM">TIM</option>
-                                    <option value="ALGAR">ALGAR</option>
-                                    <option value="SERCOMTEL">SERCOMTEL</option>
-                                    <option value="BRISANET">BRISANET</option>
-                                    <option value="TELECALL">TELECALL</option>
-                                    <option value="OI">OI</option>
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label>PERFIL DA EMPRESA</label>
-                                <select id="extract-perfil">
-                                    <option value="TODOS" selected>TODOS</option>
-                                    <option value="MEI">MEI</option>
-                                    <option value="NAO MEI">NAO MEI</option>
-                                </select>
+                            <div class="titanium-grid">
+                                <div class="titanium-input-wrapper">
+                                    <label>Estado (UF)</label>
+                                    <input type="text" id="extract-uf" class="titanium-field" placeholder="Ex: RJ">
+                                </div>
+                                <div class="titanium-input-wrapper">
+                                    <label>Cidade Regional</label>
+                                    <input type="text" id="extract-cidade" class="titanium-field" placeholder="Opcional">
+                                </div>
+                                <div class="titanium-input-wrapper">
+                                    <label>CNAE Relacionado</label>
+                                    <input type="text" id="extract-cnae" class="titanium-field" placeholder="Prefixo CNAE">
+                                </div>
                             </div>
                         </div>
 
-                        <div class="extract-filters-row">
-                            <!-- Extreme Left: Switch + Texto -->
-                            <label class="switch-group" style="display: flex; align-items: center; gap: 12px; cursor: pointer; flex-shrink: 0;">
-                                <div class="hemn-switch">
-                                    <input type="checkbox" id="extract-ddd-regiao">
-                                    <span class="hemn-slider"></span>
+                        <!-- SECTION 2: PERFIL DE NEGÓCIO -->
+                        <div class="filter-section">
+                            <div class="section-header">
+                                <i class="fas fa-user-tie"></i>
+                                <h2>Perfil de Negócio</h2>
+                            </div>
+                            <div class="titanium-grid">
+                                <div class="titanium-input-wrapper">
+                                    <label>Situação Cadastral</label>
+                                    <select id="extract-status" class="titanium-field">
+                                        <option value="02" selected>EMPRESAS ATIVAS (RECOMENDADO)</option>
+                                        <option value="01">SITUAÇÃO NULA</option>
+                                        <option value="03">SITUAÇÃO SUSPENSA</option>
+                                        <option value="04">SITUAÇÃO INAPTA</option>
+                                        <option value="08">SITUAÇÃO BAIXADA</option>
+                                        <option value="TODOS">TODAS AS SITUAÇÕES</option>
+                                    </select>
                                 </div>
-                                <span style="font-size: 12px; color: var(--text-2); font-weight: 700; text-transform: uppercase; white-space: nowrap; letter-spacing: 0.3px;">FILTRAR DDD DA REGIÃO</span>
-                            </label>
-
-                            <!-- Extreme Right: Texto + Switch -->
-                            <label class="switch-group" style="display: flex; align-items: center; gap: 12px; cursor: pointer; flex-shrink: 0;">
-                                <div class="hemn-switch">
-                                    <input type="checkbox" id="extract-sem-governo">
-                                    <span class="hemn-slider"></span>
+                                <div class="titanium-input-wrapper">
+                                    <label>Perfil da Empresa</label>
+                                    <select id="extract-perfil" class="titanium-field">
+                                        <option value="TODOS" selected>TODOS OS PORTES</option>
+                                        <option value="MEI">APENAS MEI</option>
+                                        <option value="NAO MEI">NÃO MEI</option>
+                                    </select>
                                 </div>
-                                <span style="font-size: 12px; color: var(--text-2); font-weight: 700; text-transform: uppercase; white-space: nowrap; letter-spacing: 0.3px;">REMOVER ÓRGÃOS GOV</span>
-                            </label>
+                            </div>
                         </div>
 
-                        <div class="drop-zone" onclick="document.getElementById('file-input-cep').click()"
-                            style="margin-bottom: var(--s-5);">
-                            <i class="fas fa-map-marker-alt" style="font-size: 24px; margin-bottom: 10px;"></i>
-                            <p>Opcional: Subir Planilha CEP + Número (CSV/XLSX)</p>
+                        <!-- SECTION 3: CANAIS DE CONECTIVIDADE -->
+                        <div class="filter-section">
+                            <div class="section-header">
+                                <i class="fas fa-phone-alt"></i>
+                                <h2>Filtros de Conectividade</h2>
+                            </div>
+                            <div class="titanium-grid" style="margin-bottom: 15px;">
+                                <div class="titanium-input-wrapper">
+                                    <label>Tipo de Linha</label>
+                                    <select id="extract-tipo-tel" class="titanium-field">
+                                        <option value="TODOS">TODOS OS TELEFONES</option>
+                                        <option value="CELULAR">SOMENTE MÓVEL</option>
+                                        <option value="FIXO">SOMENTE FIXO</option>
+                                        <option value="AMBOS">AMBOS (ESTRATÉGICO)</option>
+                                    </select>
+                                </div>
+                                <div class="titanium-input-wrapper">
+                                    <label>Incluir Operadora</label>
+                                    <select id="extract-operadora-inc" class="titanium-field">
+                                        <option value="TODAS" selected>TODAS AS OPERADORAS</option>
+                                        <option value="VIVO">VIVO</option>
+                                        <option value="TIM">TIM</option>
+                                        <option value="CLARO">CLARO</option>
+                                        <option value="OI">OI</option>
+                                        <option value="ALGAR">ALGAR</option>
+                                        <option value="BRISANET">BRISANET</option>
+                                    </select>
+                                </div>
+                                <div class="titanium-input-wrapper">
+                                    <label>Excluir Operadora</label>
+                                    <select id="extract-operadora-exc" class="titanium-field">
+                                        <option value="NENHUMA" selected>NENHUMA EXCLUSÃO</option>
+                                        <option value="VIVO">VIVO</option>
+                                        <option value="TIM">TIM</option>
+                                        <option value="CLARO">CLARO</option>
+                                        <option value="OI">OI</option>
+                                        <option value="ALGAR">ALGAR</option>
+                                        <option value="BRISANET">BRISANET</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="tactical-switch-row">
+                                <label class="tactical-toggle">
+                                    <div class="hemn-switch">
+                                        <input type="checkbox" id="extract-ddd-regiao">
+                                        <span class="hemn-slider"></span>
+                                    </div>
+                                    <div class="toggle-info">
+                                        <span class="toggle-label">Otimização de DDD local</span>
+                                    </div>
+                                </label>
+                                <label class="tactical-toggle">
+                                    <div class="hemn-switch">
+                                        <input type="checkbox" id="extract-sem-governo">
+                                        <span class="hemn-slider"></span>
+                                    </div>
+                                    <div class="toggle-info">
+                                        <span class="toggle-label">Remover Órgãos Públicos</span>
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- SECTION 4: ENRIQUECIMENTO -->
+                        <div class="premium-drop-zone" onclick="document.getElementById('file-input-cep').click()">
+                            <i class="fas fa-file-invoice"></i>
+                            <p>ENRIQUECIMENTO GEOGRÁFICO PERSONALIZADO</p>
+                            <span>Clique para subir Planilha de CEPs (Opcional)</span>
                             <input type="file" id="file-input-cep" hidden onchange="app.handleFiles(this, 'cep')">
                         </div>
-                        <div id="file-list-cep" style="margin-bottom: var(--s-5);"></div>
+                        <div id="file-list-cep" style="margin-bottom: 25px;"></div>
 
-                        <button class="btn-primary" onclick="app.startExtract()"
-                            style="width: 100%; justify-content: center;">
-                            <i class="fas fa-rocket"></i> Iniciar Processamento Massivo (1 Cr por registro)
+                        <button class="titanium-action-btn" onclick="app.startExtract()">
+                            <i class="fas fa-check-circle"></i>
+                            INICIAR EXTRAÇÃO TITÂNIO
                         </button>
-                        <h3 id="title-extract" style="display:none; margin-top: 25px; margin-bottom: 10px; font-size: 14px; font-weight: 700; color: var(--text-1); border-left: 3px solid var(--accent); padding-left: 10px;">Pesquisas:</h3>
-                        <div id="tasks-extract" style="margin-top: var(--s-2);"></div>
+
+                        <h3 id="title-extract" style="display:none; margin-top: 35px; color: var(--text-1);">Status do Processamento:</h3>
+                        <div id="tasks-extract" style="margin-top: 15px;"></div>
+                    </div>
+                </section>
+
+                <!-- MODULE: INTELLIGENCE GEO -->
+                <section id="module-intelligence-geo" class="module-view" style="display:none;">
+                    <div class="page-header">
+                        <div>
+                            <h1 class="page-title">Inteligência Comercial: <span style="color:var(--accent)">Cockpit Geográfico</span></h1>
+                            <p class="page-subtitle">Navegue no mapa e descubra leads em tempo real nas áreas de cobertura Vivo.</p>
+                        </div>
+                    </div>
+
+                    <div class="glass-card" style="margin-bottom: 20px; padding: 15px;">
+                        <div style="display: flex; align-items: center; justify-content: space-between; gap: 20px; flex-wrap: wrap;">
+                            <div style="display: flex; align-items: center; gap: 15px;">
+                                <div class="premium-drop-zone" onclick="document.getElementById('file-input-vivo').click()" style="padding: 10px 20px; margin-bottom: 0; min-width: 250px;">
+                                    <i class="fas fa-file-upload" style="font-size: 18px; color: var(--accent);"></i>
+                                    <span style="font-size: 12px; font-weight: 700; margin-left: 10px;">Subir Planilha Vivo</span>
+                                    <input type="file" id="file-input-vivo" multiple hidden onchange="app.handleFiles(this, 'intelligence-geo')">
+                                </div>
+                                <button class="btn-primary" onclick="app.ingestPersistentCoverage()" id="btn-ingest-persistent" style="height: 45px; padding: 0 20px; font-size: 12px; border-radius: 12px;">
+                                    <i class="fas fa-database"></i> INGERIR NA BASE PERSISTENTE
+                                </button>
+                                <button class="btn-secondary" onclick="app.syncLocalGeoFolder()" id="btn-sync-local" style="height: 45px; padding: 0 15px; font-size: 12px; border-radius: 12px;">
+                                    <i class="fas fa-sync-alt"></i> SYNC NV COKPIT
+                                </button>
+                            </div>
+                            <div id="file-list-intelligence-geo" style="flex: 1; max-height: 45px; overflow-y: auto; font-size: 11px;"></div>
+                        </div>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: 1fr 350px; gap: 20px; height: 700px;">
+                        <!-- MAP AREA -->
+                        <div class="glass-card" style="padding: 0; overflow: hidden; position: relative; border-radius: 20px; border: 2px solid var(--border);">
+                            <div id="map-geo-canvas" style="height: 100%; width: 100%; background: var(--bg-input);"></div>
+                            
+                            <!-- Search Indicators -->
+                            <div id="map-loading-indicator" style="position: absolute; top: 20px; left: 50%; transform: translateX(-50%); background: var(--bg-card); padding: 8px 16px; border-radius: 20px; box-shadow: var(--glass-shadow); display: none; z-index: 100; border: 1px solid var(--accent); color: var(--accent); font-weight: 800; font-size: 11px; letter-spacing: 1px;">
+                                <i class="fas fa-spinner fa-spin"></i> PESQUISANDO ÁREA...
+                            </div>
+                        </div>
+
+                        <!-- SIDEBAR LEADS -->
+                        <div class="glass-card" style="display: flex; flex-direction: column; padding: 0; overflow: hidden; border-radius: 20px; border: 1px solid var(--border);">
+                            <div style="padding: 20px; border-bottom: 1px solid var(--border); background: rgba(58, 123, 213, 0.05);">
+                                <h3 style="font-size: 14px; font-weight: 800; color: var(--text-1); margin: 0; display: flex; align-items: center; gap: 10px;">
+                                    <i class="fas fa-list-ul" style="color: var(--accent);"></i> LEADS NA VISÃO
+                                    <span id="geo-leads-count-badge" class="badge badge-warm" style="margin-left: auto;">0</span>
+                                </h3>
+                            </div>
+                            <div id="geo-leads-list" style="flex: 1; overflow-y: auto; padding: 10px;">
+                                <div style="text-align: center; padding: 40px 20px; color: var(--text-3);">
+                                    <i class="fas fa-mouse-pointer" style="font-size: 30px; margin-bottom: 15px; opacity: 0.3;"></i>
+                                    <p style="font-size: 12px;">Navegue no mapa para carregar os leads automaticamente.</p>
+                                </div>
+                            </div>
+                            <div style="padding: 15px; border-top: 1px solid var(--border); background: var(--bg-card);">
+                                <button class="btn-primary" style="width: 100%; font-size: 11px; border-radius: 10px;" onclick="app.downloadGeoResults()">
+                                    <i class="fas fa-file-export"></i> EXPORTAR LISTA COMPLETA
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </section>
 
@@ -2887,9 +3196,8 @@
     <!-- Notifications Container -->
     <div class="notification-container" id="toast-container"></div>
 
-    <!-- Global Active Task Tracker -->
-    <div id="global-task-tracker"
-        style="display:none; position: fixed; bottom: 20px; right: 20px; z-index: 5000; width: 360px; background: var(--bg-card); border: 1px solid rgba(247,151,30,0.3); border-radius: var(--r-lg); box-shadow: 0 16px 48px rgba(0,0,0,0.4); overflow: hidden;">
+    <!-- Global Active Task Tracker - REMOVED BY USER REQUEST -->
+    <div id="global-task-tracker" style="display:none !important;">
         <div
             style="background: var(--g-warm); padding: 10px 16px; display: flex; align-items: center; gap: 10px; justify-content: space-between;">
             <div style="display:flex; align-items:center; gap: 8px; color: white; font-size: 12px; font-weight: 800;">
@@ -3041,10 +3349,10 @@
 
 
     <script>
-        const API = "/areadocliente";
+        const API = window.location.pathname.startsWith('/areadocliente') ? '/areadocliente' : '';
         const app = {
             token: localStorage.getItem("hemn_token"),
-            uploadedFiles: { unify: [], enrich: [], carrier: [], cep: [] },
+            uploadedFiles: { unify: [], enrich: [], carrier: [], cep: [], 'intelligence-geo': [] },
             tasks: [],
             adminUsers: [], // Store users for edit lookup
             theme: localStorage.getItem("hemn_theme") || "dark",
@@ -3066,7 +3374,8 @@
                 'CARRIER': 'OPERADORA',
                 'UNIFY': 'UNIFICA\u00c7\u00c3O',
                 'DOWNLOAD': 'DOWNLOAD',
-                'MANUAL': 'MANUAL'
+                'MANUAL': 'MANUAL',
+                'INTELLIGENCE-GEO': 'INTELIGÊNCIA COMERCIAL'
             },
             typeMap: {
                 'DEBIT': 'D\u00c9BITO',
@@ -3125,6 +3434,21 @@
                     }
 
                     this.refreshUser();
+
+                    // --- RECOUP ACTIVE TASKS (LOCAL + SYNC) ---
+                    try {
+                        const savedTasks = JSON.parse(localStorage.getItem('hemn_active_tasks') || '[]');
+                        if (savedTasks.length > 0) {
+                            savedTasks.forEach(t => {
+                                if (!this.tasks.find(x => x.id === t.id)) {
+                                    this.tasks.push(t);
+                                    this.renderTaskCard(t.id, t.mid, t);
+                                    this.renderGlobalTaskCard(t.id, t.mid, t);
+                                }
+                            });
+                        }
+                    } catch(e) { console.warn("Failed to load local tasks", e); }
+
                     this.recoverActiveTasks();
                     this.pollTasks();
                     this.refreshDashboard();
@@ -3739,6 +4063,7 @@
                         const splitEls = [document.getElementById('nav-split'), document.getElementById('split-card')];
                         const carrierEls = [document.getElementById('nav-carrier'), document.getElementById('carrier-card')];
                         const dashboardEls = [document.getElementById('nav-dashboard'), document.getElementById('dashboard-card')];
+                        const intelligenceGeoEls = [document.getElementById('nav-intelligence-geo'), document.getElementById('intelligence-geo-card')];
 
                         if (user.role === 'ADMIN') {
                             // ADMIN: Show everything
@@ -3749,7 +4074,7 @@
                             if (clinNav) clinNav.style.setProperty('display', 'flex', 'important');
                             if (clinCard) clinCard.style.setProperty('display', 'flex', 'important');
                             
-                            [...manualEls, ...enrichEls, ...extractEls, ...unifyEls, ...splitEls, ...carrierEls, ...dashboardEls].forEach(el => {
+                            [...manualEls, ...enrichEls, ...extractEls, ...unifyEls, ...splitEls, ...carrierEls, ...dashboardEls, ...intelligenceGeoEls].forEach(el => {
                                 if (el) el.style.display = el.classList.contains('action-card') ? 'flex' : 'flex';
                             });
                             if (processingLabel) processingLabel.style.display = 'block';
@@ -3793,7 +4118,7 @@
                             dashboardEls.forEach(el => { if (el) el.style.display = el.classList.contains('action-card') ? 'flex' : 'flex'; });
                             
                             // HIDE ALL OTHERS
-                            [...manualEls, ...enrichEls, ...extractEls, ...unifyEls, ...splitEls, ...carrierEls].forEach(el => {
+                            [...manualEls, ...enrichEls, ...extractEls, ...unifyEls, ...splitEls, ...carrierEls, ...intelligenceGeoEls].forEach(el => {
                                 if (el) el.style.display = 'none';
                             });
                             if (processingLabel) processingLabel.style.display = 'none';
@@ -3835,7 +4160,7 @@
                             const btnExtract = document.querySelector('#module-extract .btn-primary');
                             if (btnExtract) btnExtract.innerHTML = '<i class="fas fa-rocket"></i> Iniciar Processamento Massivo';
 
-                            [...manualEls, ...enrichEls, ...extractEls, ...unifyEls, ...splitEls, ...carrierEls].forEach(el => {
+                            [...manualEls, ...enrichEls, ...extractEls, ...unifyEls, ...splitEls, ...carrierEls, ...intelligenceGeoEls].forEach(el => {
                                 if (el) el.style.display = el.classList.contains('action-card') ? 'flex' : 'flex';
                             });
                             if (processingLabel) processingLabel.style.display = 'block';
@@ -3847,9 +4172,10 @@
                             if (clinCard) clinCard.style.display = 'none';
                             
                             // Standard users see everything except Admin and Clinicas
-                            [...manualEls, ...enrichEls, ...extractEls, ...unifyEls, ...splitEls, ...carrierEls, ...dashboardEls].forEach(el => {
+                            [...manualEls, ...enrichEls, ...extractEls, ...unifyEls, ...splitEls, ...carrierEls, ...dashboardEls, ...intelligenceGeoEls].forEach(el => {
                                 if (el) el.style.display = el.classList.contains('action-card') ? 'flex' : 'flex';
                             });
+                            console.log("[DEBUG] Intelligence Geo elements should be visible now.");
                             if (processingLabel) processingLabel.style.display = 'block';
                             if (intelligenceLabel) intelligenceLabel.style.display = 'block';
                         }
@@ -3912,6 +4238,24 @@
                         }
                         this.refreshDashboard();
                     }
+
+                    if (mid === 'intelligence-geo') {
+                        this.initLeafletMap();
+                        // Fix for Leaflet tiles being cut off when initialized in hidden container
+                        if (this.mapGeo) {
+                            setTimeout(() => {
+                                this.mapGeo.invalidateSize();
+                                console.log("[GEO] Map size invalidated.");
+                            }, 100);
+                        }
+                    }
+
+                    // RESTORE TASK CARDS FOR THIS MODULE (v2.5.1 FIX)
+                    // Ensure that active tasks belonging to this module are rendered when the container becomes visible
+                    const activeTasksForModule = this.tasks.filter(t => t.mid === mid || (mid === 'extract' && t.mid === 'extraction'));
+                    activeTasksForModule.forEach(t => {
+                        this.renderTaskCard(t.id, t.mid, t);
+                    });
 
                     // Handle Monitoring Lifecycle
                     if (this.monInterval) clearInterval(this.monInterval);
@@ -4729,8 +5073,8 @@
                                 }
                             }
                             badgeHtml = isClinicasUser 
-                                ? `<span style="color: var(--status-green);"><i class="fas fa-check-circle"></i> Assinatura Ativa</span>`
-                                : `<span style="color: var(--text-2);"><i class="fas fa-infinity"></i> Sem limite de tempo</span>`;
+                            ? `<span style="color: var(--status-green);"><i class="fas fa-check-circle"></i> Assinatura Ativa</span>`
+                            : `<span style="color: var(--text-2);"><i class="fas fa-infinity"></i> Sem limite de tempo</span>`;
                         }
                         
                         const elBadge = document.getElementById('dash-expiration-badge');
@@ -5158,8 +5502,12 @@
             },
 
             renderGlobalTaskCard(tid, mid, savedData = null) {
-                const container = document.getElementById('global-tasks-container');
+                const container = document.getElementById('global-task-list');
+                const tracker = document.getElementById('global-task-tracker');
                 if (!container) return;
+                
+                // if (tracker) tracker.style.display = 'block';
+
                 let card = document.getElementById(`gtask-${tid}`);
                 if (!card) {
                     card = document.createElement('div');
@@ -5326,6 +5674,12 @@
                         method: 'POST',
                         headers: { 'Authorization': `Bearer ${this.token}` }
                     });
+
+                    // Cleanup Local State
+                    this.tasks = this.tasks.filter(x => x.id !== tid);
+                    let saved = JSON.parse(localStorage.getItem('hemn_active_tasks') || '[]');
+                    saved = saved.filter(x => x.id !== tid);
+                    localStorage.setItem('hemn_active_tasks', JSON.stringify(saved));
                 } catch (e) {
                     console.error("Failed to cancel/hide task", e);
                 }
@@ -5508,7 +5862,8 @@
                 // Tique global para contagem regressiva em tempo real (Otimizado: Corre apenas se houver tarefas ativas e visíveis)
                 if (this.pollInterval1) clearInterval(this.pollInterval1);
                 this.pollInterval1 = setInterval(() => {
-                    if (document.visibilityState !== 'visible') return;
+                    // HEMN V2.5.0: Segundo plano permitido
+                    // if (document.visibilityState !== 'visible') return;
 
                     const activeProcessingTasks = this.tasks.filter(t => !t.done);
                     if (activeProcessingTasks.length === 0) return;
@@ -5528,15 +5883,19 @@
 
                 if (this.pollInterval2) clearInterval(this.pollInterval2);
                 this.pollInterval2 = setInterval(async () => {
-                    if (document.visibilityState !== 'visible') return;
+                    // if (document.visibilityState !== 'visible') return;
 
                     const activeToPoll = this.tasks.filter(t => !t.done);
                     if (activeToPoll.length === 0) return;
                     
                     try {
-                        const res = await fetch(`${API}/tasks/active`, { headers: { 'Authorization': `Bearer ${this.token}` } });
+                        const res = await fetch(`${API}/tasks/state/active?t=${Date.now()}`, { headers: { 'Authorization': `Bearer ${this.token}` } });
                         if (!res.ok) return;
                         const activeTasks = await res.json();
+                        if (!Array.isArray(activeTasks)) {
+                            console.warn("[SYNC] Resposta da API não é uma lista:", activeTasks);
+                            return;
+                        }
                         
                         const serverTasks = {};
                         activeTasks.forEach(st => serverTasks[st.id] = st);
@@ -5545,14 +5904,30 @@
                             if (t.done) continue;
                             let data = serverTasks[t.id];
 
-                            // SE A TAREFA NÃO ESTÁ NO ACTIVE, AUMENTAR CONTADOR DE MISS
+                            // SE A TAREFA NÃO ESTÁ NO ACTIVE, CONSULTAR STATUS INDIVIDUAL IMEDIATAMENTE (SINC RELÂMPAGO V2)
                             if (!data) {
-                                t.missCount = (t.missCount || 0) + 1;
-                                if (t.missCount >= 3) {
-                                    t.done = true;
-                                    this.refreshDashboard(); // Atualiza dashboard para mostrar o débito/crédito final
+                                // Se for a primeira vez que sumiu, tentar consulta direta antes de incrementar o contador
+                                if (!t.missCount || t.missCount === 0) {
+                                    try {
+                                        const resStatus = await fetch(`${API}/tasks/${t.id}?t=${Date.now()}`, { headers: { 'Authorization': `Bearer ${this.token}` } });
+                                        if (resStatus.ok) {
+                                            const stData = await resStatus.json();
+                                            if (stData.status === 'COMPLETED' || stData.status === 'SUCCESS' || stData.status === 'FAILED') {
+                                                console.log("[SYNC] Tarefa detectada como terminada via consulta direta:", t.id);
+                                                data = stData; // Atribuir para processar a conclusão abaixo
+                                            }
+                                        }
+                                    } catch (err) { console.error("[SYNC] Erro na consulta direta:", err); }
                                 }
-                                continue;
+
+                                if (!data) {
+                                    t.missCount = (t.missCount || 0) + 1;
+                                    if (t.missCount >= 10) { 
+                                        t.done = true;
+                                        this.refreshDashboard(); 
+                                    }
+                                    continue;
+                                }
                             }
                             t.missCount = 0; // Reset miss count if found
 
@@ -5577,9 +5952,16 @@
                                 updateElement(`gprog-${t.id}`, t.progress, 'styleWidth');
                                 updateElement(`gstatus-${t.id}`, this.statusMap[rawStatus] || rawStatus);
 
-                                // 2. Update Module Card (Only if visible in DOM)
-                                const card = document.getElementById(`task-${t.id}`);
-                                if (card && card.offsetParent) {
+                                // 2. Update Module Card (Render if missing, Update if exists)
+                                let card = document.getElementById(`task-${t.id}`);
+                                
+                                // Se o card não existe mas a tarefa está ativa, forçar renderização
+                                if (!card) {
+                                    this.renderTaskCard(t.id, t.mid, data);
+                                    card = document.getElementById(`task-${t.id}`);
+                                }
+
+                                if (card) {
                                     updateElement(`status-${t.id}`, this.statusMap[rawStatus] || rawStatus);
                                     updateElement(`msg-${t.id}`, t.message);
                                     updateElement(`prog-${t.id}`, t.progress, 'styleWidth');
@@ -5622,7 +6004,11 @@
                                         if (cz) cz.style.display = 'none';
 
                                         const isSplit = t.mid === 'split';
-                                        const btnText = isSplit ? "Baixar Arquivos Divididos" : (this.user && this.user.role === 'MAYK' ? "Baixar Arquivos Processados" : `Baixar e Consumir Créditos (${count.toLocaleString()} Cr)`);
+                                        const isGeo = t.mid === 'intelligence-geo' || t.mid === 'intelligence';
+                                        
+                                        let btnText = isSplit ? "Baixar Arquivos Divididos" : (this.user && this.user.role === 'MAYK' ? "Baixar Arquivos Processados" : `Baixar e Consumir Créditos (${count.toLocaleString()} Cr)`);
+                                        if (isGeo) btnText = "Baixar Base de Leads Exportada";
+                                        
                                         const btnIcon = isSplit ? "fa-file-archive" : "fa-download";
                                         const downloadHtml = `
                                             <div style="margin-top:15px; padding-top:12px; border-top:1px solid var(--border-color); color:var(--text-3); font-size:11px">
@@ -5660,6 +6046,18 @@
                                         const gcard = document.getElementById(`gtask-${t.id}`);
                                         if (gcard) gcard.remove();
                                     }, 5000);
+                                } else {
+                                    // PERSIST CURRENT STATE (v2.5.1 FIX)
+                                    // Save progress/message to localStorage so refresh shows it immediately
+                                    let saved = JSON.parse(localStorage.getItem('hemn_active_tasks') || '[]');
+                                    const idx = saved.findIndex(x => x.id === t.id);
+                                    if (idx !== -1) {
+                                        saved[idx].progress = t.progress;
+                                        saved[idx].message = t.message;
+                                        saved[idx].status = t.status;
+                                        saved[idx].record_count = t.record_count;
+                                        localStorage.setItem('hemn_active_tasks', JSON.stringify(saved));
+                                    }
                                 }
                             }
                         }
@@ -5674,6 +6072,381 @@
                     filterSummary: `Unificando ${count} arquivo(s)`
                 }, 'unify'); 
             },
+
+            // --- INTELLIGENCE GEO LOGIC (LEAFLET.JS) ---
+            initLeafletMap() {
+                if (this.mapGeo) return;
+                const mapEl = document.getElementById('map-geo-canvas');
+                if (!mapEl) return;
+                
+                try {
+                    // Dark Mode Tile Layer
+                    const darkTiles = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+                        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>',
+                        subdomains: 'abcd',
+                        maxZoom: 20
+                    });
+
+                    // Light Mode Tile Layer
+                    const lightTiles = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+                        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>',
+                        subdomains: 'abcd',
+                        maxZoom: 20
+                    });
+
+                    const currentTheme = document.documentElement.getAttribute('data-theme');
+                    const activeTile = currentTheme === 'dark' ? darkTiles : lightTiles;
+
+                    this.mapGeo = L.map(mapEl, {
+                        center: [-23.5505, -46.6333], // São Paulo default
+                        zoom: 14,
+                        zoomControl: true,
+                        layers: [activeTile]
+                    });
+
+                    // Store tile refs for theme switching
+                    this._mapTiles = { dark: darkTiles, light: lightTiles, active: activeTile };
+
+                    // Coverage Layer Group (blue circles)
+                    this.coverageLayer = L.layerGroup().addTo(this.mapGeo);
+                    // Leads Cluster Group (purple markers with clustering)
+                    this.leadsCluster = L.markerClusterGroup({
+                        maxClusterRadius: 50,
+                        spiderfyOnMaxZoom: true,
+                        showCoverageOnHover: false,
+                        iconCreateFunction: function(cluster) {
+                            const count = cluster.getChildCount();
+                            let size = 'small';
+                            if (count > 50) size = 'large';
+                            else if (count > 10) size = 'medium';
+                            return L.divIcon({
+                                html: `<div style="background: linear-gradient(135deg, #a855f7, #7c3aed); color: #fff; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 13px; box-shadow: 0 4px 15px rgba(168,85,247,0.5); border: 3px solid #fff;">${count}</div>`,
+                                className: 'lead-cluster-icon',
+                                iconSize: L.point(40, 40)
+                            });
+                        }
+                    }).addTo(this.mapGeo);
+
+                    // Dynamic Loading Listener
+                    this.mapGeo.on('moveend', () => {
+                        this.loadMapDataForViewport();
+                    });
+
+                    console.log("[GEO] Leaflet Map Cockpit initialized.");
+                } catch (e) {
+                    console.error("[GEO] Failed to init Leaflet:", e);
+                }
+            },
+
+            async ingestPersistentCoverage() {
+                const files = this.uploadedFiles['intelligence-geo'] || [];
+                if (files.length === 0) {
+                    this.showToast("Envie planilhas da Vivo para ingestão", "warning");
+                    return;
+                }
+                const ok = await this.confirm("Ingestão Persistente", "Deseja salvar estes pontos permanentemente na base de dados?");
+                if (!ok) return;
+
+                const btn = document.getElementById('btn-ingest-persistent');
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> INGERINDO...';
+
+                await this.startTask('/tasks/intelligence/ingest', {
+                    file_ids: files.map(f => f.id || f),
+                    filterSummary: `Ingestão Persistente (${files.length} arquivos)`
+                }, 'intelligence-geo');
+
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-database"></i> INGERIR NA BASE PERSISTENTE';
+            },
+
+            async loadMapDataForViewport() {
+                if (!this.mapGeo) return;
+                const bounds = this.mapGeo.getBounds();
+                if (!bounds) return;
+
+                const sw = bounds.getSouthWest();
+                const ne = bounds.getNorthEast();
+                const loader = document.getElementById('map-loading-indicator');
+                if (loader) loader.style.display = 'block';
+
+                try {
+                    const params = `sw_lat=${sw.lat}&sw_lng=${sw.lng}&ne_lat=${ne.lat}&ne_lng=${ne.lng}`;
+                    
+                    // 1. Fetch Coverage
+                    const covRes = await fetch(`${API}/tasks/intelligence/map-coverage?${params}`, {
+                        headers: { 'Authorization': `Bearer ${this.token}` }
+                    });
+                    const coverage = await covRes.json();
+
+                    // 2. Fetch Leads
+                    const leadRes = await fetch(`${API}/tasks/intelligence/map-leads?${params}`, {
+                        headers: { 'Authorization': `Bearer ${this.token}` }
+                    });
+                    const leads = await leadRes.json();
+
+                    this.renderMapItems(coverage, leads);
+                    this.renderLeadsSidebar(leads);
+                } catch (e) {
+                    console.error("[GEO] Fail to load viewport data", e);
+                } finally {
+                    if (loader) loader.style.display = 'none';
+                }
+            },
+
+            renderMapItems(coverage, leads) {
+                // Clear old layers
+                if (this.coverageLayer) this.coverageLayer.clearLayers();
+                if (this.leadsCluster) this.leadsCluster.clearLayers();
+
+                // Render Coverage Points (Blue small circles)
+                                const renderPoints = coverage.slice(0, 1500); // Optimization for FPS
+                                renderPoints.forEach(p => {
+                                    if (p.lat && p.lng) {
+                                        L.circleMarker([p.lat, p.lng], {
+                                            radius: 5,
+                                            fillColor: "#3b82f6",
+                                            fillOpacity: 0.4,
+                                            stroke: false,
+                                            interactive: false
+                                        }).addTo(this.coverageLayer);
+                                    }
+                                });
+
+                // Lead Icon
+                const leadIcon = L.divIcon({
+                    html: '<div style="width:12px;height:12px;background:#a855f7;border:2px solid #fff;border-radius:50%;box-shadow:0 2px 6px rgba(168,85,247,0.6);"></div>',
+                    className: 'lead-marker-icon',
+                    iconSize: [12, 12],
+                    iconAnchor: [6, 6]
+                });
+
+                // Render Leads (Purple pins with clustering)
+                leads.forEach(l => {
+                    if (l.lat && l.lng) {
+                        const marker = L.marker([l.lat, l.lng], { icon: leadIcon });
+                        marker.bindPopup(`
+                            <div style="min-width:200px">
+                                <b style="font-size:13px;color:#111">${l.fantasy_name || l.social_reason}</b><br>
+                                <span style="font-size:11px;color:#555">${l.cnpj}</span><br>
+                                <span style="font-size:11px;color:#777">${l.address_street || ''}, ${l.address_number || ''}</span><br>
+                                <span style="font-size:11px;color:#a855f7;font-weight:700"><i class="fas fa-phone-alt"></i> ${l.telephone_1 || 'N/A'}</span>
+                            </div>
+                        `);
+                        this.leadsCluster.addLayer(marker);
+                    }
+                });
+            },
+
+            renderLeadsSidebar(leads) {
+                const list = document.getElementById('geo-leads-list');
+                const badge = document.getElementById('geo-leads-count-badge');
+                if (!list) return;
+
+                badge.innerText = leads.length;
+                list.innerHTML = `
+                    <div style="padding: 0 5px 15px 5px">
+                        <input type="text" id="geo-sidebar-search" placeholder="Filtrar por nome ou CNPJ..." 
+                               class="glass-input" style="height:36px; font-size:12px"
+                               oninput="app.filterSidebarLeads(this.value)">
+                    </div>
+                `;
+
+                if (leads.length === 0) {
+                    list.innerHTML += '<div style="text-align: center; padding: 40px 20px; color: var(--text-3); opacity: 0.5;"><i class="fas fa-search" style="font-size: 24px; margin-bottom: 10px;"></i><p>Nenhum lead nesta área.</p></div>';
+                    return;
+                }
+                
+                // Cache current leads for filtering
+                this._currentLeadsView = leads;
+                this.renderFilteredLeads(leads);
+            },
+
+            filterSidebarLeads(val) {
+                const query = val.toLowerCase().trim();
+                const filtered = this._currentLeadsView.filter(l => 
+                    (l.social_reason || '').toLowerCase().includes(query) || 
+                    (l.cnpj || '').includes(query) ||
+                    (l.fantasy_name || '').toLowerCase().includes(query)
+                );
+                this.renderFilteredLeads(filtered, true);
+            },
+
+            renderFilteredLeads(leads, isFilterMode = false) {
+                const list = document.getElementById('geo-leads-list');
+                const existingList = list.querySelector('.leads-dynamic-container');
+                if (existingList) existingList.remove();
+
+                const container = document.createElement('div');
+                container.className = 'leads-dynamic-container';
+
+                leads.forEach(l => {
+                    const div = document.createElement('div');
+                    div.className = 'glass-card';
+                    div.style.margin = '0 0 10px 0';
+                    div.style.padding = '12px';
+                    div.style.cursor = 'pointer';
+                    div.style.border = '1px solid var(--border)';
+                    div.innerHTML = `
+                        <div style="font-size: 11px; font-weight: 800; color: var(--accent); margin-bottom: 4px;">${l.cnpj}</div>
+                        <div style="font-size: 13px; font-weight: 800; color: var(--text-1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${l.social_reason}</div>
+                        <div style="font-size: 11px; color: var(--text-2); margin-top: 4px;">${l.address_street || ''}, ${l.address_number || ''}</div>
+                        <div style="font-size: 11px; color: var(--text-3); margin-top: 4px; display: flex; align-items: center; gap: 5px;">
+                            <i class="fas fa-phone-alt"></i> ${l.telephone_1 || 'Nenhum'}
+                        </div>
+                    `;
+                    div.onclick = () => {
+                        if (l.lat && l.lng) {
+                            this.mapGeo.setView([l.lat, l.lng], 18);
+                        }
+                    };
+                    container.appendChild(div);
+                });
+                list.appendChild(container);
+            },
+
+            async startGeoIntelligence() {
+                const files = this.uploadedFiles['intelligence-geo'] || [];
+                if (files.length === 0) {
+                    this.showToast("Envie pelo menos uma planilha da Vivo", "warning");
+                    return;
+                }
+
+                const range = document.getElementById('geo-expansion-range')?.value || 10;
+                const btn = document.getElementById('btn-run-geo');
+                if (btn) {
+                    btn.disabled = true;
+                    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> PROCESSANDO...';
+                }
+
+                const data = await this.startTask('/tasks/intelligence-geo', {
+                    file_ids: files,
+                    expansion_range: parseInt(range),
+                    filterSummary: `Mancha Vivo (+/- ${range} números)`
+                }, 'intelligence-geo');
+
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fas fa-microchip"></i> PROCESSAR INTELIGÊNCIA';
+                }
+            },
+
+            clearGeoMap() {
+                this.uploadedFiles['intelligence-geo'] = [];
+                localStorage.setItem('hemn_uploaded_files', JSON.stringify(this.uploadedFiles));
+                const list = document.getElementById('file-list-intelligence-geo');
+                if (list) list.innerHTML = '';
+                if (this.coverageLayer) this.coverageLayer.clearLayers();
+                if (this.leadsCluster) this.leadsCluster.clearLayers();
+                if (this.mapGeo) {
+                    this.mapGeo.setView([-23.5505, -46.6333], 12);
+                }
+                this.showToast("Dados geográficos resetados", "info");
+            },
+
+            async downloadGeoResults() {
+                if (!this.mapGeo) return;
+                const bounds = this.mapGeo.getBounds();
+                if (!bounds) return;
+
+                const sw = bounds.getSouthWest();
+                const ne = bounds.getNorthEast();
+                const params = `sw_lat=${sw.lat}&sw_lng=${sw.lng}&ne_lat=${ne.lat}&ne_lng=${ne.lng}`;
+
+                const data = await this.startTask(`/tasks/intelligence/export-view?${params}`, {}, 'intelligence-geo');
+                if (data) {
+                    this.showToast("Exportação da visão atual iniciada", "success");
+                }
+            },
+
+            async syncLocalGeoFolder() {
+                const btn = document.getElementById('btn-sync-local');
+                const original = btn.innerHTML;
+                try {
+                    btn.disabled = true;
+                    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sincronizando...';
+                    
+                    const res = await fetch(`${API}/admin/geo/sync-local`, {
+                        method: 'POST',
+                        headers: { 'Authorization': `Bearer ${this.token}` }
+                    });
+                    
+                    if (!res.ok) throw new Error(await res.text());
+                    const data = await res.json();
+                    
+                    // Add synced files to current list for the module
+                    if (data.status === 'ok' && data.files) {
+                        if (!this.uploadedFiles['intelligence-geo']) {
+                            this.uploadedFiles['intelligence-geo'] = [];
+                        }
+                        
+                        data.files.forEach(f => {
+                            const exists = this.uploadedFiles['intelligence-geo'].find(ex => ex.id === f.id);
+                            if (!exists) {
+                                this.uploadedFiles['intelligence-geo'].push(f);
+                            }
+                        });
+                        
+                        this.refreshFileList('intelligence-geo');
+                        this.showToast(`Sincronização concluída: ${data.synced} arquivos encontrados.`, "success");
+                    }
+                } catch (e) {
+                    this.showToast("Falha na sincronização local: " + e.message, "error");
+                } finally {
+                    btn.disabled = false;
+                    btn.innerHTML = original;
+                }
+            },
+
+            async loadGeoPreview(taskId) {
+                try {
+                    const res = await fetch(`${API}/tasks/${taskId}/geo-preview`, {
+                        headers: { 'Authorization': `Bearer ${this.token}` }
+                    });
+                    if (!res.ok) return;
+                    const points = await res.json();
+                    
+                    if (!this.mapGeo) this.initLeafletMap();
+                    
+                    // Clear previous markers
+                    if (this.coverageLayer) this.coverageLayer.clearLayers();
+
+                    const bounds = L.latLngBounds();
+
+                    points.slice(0, 200).forEach(p => {
+                        if (p.lat && p.lng) {
+                            const marker = L.circleMarker([p.lat, p.lng], {
+                                radius: 8,
+                                fillColor: "#3b82f6",
+                                fillOpacity: 0.8,
+                                weight: 2,
+                                color: "#fff"
+                            }).addTo(this.coverageLayer);
+                            
+                            marker.bindPopup(`
+                                <div style="min-width:180px">
+                                    <b style="font-size:13px;color:#111">${p.name}</b><br>
+                                    <span style="font-size:11px;color:#555">${p.cnpj}</span><br>
+                                    <span style="font-size:11px;color:#777">${p.address}</span>
+                                </div>
+                            `);
+                            bounds.extend([p.lat, p.lng]);
+                        }
+                    });
+
+                    if (bounds.isValid()) {
+                        this.mapGeo.fitBounds(bounds);
+                    }
+
+                    const badgeEl = document.getElementById('geo-leads-count-badge');
+                    if (badgeEl) badgeEl.innerText = points.length;
+                    this.showToast(`Mapa atualizado com ${points.length} pontos de interesse`, "success");
+
+                } catch (e) {
+                    console.error("[GEO] Fail to load geo preview", e);
+                }
+            },
+
             startEnrich() {
                 const perfilEl = document.getElementById('enrich-perfil');
                 const perfil = perfilEl ? perfilEl.value : "TODOS";

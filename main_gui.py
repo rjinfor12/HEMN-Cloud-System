@@ -9,6 +9,7 @@ from auth_manager import AuthManager
 import ctypes
 import requests
 from tkcalendar import Calendar
+from coverage_engine import CoverageEngine
 
 # FORÇAR O WINDOWS A RECONHECER O APP COMO INDEPENDENTE (Evitar o ícone da Cobra do Python na barra)
 try:
@@ -123,11 +124,12 @@ class TMMApp(ctk.CTk):
         self.btn_batch = self.add_nav_button("Lote", 4, self.show_batch_frame)
         self.btn_extract = self.add_nav_button("Extrair", 5, self.show_extract_frame)
         self.btn_carrier = self.add_nav_button("Operadora", 6, self.show_carrier_frame)
-        self.btn_split = self.add_nav_button("Dividir", 7, self.show_split_frame)
+        self.btn_coverage = self.add_nav_button("Cobertura", 7, self.show_coverage_frame)
+        self.btn_split = self.add_nav_button("Dividir", 8, self.show_split_frame)
         
         # Botões de Administração
-        self.btn_admin = self.add_nav_button("Gestão", 8, self.show_admin_frame)
-        self.btn_monitor = self.add_nav_button("Monitor", 9, self.show_admin_monitor_direct)
+        self.btn_admin = self.add_nav_button("Gestão", 9, self.show_admin_frame)
+        self.btn_monitor = self.add_nav_button("Monitor", 10, self.show_admin_monitor_direct)
         
         for b in [self.btn_admin, self.btn_monitor]:
             b.master.grid_remove() 
@@ -151,6 +153,11 @@ class TMMApp(ctk.CTk):
             usage_callback=self.auth_manager.debit_credits
         )
 
+        self.coverage_engine = CoverageEngine(
+            progress_callback=self.update_coverage_progress,
+            log_callback=self.append_coverage_log
+        )
+
         # Container Principal
         self.main_container = ctk.CTkFrame(self, fg_color="transparent")
         self.main_container.grid(row=1, column=1, sticky="nsew", padx=30, pady=30)
@@ -172,6 +179,7 @@ class TMMApp(ctk.CTk):
         self.frames["extract"] = self.create_extract_frame()
         self.frames["split"] = self.create_split_frame()
         self.frames["carrier"] = self.create_carrier_frame()
+        self.frames["coverage"] = self.create_coverage_frame()
         self.frames["settings"] = self.create_settings_frame()
         self.frames["admin"] = self.create_admin_frame()
         self.show_frame("unify")
@@ -605,7 +613,7 @@ class TMMApp(ctk.CTk):
         # Mapeamento de Ícones
         icon_map = {
             "Unificar": "🔗", "CNPJ": "🔍", "Lote": "📦", 
-            "Extrair": "📊", "Operadora": "📡", "Dividir": "✂️", 
+            "Extrair": "📊", "Operadora": "📡", "Cobertura": "🌐", "Dividir": "✂️", 
             "Gestão": "👥", "Monitor": "🖥️", "Ajustes": "⚙️"
         }
         icon_text = icon_map.get(text, "•")
@@ -960,6 +968,89 @@ class TMMApp(ctk.CTk):
         # 7. Progresso e log
         self.carrier_pbar = self.add_styled_progress(inner)
         self.carrier_log = self.add_styled_log(inner, height=150)
+        return f
+
+    def create_coverage_frame(self):
+        f = ctk.CTkFrame(self.main_container, fg_color="transparent")
+        
+        # Split into Left and Right
+        left_panel = ctk.CTkFrame(f, fg_color="transparent", width=380)
+        left_panel.pack(side="left", fill="both", padx=(0, 20))
+        left_panel.pack_propagate(False)
+        
+        right_panel = ctk.CTkFrame(f, fg_color="transparent")
+        right_panel.pack(side="left", fill="both", expand=True)
+
+        # LEFT PANEL CONTENT
+        title_label = ctk.CTkLabel(left_panel, text="Cruzamento CNPJ x Vivo", 
+                                   font=ctk.CTkFont(size=24, weight="bold"),
+                                   text_color=self.color_accent)
+        title_label.pack(anchor="w", pady=(10, 2))
+        
+        subtitle_label = ctk.CTkLabel(left_panel, text="Motor Geográfico v2.0", 
+                                      font=ctk.CTkFont(size=13),
+                                      text_color=self.color_text_dim)
+        subtitle_label.pack(anchor="w", pady=(0, 30))
+
+        # BASE PRINCIPAL (CNPJ)
+        ctk.CTkLabel(left_panel, text="BASE PRINCIPAL (CNPJ)", font=ctk.CTkFont(size=11, weight="bold"), text_color=self.color_text_dim).pack(anchor="w", pady=(10, 5))
+        self.coverage_cnpj_entry = self.add_styled_input_compact(left_panel, "Selecione o arquivo...", self.select_coverage_cnpj)
+
+        # REFERÊNCIA DE COBERTURA
+        row_ref = ctk.CTkFrame(left_panel, fg_color="transparent")
+        row_ref.pack(fill="x", pady=(25, 5))
+        ctk.CTkLabel(row_ref, text="REFERÊNCIA DE COBERTURA", font=ctk.CTkFont(size=11, weight="bold"), text_color=self.color_text_dim).pack(side="left")
+        
+        self.coverage_tipo_filter = ctk.CTkComboBox(row_ref, values=["TODOS", "HORIZONTAL", "VERTICAL"], width=130, height=32, 
+                                                    fg_color=self.color_sidebar, border_color=self.color_border, button_color=self.color_accent)
+        self.coverage_tipo_filter.pack(side="right")
+        self.coverage_tipo_filter.set("TODOS")
+
+        # Buttons + Listbox
+        btn_row = ctk.CTkFrame(left_panel, fg_color="transparent")
+        btn_row.pack(fill="x", pady=10)
+        
+        self.btn_add_vivo = ctk.CTkButton(btn_row, text="+ Adicionar Base", width=140, height=36, fg_color="#1e2030", hover_color="#2d2e35", command=self.select_coverage_vivo)
+        self.btn_add_vivo.pack(side="left")
+        
+        self.btn_clear_vivo = ctk.CTkButton(btn_row, text="✕ Limpar", width=90, height=36, fg_color="transparent", border_width=1, border_color=self.color_danger, text_color=self.color_danger, command=self.clear_coverage_vivos)
+        self.btn_clear_vivo.pack(side="right")
+
+        self.coverage_vivo_list = ctk.CTkTextbox(left_panel, height=220, corner_radius=12, fg_color="#0d0e12", border_width=1, border_color=self.color_border, font=ctk.CTkFont(size=11))
+        self.coverage_vivo_list.pack(fill="x", pady=10)
+        self.coverage_vivo_list.configure(state="disabled")
+        
+        self.lbl_vivos_count = ctk.CTkLabel(left_panel, text="0 bases carregadas.", font=ctk.CTkFont(size=12), text_color=self.color_text_dim)
+        self.lbl_vivos_count.pack(anchor="w")
+
+        # Engine Buttons
+        self.btn_coverage_run = ctk.CTkButton(left_panel, text="START ENGINE", height=54, corner_radius=12, fg_color=self.color_accent, text_color="#ffffff", font=ctk.CTkFont(size=14, weight="bold"), command=self.run_coverage_engine)
+        self.btn_coverage_run.pack(fill="x", pady=(40, 12))
+        
+        self.btn_coverage_export = ctk.CTkButton(left_panel, text="EXPORT RESULT", height=48, corner_radius=12, fg_color="#1e2030", text_color="#ffffff", font=ctk.CTkFont(size=13, weight="bold"), command=self.export_coverage_result)
+        self.btn_coverage_export.pack(fill="x")
+        self.btn_coverage_export.configure(state="disabled")
+
+        # RIGHT PANEL CONTENT
+        status_row = ctk.CTkFrame(right_panel, fg_color="transparent")
+        status_row.pack(fill="x", pady=(10, 15))
+        
+        self.lbl_coverage_status = ctk.CTkLabel(status_row, text="● STANDBY", font=ctk.CTkFont(size=13, weight="bold"), text_color=self.color_text_dim)
+        self.lbl_coverage_status.pack(side="left")
+        
+        ctk.CTkLabel(status_row, text="MODO SMART: GO/DF/MT/MS | MODO SIMPLES: Demais UFs", font=ctk.CTkFont(size=11), text_color=self.color_text_dim).pack(side="right")
+
+        self.coverage_log = self.add_styled_log(right_panel, height=520)
+        
+        self.coverage_pbar = self.add_styled_progress(right_panel)
+        
+        self.lbl_footer_msg = ctk.CTkLabel(right_panel, text="Aguardando dados da Base CNPJ...", font=ctk.CTkFont(size=12), text_color=self.color_text_dim)
+        self.lbl_footer_msg.pack(anchor="w", pady=5)
+
+        # Internal state
+        self.selected_vivos = []
+        self.coverage_result_df = None
+
         return f
 
 
@@ -1830,6 +1921,7 @@ class TMMApp(ctk.CTk):
     def show_split_frame(self): self.show_frame("split")
     def show_settings_frame(self): self.show_frame("settings")
     def show_carrier_frame(self): self.show_frame("carrier")
+    def show_coverage_frame(self): self.show_frame("coverage")
 
     def select_source(self): 
         path = filedialog.askdirectory()
@@ -2419,6 +2511,98 @@ class TMMApp(ctk.CTk):
             self.auth_manager.logout()
             self.update_license_ui()
             self.show_login_screen()
+
+
+    def add_styled_input_compact(self, parent, placeholder, command):
+        row = ctk.CTkFrame(parent, fg_color="#1a1b26", corner_radius=10, border_width=1, border_color=self.color_border)
+        row.pack(fill="x", pady=(2, 0))
+        entry = ctk.CTkEntry(row, fg_color="transparent", border_width=0, height=40, placeholder_text=placeholder, font=ctk.CTkFont(size=13))
+        entry.pack(side="left", fill="x", expand=True, padx=12)
+        btn = ctk.CTkButton(row, text="...", width=36, height=30, corner_radius=6, fg_color="#2d2e35", command=command)
+        btn.pack(side="right", padx=6)
+        return entry
+
+    def select_coverage_cnpj(self):
+        path = filedialog.askopenfilename(filetypes=[("Arquivos Excel/CSV", "*.xlsx *.csv")])
+        if path:
+            self.coverage_cnpj_entry.delete(0, 'end')
+            self.coverage_cnpj_entry.insert(0, path)
+            self.lbl_footer_msg.configure(text=f"Base CNPJ selecionada: {os.path.basename(path)}")
+
+    def select_coverage_vivo(self):
+        paths = filedialog.askopenfilenames(filetypes=[("Arquivos Excel/CSV", "*.xlsx *.csv")])
+        if paths:
+            for p in paths:
+                if p not in self.selected_vivos:
+                    self.selected_vivos.append(p)
+            self._update_vivo_list()
+
+    def clear_coverage_vivos(self):
+        self.selected_vivos = []
+        self._update_vivo_list()
+
+    def _update_vivo_list(self):
+        self.coverage_vivo_list.configure(state="normal")
+        self.coverage_vivo_list.delete("1.0", "end")
+        for p in self.selected_vivos:
+            self.coverage_vivo_list.insert("end", f"• {os.path.basename(p)}\n")
+        self.coverage_vivo_list.configure(state="disabled")
+        self.lbl_vivos_count.configure(text=f"{len(self.selected_vivos)} bases carregadas.")
+
+    def update_coverage_progress(self, current, total):
+        prog = (current / total) if total > 0 else 0
+        self.after(0, lambda: self.coverage_pbar.set(prog))
+
+    def append_coverage_log(self, msg):
+        self.after(0, lambda: [self.coverage_log.insert("end", f"> {msg}\n"), self.coverage_log.see("end")])
+
+    def run_coverage_engine(self):
+        try:
+            self.append_coverage_log("Iniciando Verificação de Bases...")
+            cnpj_f = self.coverage_cnpj_entry.get()
+            if not cnpj_f or not self.selected_vivos:
+                messagebox.showwarning("Aviso", "Selecione a base CNPJ e pelo menos uma base Vivo.")
+                return
+
+            self.btn_coverage_run.configure(state="disabled", text="PROCESSING...")
+            self.lbl_coverage_status.configure(text="● RUNNING", text_color=self.color_accent)
+            self.coverage_log.delete("1.0", "end")
+            self.coverage_pbar.set(0)
+            self.append_coverage_log("Motor carregado. Iniciando tarefas em segundo plano...")
+
+            def run():
+                try:
+                    tipo = self.coverage_tipo_filter.get()
+                    df = self.coverage_engine.process_coverage(cnpj_f, self.selected_vivos, filter_tipo=tipo)
+                    
+                    def finalize():
+                        self.btn_coverage_run.configure(state="normal", text="START ENGINE")
+                        self.lbl_coverage_status.configure(text="● FINISHED", text_color=self.color_success)
+                        if df is not None and not df.empty:
+                            self.coverage_result_df = df
+                            self.btn_coverage_export.configure(state="normal")
+                            messagebox.showinfo("Sucesso", f"Cruzamento concluído! {len(df)} registros encontrados.")
+                        else:
+                            messagebox.showwarning("Aviso", "Nenhum cruzamento encontrado.")
+
+                    self.after(0, finalize)
+                except Exception as e:
+                    self.after(0, lambda: messagebox.showerror("Erro de Execução", f"Ocorreu um erro fatal durante o processamento:\n{str(e)}"))
+                    self.after(0, lambda: [
+                        self.btn_coverage_run.configure(state="normal", text="START ENGINE"),
+                        self.lbl_coverage_status.configure(text="● ERROR", text_color=self.color_danger)
+                    ])
+
+            threading.Thread(target=run, daemon=True).start()
+        except Exception as e:
+            messagebox.showerror("Erro de Inicialização", f"Falha ao iniciar o motor:\n{str(e)}")
+
+    def export_coverage_result(self):
+        if self.coverage_result_df is None: return
+        path = filedialog.asksaveasfilename(defaultextension=".xlsx", filetypes=[("Excel", "*.xlsx")])
+        if path:
+            threading.Thread(target=lambda: self.coverage_engine.export_partitioned(self.coverage_result_df, path), daemon=True).start()
+            messagebox.showinfo("Exportar", "Exportação iniciada em segundo plano.")
 
 if __name__ == "__main__":
     app = TMMApp()

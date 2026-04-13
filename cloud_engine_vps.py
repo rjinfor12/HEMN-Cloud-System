@@ -1499,20 +1499,33 @@ class CloudEngine:
 
         # Escrita no Excel
         EXCEL_LIMIT = 1000000 
-        current_sheet_row = (start_row_count % EXCEL_LIMIT) + 1
-        # Se for o primeiro lote de todos
-        if not header_written:
+        active_sheet = workbook.worksheets()[-1]
+        global_row = start_row_count
+        
+        if not header_written or global_row == 0:
             for col_idx, col_name in enumerate(df_final.columns):
-                sheet.write(0, col_idx, col_name, header_fmt)
-            current_sheet_row = 1
+                active_sheet.write(0, col_idx, col_name, header_fmt)
+        elif global_row > 0 and (global_row % EXCEL_LIMIT) == 0:
+            sheet_count = len(workbook.worksheets()) + 1
+            active_sheet = workbook.add_worksheet(f"Extracao Hemn {sheet_count}")
+            for col_idx, col_name in enumerate(df_final.columns):
+                active_sheet.write(0, col_idx, col_name, header_fmt)
+
+        current_sheet_row = (global_row % EXCEL_LIMIT) + 1
 
         data_matrix = df_final.values
         for r_idx, row_data in enumerate(data_matrix):
-            # Nota: O controle de nova aba aqui é simplificado, 
-            # assumimos que um único lote não estoura 1M se processado corretamente.
+            if current_sheet_row > EXCEL_LIMIT:
+                sheet_count = len(workbook.worksheets()) + 1
+                active_sheet = workbook.add_worksheet(f"Extracao Hemn {sheet_count}")
+                for col_idx, col_name in enumerate(df_final.columns):
+                    active_sheet.write(0, col_idx, col_name, header_fmt)
+                current_sheet_row = 1
+                
             for c_idx, val in enumerate(row_data):
-                sheet.write(current_sheet_row, c_idx, val)
+                active_sheet.write(current_sheet_row, c_idx, val)
             current_sheet_row += 1
+            global_row += 1
             
         return df_final
 

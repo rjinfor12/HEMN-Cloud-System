@@ -758,39 +758,58 @@
                             <p class="page-subtitle">Identificação de portabilidade em listas de telefones.</p>
                         </div>
                     </div>
-                    <div class="glass-card" style="margin-bottom: var(--s-6); border-top: 2px solid var(--accent);">
-                        <div class="stat-label" style="margin-bottom: var(--s-4);">CONSULTA UNITÁRIA RÁPIDA</div>
-                        <div style="display:flex; gap:12px; align-items:flex-end">
-                            <div class="form-group" style="flex:1">
-                                <label>NÚMERO COM DDD</label>
-                                <input type="text" id="carrier-single-phone" placeholder="Ex: 11999999999"
-                                    maxlength="11">
+                    
+                    <div class="glass-card" style="margin-bottom: var(--s-6); padding: 30px;">
+                        <div style="font-size: 11px; font-weight: 800; color: var(--text-3); letter-spacing: 1.5px; margin-bottom: 20px; text-transform: uppercase;">CONSULTA UNITÁRIA RÁPIDA</div>
+                        
+                        <div style="display: flex; flex-direction: column; gap: 20px;">
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label style="font-size: 10px; font-weight: 700; color: var(--text-2); margin-bottom: 8px; display: block;">NÚMERO COM DDD</label>
+                                <div style="display: flex; gap: 10px;">
+                                    <input type="text" id="carrier-single-phone" placeholder="Ex: 81986048910" maxlength="11" 
+                                        style="flex: 1; height: 48px; background: rgba(58, 123, 213, 0.03); border: 1.5px solid rgba(58, 123, 213, 0.15); border-radius: 10px; padding: 0 20px; font-size: 15px; font-weight: 600; color: var(--text-1); transition: all 0.3s ease;"
+                                        onfocus="this.style.borderColor='var(--accent)'; this.style.boxShadow='0 0 0 4px rgba(59, 130, 246, 0.1)'"
+                                        onblur="this.style.borderColor='rgba(58, 123, 213, 0.15)'; this.style.boxShadow='none'">
+                                    <button id="btn-single-carrier" class="btn-primary" onclick="app.runSingleCarrier()" 
+                                        style="height: 48px; padding: 0 30px; border-radius: 10px; border: none; background: #3b82f6; color: white; cursor: pointer; display: flex; align-items: center; gap: 10px; font-weight: 700; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: 0 10px 20px rgba(59, 130, 246, 0.2);"
+                                        onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 15px 30px rgba(59, 130, 246, 0.3)'"
+                                        onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 10px 20px rgba(59, 130, 246, 0.2)'">
+                                        <i class="fas fa-search"></i> Consultar
+                                    </button>
+                                </div>
                             </div>
-                            <button id="btn-single-carrier" class="btn-primary" onclick="app.runSingleCarrier()"
-                                style="height:42px; padding:0 25px">
-                                <i class="fas fa-search"></i> Consultar
-                            </button>
+
+                            <!-- Single Result Area (Dynamic Injection) -->
+                            <div id="carrier-single-result" style="width: 100%; display: none; animation: slideInUp 0.5s cubic-bezier(0.19, 1, 0.22, 1);"></div>
                         </div>
-                        <div id="carrier-single-result" style="margin-top:20px; display:none"></div>
                     </div>
 
-                    <div class="glass-card">
-                        <div class="stat-label" style="margin-bottom: var(--s-4);">PROCESSAMENTO EM LOTE</div>
-                        <div class="drop-zone" onclick="document.getElementById('file-input-carrier').click()">
-                            <i class="fas fa-phone-alt" style="font-size: 30px; margin-bottom: 12px;"></i>
-                            <p>Arraste a lista de números (Coluna única preferencial)</p>
-                            <input type="file" id="file-input-carrier" hidden
-                                onchange="app.handleFiles(this, 'carrier')">
+                    <div class="glass-card" style="padding: 30px;">
+                        <div style="font-size: 11px; font-weight: 800; color: var(--text-3); letter-spacing: 1.5px; margin-bottom: 25px; text-transform: uppercase;">PROCESSAMENTO EM LOTE</div>
+                        
+                        <div class="drop-zone" onclick="document.getElementById('file-input-carrier').click()" 
+                            style="border: 2px dashed rgba(58, 123, 213, 0.3); border-radius: 15px; padding: 40px; background: rgba(58, 123, 213, 0.02); transition: all 0.3s ease;"
+                            onmouseover="this.style.borderColor='var(--accent)'; this.style.background='rgba(58, 123, 213, 0.05)'"
+                            onmouseout="this.style.borderColor='rgba(58, 123, 213, 0.3)'; this.style.background='rgba(58, 123, 213, 0.02)'">
+                            <i class="fas fa-phone-alt" style="font-size: 32px; color: #3b82f6; margin-bottom: 15px; opacity: 0.8;"></i>
+                            <p style="font-size: 14px; font-weight: 600; color: var(--text-2);">Arraste a lista de números (Coluna única preferencial)</p>
+                            <input type="file" id="file-input-carrier" hidden onchange="app.handleFiles(this, 'carrier')">
                         </div>
-                        <div id="file-list-carrier" style="margin: var(--s-4) 0;"></div>
-                        <div class="form-group" style="max-width: 300px; margin-bottom: var(--s-5);">
-                            <label>COLUNA TELEFONE</label>
-                            <input type="text" id="carrier-col" value="TELEFONE">
+                        
+                        <div id="file-list-carrier" style="margin: 20px 0;"></div>
+                        
+                        <div class="form-group" style="max-width: 250px; margin-bottom: 25px;">
+                            <label style="font-size: 10px; font-weight: 700; color: var(--text-2); margin-bottom: 8px;">COLUNA TELEFONE</label>
+                            <input type="text" id="carrier-col" value="TELEFONE" style="font-weight: 600;">
                         </div>
-                        <button class="btn-primary" onclick="app.startCarrier()"
-                            style="width: 100%; justify-content: center;">Executar Consulta Operadora</button>
-                        <h3 id="title-carrier" style="display:none; margin-top: 25px; margin-bottom: 10px; font-size: 14px; font-weight: 700; color: var(--text-1); border-left: 3px solid var(--accent); padding-left: 10px;">Pesquisas:</h3>
-                        <div id="tasks-carrier" style="margin-top: var(--s-2);"></div>
+                        
+                        <button class="btn-primary" onclick="app.startCarrier()" 
+                            style="width: 100%; height: 50px; justify-content: center; font-size: 15px; font-weight: 800; border-radius: 12px; background: #3b82f6; box-shadow: 0 12px 24px rgba(59, 130, 246, 0.25);">
+                            <i class="fas fa-rocket" style="margin-right: 10px;"></i> Executar Consulta Operadora
+                        </button>
+                        
+                        <h3 id="title-carrier" style="display:none; margin-top: 30px; margin-bottom: 15px; font-size: 14px; font-weight: 800; color: var(--text-1); border-left: 4px solid var(--accent); padding-left: 12px; letter-spacing: 0.5px;">PESQUISAS ATIVAS:</h3>
+                        <div id="tasks-carrier" style="margin-top: 15px;"></div>
                     </div>
                 </section>
 
@@ -3494,15 +3513,14 @@
                     const data = await res.json();
                     if (res.ok) {
                         const op = (data.operadora || 'NÃO CONSTA').toUpperCase();
-                        let brandColor = 'var(--g-primary)';
+                        let brandColor = 'linear-gradient(135deg, #3b82f6 0%, #1e3a8a 100%)';
                         let brandIcon = 'fa-signal';
-                        let brandLogo = '';
 
                         if (op.includes('VIVO')) {
                             brandColor = 'linear-gradient(135deg, #662d91 0%, #a82782 100%)';
                             brandIcon = 'fa-mobile-alt';
                         } else if (op.includes('CLARO')) {
-                            brandColor = 'linear-gradient(135deg, #e1261c 0%, #ff5248 100%)';
+                            brandColor = '#e1261c'; // Solid red as in image
                             brandIcon = 'fa-phone-alt';
                         } else if (op.includes('TIM')) {
                             brandColor = 'linear-gradient(135deg, #004a99 0%, #0072bc 100%)';
@@ -3523,17 +3541,23 @@
 
                         resultDiv.style.display = 'block';
                         resultDiv.innerHTML = `
-                            <div class="glass-card fade-in" style="background:${brandColor}; padding:25px; text-align:center; position:relative; overflow:hidden; border:none; box-shadow: 0 10px 30px rgba(0,0,0,0.3); color: #fff;">
-                                <i class="fas ${brandIcon}" style="position:absolute; right:-10px; bottom:-10px; font-size:100px; opacity:0.1; transform: rotate(-15deg); color: #fff;"></i>
-                                <div style="font-size:10px; opacity:0.8; font-weight:800; letter-spacing:2px; margin-bottom:10px; color: #fff;">OPERADORA IDENTIFICADA</div>
-                                <div style="font-size:38px; font-weight:900; letter-spacing:1px; text-shadow: 0 2px 10px rgba(0,0,0,0.2); color: #fff;">${data.operadora || 'NÃO IDENTIFICADA'}</div>
-                                <div style="display:flex; align-items:center; justify-content:center; gap:10px; margin-top:15px; color: #fff;">
-                                    <div class="badge" style="background:rgba(255,255,255,0.2); border:1px solid rgba(255,255,255,0.3); color:#fff; font-size:11px">${data.tipo || 'Móvel'}</div>
-                                    <div style="font-size:12px; opacity:0.9; font-weight:500; color: #fff;">
-                                        <i class="fas fa-check-double" style="margin-right:5px; color: #fff;"></i> Inteligência Titanium Ativa
+                            <div class="carrier-result-card" style="background:${brandColor}; padding:40px; border-radius:15px; text-align:center; position:relative; overflow:hidden; box-shadow: 0 15px 35px rgba(0,0,0,0.25); color: #fff; animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);">
+                                <i class="fas ${brandIcon}" style="position:absolute; right:15px; bottom:15px; font-size:120px; opacity:0.12; transform: rotate(-10deg); color: #fff; pointer-events: none;"></i>
+                                <div style="font-size:11px; opacity:0.85; font-weight:800; letter-spacing:2px; margin-bottom:12px; text-transform: uppercase;">OPERADORA IDENTIFICADA</div>
+                                <div style="font-size:46px; font-weight:900; letter-spacing:1px; margin-bottom: 20px;">${data.operadora || 'NÃO IDENTIFICADA'}</div>
+                                <div style="display:flex; align-items:center; justify-content:center; gap:15px;">
+                                    <div class="badge" style="background:rgba(255,255,255,0.25); border:1px solid rgba(255,255,255,0.4); color:#fff; font-size:10px; padding: 4px 12px; border-radius: 4px; font-weight: 800; text-transform: uppercase;">${data.tipo || 'Móvel'}</div>
+                                    <div style="font-size:13px; opacity:0.95; font-weight:600; display: flex; align-items: center; gap: 8px;">
+                                        <i class="fas fa-check-double"></i> Inteligência Titanium Ativa
                                     </div>
                                 </div>
                             </div>
+                            <style>
+                                @keyframes popIn {
+                                    from { opacity: 0; transform: scale(0.95) translateY(20px); }
+                                    to { opacity: 1; transform: scale(1) translateY(0); }
+                                }
+                            </style>
                         `;
                         await this.refreshUser();
                         let saldoAtual = this.user ? Math.max(0, this.user.total_limit - this.user.current_usage).toFixed(1) : '--';

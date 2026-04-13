@@ -22,6 +22,9 @@
             // Carregamento antecipado do tema para persistência (F5)
             const savedTheme = localStorage.getItem("hemn_theme") || 'light';
             document.documentElement.setAttribute('data-theme', savedTheme);
+
+            // RECUPERAÇÃO DE TAREFAS PERSISTIDAS (F5)
+            window._HEMN_RECOVERY = JSON.parse(localStorage.getItem('hemn_active_tasks') || '[]');
         })();
     </script>
     <style>
@@ -5080,8 +5083,9 @@
                             filters: body.filterSummary || null
                         };
                         this.tasks.push(taskInfo);
+                        
                         // Persist to localStorage for recovery on refresh
-                        const saved = JSON.parse(localStorage.getItem('hemn_active_tasks') || '[]');
+                        let saved = JSON.parse(localStorage.getItem('hemn_active_tasks') || '[]');
                         saved.push(taskInfo);
                         localStorage.setItem('hemn_active_tasks', JSON.stringify(saved));
 
@@ -5103,14 +5107,27 @@
             },
 
             async recoverActiveTasks() {
+                // 1. Prioritize LocalStorage for immediate UI feedback
+                if (window._HEMN_RECOVERY && window._HEMN_RECOVERY.length > 0) {
+                    window._HEMN_RECOVERY.forEach(task => {
+                        if (!this.tasks.find(t => t.id === task.id)) {
+                            this.tasks.push(task);
+                            this.renderTaskCard(task.id, task.mid, task);
+                            this.renderGlobalTaskCard(task.id, task.mid, task);
+                        }
+                    });
+                }
+
+                // 2. Cross-check with Server for updated status
                 try {
                     const res = await fetch(`${API}/tasks/active`, { headers: { 'Authorization': `Bearer ${this.token}` } });
                     if (!res.ok) return;
                     const activeTasks = await res.json();
                     if (activeTasks && Array.isArray(activeTasks)) {
                         activeTasks.forEach(task => {
-                            if (!this.tasks.find(t => t.id === task.id)) {
-                                const mid = task.module.toLowerCase();
+                            const existing = this.tasks.find(t => t.id === task.id);
+                            const mid = task.module.toLowerCase();
+                            if (!existing) {
                                 const taskInfo = {
                                     id: task.id,
                                     mid: mid,
@@ -5120,6 +5137,11 @@
                                 this.tasks.push(taskInfo);
                                 this.renderTaskCard(task.id, mid, task);
                                 this.renderGlobalTaskCard(task.id, mid, task);
+                            } else {
+                                // Update existing with fresh server data
+                                if (task.status === 'COMPLETED' || task.status === 'FAILED' || task.status === 'CANCELLED') {
+                                    existing.done = true;
+                                }
                             }
                         });
                     }

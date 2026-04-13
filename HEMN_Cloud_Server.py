@@ -7,13 +7,17 @@ import requests
 import httpx
 import asyncio
 import sys
-import sqlite3
 import os
+import sqlite3
 import jwt
 from datetime import datetime, timedelta
 from typing import Optional, List
 import shutil
 import uuid
+
+# Mock bcrypt to avoid passlib initialization failure on certain VPS environments
+# when bcrypt is installed but has issues with long password checks (internal to passlib).
+sys.modules['bcrypt'] = None
 
 # Importações customizadas
 import cloud_engine
@@ -30,7 +34,7 @@ load_dotenv()
 SYSTEM_VERSION = "v2.2.0-PREMIUM"
 # Security: Password Hashing (Robust PBKDF2 to avoid OS-level issues with bcrypt or other dependencies)
 # Schemes include pbkdf2_sha256 as primary to ensure stability on this VPS environment.
-pwd_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
+pwd_context = CryptContext(schemes=["pbkdf2_sha256"])
 SECRET_KEY = os.getenv("SECRET_KEY", "HEMN_SECRET_SUPER_SAFE_123_CHANGE_ME")
 ALGORITHM = "HS256"
 
@@ -240,14 +244,24 @@ class ExtractionFilter(BaseModel):
     sem_governo: Optional[bool] = False
     filtrar_ddd_regiao: Optional[bool] = False
 
+class EnrichRequest(BaseModel):
+    file_id: Optional[str] = None
+    column: Optional[str] = None
+    manual: bool = False
+    name: Optional[str] = None
+    cpf: Optional[str] = None
+    cnpj: Optional[str] = None
+    phone: Optional[str] = None
+
 class UnifyRequest(BaseModel):
     file_ids: List[str]
 
-class EnrichRequest(BaseModel):
-    file_id: Optional[str] = None
-    name_col: Optional[str] = None
-    cpf_col: Optional[str] = None
     manual: Optional[bool] = False
+
+class IntelligenceGeoRequest(BaseModel):
+    file_ids: List[str]
+    expansion_range: int = 10
+    filterSummary: Optional[str] = None
     name: Optional[str] = None
     cpf: Optional[str] = None
     cnpj: Optional[str] = None
@@ -261,6 +275,12 @@ class CarrierRequest(BaseModel):
 
 class SplitRequest(BaseModel):
     file_id: str
+
+class MapBoundsRequest(BaseModel):
+    sw_lat: float
+    sw_lng: float
+    ne_lat: float
+    ne_lng: float
 
 # --- ASAAS MODELS ---
 class CreditCardModel(BaseModel):
@@ -801,11 +821,42 @@ def get_single_carrier(phone: str, user: dict = Depends(get_current_user)):
 @app.post("/tasks/split")
 @router.post("/tasks/split")
 def start_split(req: SplitRequest, user: dict = Depends(get_current_user)):
-    print(f"[API] Recebido pedido de fatiamento: {req.file_id} por {user['username']}")
     path = os.path.join(UPLOAD_DIR, req.file_id)
     tid = engine.start_split(path, RESULT_DIR, username=user["username"])
     print(f"[API] Tarefa de fatiamento criada: {tid}")
     return JSONResponse(content={"task_id": tid})
+
+@app.post("/tasks/intelligence-geo")
+@router.post("/tasks/intelligence-geo")
+def start_intelligence_geo(req: IntelligenceGeoRequest, user: dict = Depends(get_current_user)):
+    paths = [os.path.join(UPLOAD_DIR, fid) for fid in req.file_ids]
+    tid = engine.start_intelligence_geo(paths, RESULT_DIR, username=user["username"], expansion_range=req.expansion_range)
+    # Log transaction
+    log_transaction(user["username"], "CREDIT", 0, "INTELLIGENCE-GEO", f"Iniciada inteligência geográfica: {len(req.file_ids)} arquivos")
+    return {"task_id": tid}
+
+@router.post("/tasks/intelligence/ingest")
+def ingest_intelligence(req: UnifyRequest, user: dict = Depends(get_current_user)):
+    """Ingestão persistente de mancha de cobertura"""
+    paths = [os.path.join(UPLOAD_DIR, fid) for fid in req.file_ids]
+    tid = engine.ingest_intelligence_coverage(paths, username=user["username"])
+    return {"task_id": tid}
+
+@router.get("/tasks/intelligence/map-coverage")
+def get_map_coverage(sw_lat: float, sw_lng: float, ne_lat: float, ne_lng: float, user: dict = Depends(get_current_user)):
+    """Retorna pontos de cobertura na área visível do mapa"""
+    return engine.get_map_coverage(sw_lat, sw_lng, ne_lat, ne_lng)
+
+@router.get("/tasks/intelligence/map-leads")
+def get_map_leads(sw_lat: float, sw_lng: float, ne_lat: float, ne_lng: float, user: dict = Depends(get_current_user)):
+    """Retorna empresas encontradas na área de cobertura visível"""
+    return engine.get_map_leads(sw_lat, sw_lng, ne_lat, ne_lng)
+
+@router.get("/tasks/intelligence/export-view")
+def export_intelligence_view(sw_lat: float, sw_lng: float, ne_lat: float, ne_lng: float, user: dict = Depends(get_current_user)):
+    """Gera um arquivo Excel com todos os leads da visão atual"""
+    tid = engine.start_intelligence_export(sw_lat, sw_lng, ne_lat, ne_lng, RESULT_DIR, username=user["username"])
+    return {"task_id": tid}
 
 
 @app.post("/tasks/{task_id}/cancel")
@@ -821,12 +872,50 @@ def cancel_task(task_id: str, user: dict = Depends(get_current_user)):
 @app.post("/tasks/{task_id}/hide")
 @router.post("/tasks/{task_id}/hide")
 def hide_task(task_id: str, user: dict = Depends(get_current_user)):
-    # Verify ownership
-    status = engine.get_task_status(task_id)
-    if status.get("username") != user["username"] and user["role"] != "ADMIN":
-        raise HTTPException(status_code=403, detail="Não autorizado a ocultar esta tarefa.")
     success = engine.hide_task(task_id)
     return {"status": "ok" if success else "error"}
+
+@app.get("/tasks/{task_id}/geo-preview")
+@router.get("/tasks/{task_id}/geo-preview")
+def get_geo_preview(task_id: str, user: dict = Depends(get_current_user)):
+    # Verify task
+    status = engine.get_task_status(task_id)
+    if not status or status.get("username") != user["username"]:
+        raise HTTPException(status_code=403, detail="Não autorizado")
+    
+    preview_path = os.path.join(RESULT_DIR, f"Inteligencia_Geo_{task_id[:8]}.json")
+    if not os.path.exists(preview_path):
+        raise HTTPException(status_code=404, detail="Preview não encontrado")
+    
+    return FileResponse(preview_path)
+
+@app.post("/admin/geo/sync-local")
+@router.post("/admin/geo/sync-local")
+def sync_local_geo(user: dict = Depends(get_current_user)):
+    if user["role"] != "ADMIN":
+        raise HTTPException(status_code=403, detail="Acesso restrito.")
+    
+    # Path for your local Vivo folder
+    local_path = r'C:\Users\Junior T.I\OneDrive\Área de Trabalho\NV COKPIT'
+    if not os.path.exists(local_path):
+        raise HTTPException(status_code=404, detail="Pasta local não encontrada no servidor.")
+    
+    synced_files = []
+    try:
+        for f in os.listdir(local_path):
+            if f.lower().endswith(('.xlsx', '.xls', '.csv')):
+                src = os.path.join(local_path, f)
+                dst = os.path.join(UPLOAD_DIR, f)
+                # If file doesn't already exist or source is newer, we overwrite/copy
+                if not os.path.exists(dst) or os.path.getmtime(src) > os.path.getmtime(dst):
+                    shutil.copy2(src, dst)
+                    synced_files.append({"id": f, "name": f, "size": os.path.getsize(dst)})
+                else:
+                    synced_files.append({"id": f, "name": f, "size": os.path.getsize(dst)})
+        
+        return {"status": "ok", "synced": len(synced_files), "files": synced_files}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro na sincronização: {str(e)}")
 
 # --- AUTH & ADMIN (LEGACY COMPAT) ---
 
@@ -1421,5 +1510,4 @@ app.include_router(router)
 
 if __name__ == "__main__":
     import uvicorn
-    import uuid
     uvicorn.run(app, host="0.0.0.0", port=8000)
