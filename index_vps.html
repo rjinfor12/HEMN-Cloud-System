@@ -3045,7 +3045,11 @@
                                     <span style="color:var(--text-2)">Concluídas Hoje</span>
                                     <span id="mon-engine-completed" style="font-weight:700">0</span>
                                 </div>
-                                 <button onclick="app.cleanupAllTasks()" class="btn-primary" style="margin-top: 15px; width: 100%; background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); border: none; justify-content: center; font-size: 13px; font-weight: 700;">
+                                 <button onclick="app.triggerReceitaUpdate()" class="btn-primary" style="margin-top: 15px; width: 100%; background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%); border: none; justify-content: center; font-size: 13px; font-weight: 700; margin-bottom: 8px;">
+                                     <i class="fas fa-database"></i>
+                                     ATUALIZAR BASE RECEITA
+                                 </button>
+                                 <button onclick="app.cleanupAllTasks()" class="btn-primary" style="width: 100%; background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); border: none; justify-content: center; font-size: 13px; font-weight: 700;">
                                      <i class="fas fa-broom"></i>
                                      LIMPAR FILA GLOBAL
                                  </button>
@@ -4367,13 +4371,21 @@
                             const isCancelled = (rawStatus === 'CANCELLED');
 
                             const statusColor = isDone ? '#10b981' : (isFailed || isCancelled ? '#ef4444' : '#3b82f6');
-                            const icon = isDone ? 'fa-check-circle' : (isFailed ? 'fa-times-circle' : (isCancelled ? 'fa-ban' : 'fa-spinner fa-spin'));
+                            let icon = isDone ? 'fa-check-circle' : (isFailed ? 'fa-times-circle' : (isCancelled ? 'fa-ban' : 'fa-spinner fa-spin'));
                             
+                            const module = t.module || 'TASK';
+                            const isDB = (module === 'DATABASE_UPDATE');
+                            const isCarrier = (module === 'CARRIER');
+
+                            if (!isDone && !isFailed && !isCancelled) {
+                                if (isDB) icon = 'fa-database fa-spin';
+                                if (isCarrier) icon = 'fa-phone-alt fa-spin';
+                            }
+
                             // Cancel Button Logic (v2.2.1)
                             const showCancel = !isDone && !isFailed && !isCancelled && t.id;
                             const cancelBtn = showCancel ? `<i class="fas fa-times-circle" style="color:#ef4444; cursor:pointer; margin-left:8px; font-size:14px" onclick="app.cancelTask('${t.id}')" title="Cancelar este processo"></i>` : '';
 
-                            const module = t.module || 'TASK';
                             const msg = t.message || 'Sem detalhes';
                             const shortId = t.id ? ` <span style="font-size:9px; opacity:0.6; font-weight:normal;">(ID: ${t.id.substring(0,6)})</span>` : '';
 
@@ -7058,6 +7070,29 @@
                 } catch (e) {
                     this.showToast("Falha na comunicação com servidor.", "error");
                 }
+            },
+
+            async triggerReceitaUpdate() {
+                 const ok = await this.confirm("Atualizar Base Receita Federal", "⚠️ ATENÇÃO: Isso iniciará o download de aproximadamente 40GB e a ingestão no ClickHouse. O processo é pesado e pode demorar horas. Deseja iniciar?", { 
+                     type: 'warning', 
+                     confirmText: 'Sim, Iniciar Atualização' 
+                 });
+                 if (!ok) return;
+                 
+                 try {
+                     const resp = await fetch(`${API}/admin/monitor/update-receita`, {
+                         method: 'POST',
+                         headers: { 'Authorization': `Bearer ${this.token}` }
+                     });
+                     const data = await resp.json();
+                     if (data.status === 'ok') {
+                         this.showToast("Atualização da Receita iniciada com sucesso!", "success");
+                     } else {
+                         this.showToast("Erro ao disparar atualização.", "error");
+                     }
+                 } catch (e) {
+                     this.showToast("Falha na conexão com o servidor.", "error");
+                 }
             },
 
         };
