@@ -13,9 +13,9 @@ venv/
 *.csv
 storage/
 data_assets/
-*.png
-*.webp
-*.ico
+# *.png
+# *.webp
+# *.ico
 
 # Ignorar scripts de diagnóstico temporários (check_*, diag_*, test_*)
 check_*.py
