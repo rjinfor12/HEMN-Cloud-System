@@ -201,6 +201,34 @@
         .live-indicator {
             animation: pulse 2s infinite;
         }
+
+        .btn-action {
+            width: 100%;
+            padding: 12px;
+            background: rgba(59, 130, 246, 0.1);
+            color: var(--accent);
+            border: 1px solid rgba(59, 130, 246, 0.2);
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            transition: 0.2s;
+            margin-bottom: 10px;
+        }
+
+        .btn-action:hover {
+            background: var(--accent);
+            color: #fff;
+            transform: translateY(-2px);
+        }
+
+        .btn-action:active {
+            transform: translateY(0);
+        }
     </style>
 </head>
 
@@ -286,6 +314,14 @@
                     <span class="list-label">Concluídas Hoje</span>
                     <span class="list-value" id="engine-completed">0</span>
                 </div>
+                <div style="margin-top: 20px; border-top: 1px solid var(--border); padding-top: 20px;">
+                    <button onclick="triggerReceitaUpdate()" class="btn-action">
+                        <i class="fas fa-database"></i> Atualizar Base Receita
+                    </button>
+                    <button onclick="triggerCarrierUpdate()" class="btn-action" style="margin-bottom: 0;">
+                        <i class="fas fa-phone-alt"></i> Atualizar Portabilidade
+                    </button>
+                </div>
             </div>
 
             <!-- Task Summary -->
@@ -318,6 +354,41 @@
             } catch (e) {
                 console.error("Cancel Error:", e);
                 alert("Erro ao enviar cancelamento.");
+            }
+        }
+
+        async function triggerReceitaUpdate() {
+            if (!confirm("Isso iniciará o download e atualização da base da Receita (~40GB). Confirmar?")) return;
+            try {
+                const res = await fetch(`monitor/update-receita`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (res.ok) {
+                    alert("Atualização da Receita iniciada em background.");
+                    updateStats();
+                } else {
+                    alert("Erro ao disparar atualização.");
+                }
+            } catch (e) {
+                console.error("Update Error:", e);
+                alert("Falha na conexão.");
+            }
+        }
+
+        async function triggerCarrierUpdate() {
+            if (!confirm("Confirmar atualização da base de portabilidade?")) return;
+            try {
+                const res = await fetch(`monitor/update-carrier`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (res.ok) {
+                    alert("Atualização de portabilidade iniciada.");
+                    updateStats();
+                }
+            } catch (e) {
+                console.error("Update Error:", e);
             }
         }
 
@@ -410,29 +481,43 @@
                         const isFailed = (rawStatus === 'FAILED' || rawStatus === 'ERROR');
                         const isCancelled = (rawStatus === 'CANCELLED');
 
-                                    const showCancel = !isDone && !isFailed && !isCancelled && t.id;
-                                    const cancelBtn = showCancel ? `<i class="fas fa-times-circle" style="color:#ef4444; cursor:pointer; margin-left:8px; font-size:14px" onclick="cancelTask('${t.id}')" title="Cancelar este processo"></i>` : '';
+                        const module = t.module || 'TASK';
+                        const msg = t.message || 'Processando...';
+                        let icon = 'fa-tasks';
+                        let statusColor = 'var(--accent)';
 
-                                    return `
-                                        <div class="list-item" style="border-bottom: 1px solid var(--border); padding: 12px 0;">
-                                            <div style="display:flex; justify-content:space-between; width:100%; align-items:center;">
-                                                <div style="display:flex; align-items:center; gap:10px;">
-                                                    <i class="fas ${icon}" style="color:${statusColor}; font-size: 16px;"></i>
-                                                    <div>
-                                                        <div style="font-weight:700; font-size:13px;">${module}</div>
-                                                        <div style="font-size:11px; color:var(--text-muted)">${msg}</div>
-                                                    </div>
-                                                </div>
-                                                <div style="display:flex; align-items:center; gap:5px; text-align:right;">
-                                                    <div>
-                                                        <div style="font-weight:800; color:${statusColor}">${t.progress}%</div>
-                                                        <div style="font-size:10px; color:var(--text-muted)">${date}</div>
-                                                    </div>
-                                                    ${cancelBtn}
-                                                </div>
-                                            </div>
+                        if (module === 'DATABASE_UPDATE') icon = 'fa-database';
+                        if (module === 'CARRIER') icon = 'fa-phone-alt';
+                        if (module === 'EXTRACT') icon = 'fa-box-open';
+                        if (module === 'ENRICH') icon = 'fa-microchip';
+
+                        if (isDone) statusColor = 'var(--success)';
+                        if (isFailed) statusColor = 'var(--danger)';
+                        if (isCancelled) statusColor = 'var(--text-muted)';
+
+                        const showCancel = !isDone && !isFailed && !isCancelled && t.id;
+                        const cancelBtn = showCancel ? `<i class="fas fa-times-circle" style="color:#ef4444; cursor:pointer; margin-left:8px; font-size:14px" onclick="cancelTask('${t.id}')" title="Cancelar este processo"></i>` : '';
+
+                        return `
+                            <div class="list-item" style="border-bottom: 1px solid var(--border); padding: 12px 0;">
+                                <div style="display:flex; justify-content:space-between; width:100%; align-items:center;">
+                                    <div style="display:flex; align-items:center; gap:10px;">
+                                        <i class="fas ${icon}" style="color:${statusColor}; font-size: 16px;"></i>
+                                        <div>
+                                            <div style="font-weight:700; font-size:13px;">${module}</div>
+                                            <div style="font-size:11px; color:var(--text-muted)">${msg}</div>
                                         </div>
-                                    `;
+                                    </div>
+                                    <div style="display:flex; align-items:center; gap:5px; text-align:right;">
+                                        <div>
+                                            <div style="font-weight:800; color:${statusColor}">${t.progress}%</div>
+                                            <div style="font-size:10px; color:var(--text-muted)">${date}</div>
+                                        </div>
+                                        ${cancelBtn}
+                                    </div>
+                                </div>
+                            </div>
+                        `;
                     }).join('');
                 } else {
                     logContainer.innerHTML = '<div style="color: var(--text-muted); text-align: center; margin-top: 40px;">Nenhuma atividade recente.</div>';

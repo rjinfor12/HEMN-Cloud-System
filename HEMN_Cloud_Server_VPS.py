@@ -638,6 +638,39 @@ async def start_carrier_update(user: dict = Depends(get_current_user)):
     tid = engine.start_carrier_update(user["username"])
     return {"status": "ok", "task_id": tid}
 
+@router.post("/admin/monitor/update-receita")
+async def start_receita_update(user: dict = Depends(get_current_user)):
+    if user["role"] != "ADMIN": raise HTTPException(status_code=403)
+    
+    tid = str(uuid.uuid4())[:8]
+    # Create the task in DB first so the UI sees it immediately
+    import sqlite3
+    conn = sqlite3.connect(DB_PATH, timeout=30)
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute(
+        "INSERT INTO background_tasks (id, username, module, status, progress, message, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        (tid, user["username"], "DATABASE_UPDATE", "PROCESSING", 0, "Iniciando orquestrador de atualização...", datetime.utcnow().isoformat() + "Z")
+    )
+    conn.commit()
+    conn.close()
+
+    # Determine paths
+    orchestrator = os.path.join(APP_DIR, "data_analysis", "vps_receita_orchestrator.py")
+    python_bin = os.path.join(APP_DIR, "venv", "bin", "python")
+    if not os.path.exists(python_bin):
+        python_bin = sys.executable # Fallback
+
+    # Orchestrator might be in the root if it was copied there during deployment
+    if not os.path.exists(orchestrator):
+        orchestrator = os.path.join(APP_DIR, "vps_receita_orchestrator.py")
+
+    # Trigger orchestrator
+    import subprocess
+    cmd = [python_bin, orchestrator, "--force", "--task_id", tid]
+    subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, cwd=APP_DIR)
+    
+    return {"status": "ok", "task_id": tid}
+
 @router.post("/admin/tasks/cleanup")
 async def cleanup_tasks(user: dict = Depends(get_current_user)):
     if user["role"] != "ADMIN": raise HTTPException(status_code=403)

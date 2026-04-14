@@ -1,0 +1,20 @@
+CMD: fuser -k 8000/tcp || true
+OUT: 
+ERR: 
+CMD: systemctl reset-failed hemn_cloud
+OUT: 
+ERR: 
+CMD: systemctl start hemn_cloud
+OUT: 
+ERR: 
+CMD: sleep 3
+OUT: 
+ERR: 
+CMD: systemctl is-active hemn_cloud
+OUT: active
+
+ERR: 
+CMD: netstat -tulpn | grep 8000
+OUT: 
+ERR: bash: line 1: netstat: command not found
+

@@ -1,0 +1,204 @@
+=== FILE: /var/www/hemn_cloud/HEMN_Cloud_Server_VPS.py ===
+from fastapi import FastAPI, HTTPException, Depends, Header, Request, UploadFile, File, BackgroundTasks, APIRouter
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse, JSONResponse
+from pydantic import BaseModel, Field
+import sqlite3
+import os
+import jwt
+import shutil
+import uuid
+import traceback
+import sys
+from datetime import datetime, timedelta
+from typing import Optional, List
+from dotenv import load_dotenv
+from passlib.context import CryptContext
+
+# Load env variables
+load_dotenv()
+
+SYSTEM_VERSION = "v2.2.0-PREMIUM (Latest Stable Fixed)"
+SECRET_KEY = os.getenv("SECRET_KEY", "HEMN_SECRET_2026_STABLE_v2_2")
+ALGORITHM = "HS256"
+pwd_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
+
+# Import custom engine
+try:
+    import cloud_engine
+    from cloud_engine import CloudEngine
+except ImportError:
+    # Fallback to local path if needed
+    sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+    from cloud_engine import CloudEngine
+
+app = FastAPI(title="HEMN Web Suite API")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+def get_app_dir():
+    if getattr(sys, 'frozen', False): return os.path.dirname(sys.executable)
+    return os.path.dirname(os.path.abspath(__file__))
+
+APP_DIR = get_app_dir()
+STATIC_DIR = os.path.join(APP_DIR, "static")
+UPLOAD_DIR = os.path.join(APP_DIR, "storage", "uploads")
+RESULT_DIR = os.path.join(APP_DIR, "storage", "results")
+DB_PATH = os.path.join(APP_DIR, "hemn_cloud.db")
+
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+os.makedirs(RESULT_DIR, exist_ok=True)
+
+engine = CloudEngine(DB_PATH)
+
+# --- ROUTER ---
+router = APIRouter()
+
+def verify_password(plain, hashed):
+    try: return pwd_context.verify(str(plain), hashed)
+    except: return plain == hashed
+
+def get_password_hash(password):
+    return pwd_context.hash(str(password))
+
+def create_token(username: str):
+    expire = datetime.utcnow() + timedelta(hours=24)
+    return jwt.encode({"sub": username, "exp": expire}, SECRET_KEY, algorithm=ALGORITHM)
+
+async def get_current_user(authorization: Optional[str] = Header(None), token: Optional[str] = None):
+    t = token or (authorization.split(" ")[1] if authorization and " " in authorization else None)
+    if not t: raise HTTPException(status_code=401, detail="Token ausente")
+    try:
+        payload = jwt.decode(t, SECRET_KEY, algorithms=[ALGORITHM])
+        u = payload.get("sub")
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        user = conn.execute("SELECT * FROM users WHERE username = ? COLLATE NOCASE", (u,)).fetchone()
+        conn.close()
+        if not user: raise HTTPException(status_code=401)
+        return dict(user)
+    except: raise HTTPException(status_code=401, detail="Token inválido")
+
+def log_transaction(user, type, amount, mod, desc):
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        conn.execute("INSERT INTO transactions (username, type, amount, module, description, timestamp) VALUES (?,?,?,?,?,?)",
+                     (user, type, amount, mod, desc, datetime.now().isoformat()))
+        conn.commit()
+        conn.close()
+    except: pass
+
+class ExtractionFilter(BaseModel):
+    uf: Optional[str] = None
+    cidade: Optional[str] = None
+    status: Optional[str] = None
+
+=== FILE: /var/www/hemn_cloud/cloud_engine.py ===
+import os as os_native
+import sqlite3
+import pandas as pd
+import threading
+import time
+from datetime import datetime
+import uuid
+import shutil
+import re
+import unicodedata
+import ftplib
+import tarfile
+import bz2
+import numpy as np
+from concurrent.futures import ThreadPoolExecutor
+try:
+    import clickhouse_connect
+except ImportError:
+    pass
+
+from dotenv import load_dotenv
+load_dotenv()
+
+def remove_accents(input_str):
+    if not input_str: return ""
+    nfkd_form = unicodedata.normalize('NFKD', input_str)
+    return "".join([c for c in nfkd_form if not unicodedata.combining(c)])
+
+def normalize_name(name):
+    """Remove common suffixes to improve matching (JUNIOR, FILHO, etc.)"""
+    if not name: return ""
+    name = remove_accents(str(name).upper().strip())
+    suffixes = [' JUNIOR', ' FILHO', ' NETO', ' SOBRINHO', ' JR', ' SEGUNDO', ' TERCEIRO']
+    for sfx in suffixes:
+        if name.endswith(sfx):
+            name = name[:-len(sfx)].strip()
+            break
+    return name
+
+class CloudEngine:
+    def __init__(self, **kwargs):
+        import platform
+        self.is_linux = (platform.system() == 'Linux')
+        if self.is_linux:
+            self.db_carrier = "/var/www/hemn_cloud/hemn_carrier.db"
+            self.db_path = "/var/www/hemn_cloud/hemn_cloud.db"
+        else:
+            self.db_carrier = kwargs.get('db_carrier_path')
+            self.db_path = kwargs.get('db_path') or "hemn_cloud.db"
+        
+        self._init_db()
+        self._load_carrier_assets()
+        
+        # Mapa de DDDs por Estado (Brasil)
+        self.UF_DDD_MAP = {
+            'AC': ['68'], 'AL': ['82'], 'AM': ['92', '97'], 'AP': ['96'],
+            'BA': ['71', '73', '74', '75', '77'], 'CE': ['85', '88'],
+            'DF': ['61'], 'ES': ['27', '28'], 'GO': ['62', '64'],
+            'MA': ['98', '99'], 'MG': ['31', '32', '33', '34', '35', '37', '38'],
+            'MS': ['67'], 'MT': ['65', '66'], 'PA': ['91', '93', '94'],
+            'PB': ['83'], 'PE': ['81', '87'], 'PI': ['86', '89'],
+            'PR': ['41', '42', '43', '44', '45', '46'], 'RJ': ['21', '22', '24'],
+            'RN': ['84'], 'RO': ['69'], 'RR': ['95'], 'RS': ['51', '53', '54', '55'],
+            'SC': ['47', '48', '49'], 'SE': ['79'], 'SP': ['11', '12', '13', '14', '15', '16', '17', '18', '19'],
+            'TO': ['63']
+        }
+
+    def _get_ch_client(self):
+        """Retorna uma nova instância de cliente ClickHouse (Thread-Safe)"""
+        if not self.is_linux: return None
+        try:
+            return clickhouse_connect.get_client(host='localhost', port=8123, username='default', password='')
+        except Exception as e:
+            print(f"[ERROR] Falha ao conectar no ClickHouse: {e}")
+            return None
+
+    def search_leads(self, search_type, search_term, scope, uf=None, regiao=None):
+        search_type = str(search_type).lower().strip()
+        client = self._get_ch_client()
+        if not client:
+            return {"error": "Conexão com ClickHouse indisponível (Ambiente Windows)"}
+        
+        where_clauses = []
+        params = {}
+
+        # Tipo de Busca
+        if search_type == 'cpf':
+            cpf_clean = ''.join(filter(str.isdigit, search_term))
+            where_clauses.append("cpf = {cpf:String}")
+            params['cpf'] = cpf_clean
+        elif search_type == 'nome':
+            where_clauses.append("nome LIKE {nome:String}")
+            params['nome'] = f"%{remove_accents(search_term).upper().strip()}%"
+        elif search_type == 'telefone':
+            tel_clean = ''.join(filter(str.isdigit, search_term))
+            where_clauses.append("(tel_fixo1 = {tel:String} OR celular1 = {tel:String})")
+            params['tel'] = tel_clean
+        
+        # Filtros de Escopo
+        if scope == 'ESTADO' and uf:
+

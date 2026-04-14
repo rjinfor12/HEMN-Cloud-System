@@ -1,0 +1,958 @@
+=== Status do Backend ===
+× hemn_cloud.service - HEMN Web Suite API Service
+     Loaded: loaded (/etc/systemd/system/hemn_cloud.service; enabled; vendor preset: enabled)
+     Active: failed (Result: exit-code) since Wed 2026-04-08 22:42:59 CEST; 24h ago
+    Process: 7007 ExecStart=/usr/bin/python3 HEMN_Cloud_Server_VPS.py (code=exited, status=1/FAILURE)
+   Main PID: 7007 (code=exited, status=1/FAILURE)
+        CPU: 2.202s
+
+Apr 08 22:42:59 vmi3206466 systemd[1]: hemn_cloud.service: Consumed 2.202s CPU time.
+Apr 08 22:42:59 vmi3206466 systemd[1]: hemn_cloud.service: Scheduled restart job, restart counter is at 55.
+Apr 08 22:42:59 vmi3206466 systemd[1]: Stopped HEMN Web Suite API Service.
+Apr 08 22:42:59 vmi3206466 systemd[1]: hemn_cloud.service: Consumed 2.202s CPU time.
+Apr 08 22:42:59 vmi3206466 systemd[1]: hemn_cloud.service: Start request repeated too quickly.
+Apr 08 22:42:59 vmi3206466 systemd[1]: hemn_cloud.service: Failed with result 'exit-code'.
+Apr 08 22:42:59 vmi3206466 systemd[1]: Failed to start HEMN Web Suite API Service.
+
+
+=== Logs do Backend ===
+Apr 08 22:42:54 vmi3206466 systemd[1]: Stopped HEMN Web Suite API Service.
+Apr 08 22:42:54 vmi3206466 systemd[1]: hemn_cloud.service: Consumed 2.409s CPU time.
+Apr 08 22:42:54 vmi3206466 systemd[1]: Started HEMN Web Suite API Service.
+Apr 08 22:42:55 vmi3206466 python3[6987]: [DEBUG] cloud_engine file: /var/www/hemn_cloud/cloud_engine.py
+Apr 08 22:42:55 vmi3206466 python3[6987]: [DEBUG] DB_PATH: /var/www/hemn_cloud/hemn_cloud.db
+Apr 08 22:42:55 vmi3206466 python3[6987]: INFO:     Started server process [6987]
+Apr 08 22:42:55 vmi3206466 python3[6987]: INFO:     Waiting for application startup.
+Apr 08 22:42:55 vmi3206466 python3[6987]: INFO:     Application startup complete.
+Apr 08 22:42:55 vmi3206466 python3[6987]: ERROR:    [Errno 98] error while attempting to bind on address ('0.0.0.0', 8000): address already in use
+Apr 08 22:42:55 vmi3206466 python3[6987]: INFO:     Waiting for application shutdown.
+Apr 08 22:42:55 vmi3206466 python3[6987]: INFO:     Application shutdown complete.
+Apr 08 22:42:55 vmi3206466 systemd[1]: hemn_cloud.service: Main process exited, code=exited, status=1/FAILURE
+Apr 08 22:42:55 vmi3206466 systemd[1]: hemn_cloud.service: Failed with result 'exit-code'.
+Apr 08 22:42:55 vmi3206466 systemd[1]: hemn_cloud.service: Consumed 2.305s CPU time.
+Apr 08 22:42:56 vmi3206466 systemd[1]: hemn_cloud.service: Scheduled restart job, restart counter is at 53.
+Apr 08 22:42:56 vmi3206466 systemd[1]: Stopped HEMN Web Suite API Service.
+Apr 08 22:42:56 vmi3206466 systemd[1]: hemn_cloud.service: Consumed 2.305s CPU time.
+Apr 08 22:42:56 vmi3206466 systemd[1]: Started HEMN Web Suite API Service.
+Apr 08 22:42:57 vmi3206466 python3[6998]: [DEBUG] cloud_engine file: /var/www/hemn_cloud/cloud_engine.py
+Apr 08 22:42:57 vmi3206466 python3[6998]: [DEBUG] DB_PATH: /var/www/hemn_cloud/hemn_cloud.db
+Apr 08 22:42:57 vmi3206466 python3[6998]: INFO:     Started server process [6998]
+Apr 08 22:42:57 vmi3206466 python3[6998]: INFO:     Waiting for application startup.
+Apr 08 22:42:57 vmi3206466 python3[6998]: INFO:     Application startup complete.
+Apr 08 22:42:57 vmi3206466 python3[6998]: ERROR:    [Errno 98] error while attempting to bind on address ('0.0.0.0', 8000): address already in use
+Apr 08 22:42:57 vmi3206466 python3[6998]: INFO:     Waiting for application shutdown.
+Apr 08 22:42:57 vmi3206466 python3[6998]: INFO:     Application shutdown complete.
+Apr 08 22:42:57 vmi3206466 systemd[1]: hemn_cloud.service: Main process exited, code=exited, status=1/FAILURE
+Apr 08 22:42:57 vmi3206466 systemd[1]: hemn_cloud.service: Failed with result 'exit-code'.
+Apr 08 22:42:57 vmi3206466 systemd[1]: hemn_cloud.service: Consumed 2.598s CPU time.
+Apr 08 22:42:58 vmi3206466 systemd[1]: hemn_cloud.service: Scheduled restart job, restart counter is at 54.
+Apr 08 22:42:58 vmi3206466 systemd[1]: Stopped HEMN Web Suite API Service.
+Apr 08 22:42:58 vmi3206466 systemd[1]: hemn_cloud.service: Consumed 2.598s CPU time.
+Apr 08 22:42:58 vmi3206466 systemd[1]: Started HEMN Web Suite API Service.
+Apr 08 22:42:59 vmi3206466 python3[7007]: [DEBUG] cloud_engine file: /var/www/hemn_cloud/cloud_engine.py
+Apr 08 22:42:59 vmi3206466 python3[7007]: [DEBUG] DB_PATH: /var/www/hemn_cloud/hemn_cloud.db
+Apr 08 22:42:59 vmi3206466 python3[7007]: INFO:     Started server process [7007]
+Apr 08 22:42:59 vmi3206466 python3[7007]: INFO:     Waiting for application startup.
+Apr 08 22:42:59 vmi3206466 python3[7007]: INFO:     Application startup complete.
+Apr 08 22:42:59 vmi3206466 python3[7007]: ERROR:    [Errno 98] error while attempting to bind on address ('0.0.0.0', 8000): address already in use
+Apr 08 22:42:59 vmi3206466 python3[7007]: INFO:     Waiting for application shutdown.
+Apr 08 22:42:59 vmi3206466 python3[7007]: INFO:     Application shutdown complete.
+Apr 08 22:42:59 vmi3206466 systemd[1]: hemn_cloud.service: Main process exited, code=exited, status=1/FAILURE
+Apr 08 22:42:59 vmi3206466 systemd[1]: hemn_cloud.service: Failed with result 'exit-code'.
+Apr 08 22:42:59 vmi3206466 systemd[1]: hemn_cloud.service: Consumed 2.202s CPU time.
+Apr 08 22:42:59 vmi3206466 systemd[1]: hemn_cloud.service: Scheduled restart job, restart counter is at 55.
+Apr 08 22:42:59 vmi3206466 systemd[1]: Stopped HEMN Web Suite API Service.
+Apr 08 22:42:59 vmi3206466 systemd[1]: hemn_cloud.service: Consumed 2.202s CPU time.
+Apr 08 22:42:59 vmi3206466 systemd[1]: hemn_cloud.service: Start request repeated too quickly.
+Apr 08 22:42:59 vmi3206466 systemd[1]: hemn_cloud.service: Failed with result 'exit-code'.
+Apr 08 22:42:59 vmi3206466 systemd[1]: Failed to start HEMN Web Suite API Service.
+
+
+=== Status do Nginx ===
+● nginx.service - A high performance web server and a reverse proxy server
+     Loaded: loaded (/lib/systemd/system/nginx.service; enabled; vendor preset: enabled)
+     Active: active (running) since Wed 2026-04-08 18:54:28 CEST; 1 day 4h ago
+       Docs: man:nginx(8)
+    Process: 22442 ExecReload=/usr/sbin/nginx -g daemon on; master_process on; -s reload (code=exited, status=0/SUCCESS)
+   Main PID: 771 (nginx)
+      Tasks: 9 (limit: 28784)
+     Memory: 15.7M
+        CPU: 2min 16.392s
+     CGroup: /system.slice/nginx.service
+             ├─  771 "nginx: master process /usr/sbin/nginx -g daemon on; master_process on;"
+             ├─22443 "nginx: worker process" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" ""
+             ├─22444 "nginx: worker process" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" ""
+             ├─22445 "nginx: worker process" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" ""
+             ├─22446 "nginx: worker process" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" ""
+             ├─22447 "nginx: worker process" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" ""
+             ├─22448 "nginx: worker process" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" ""
+             ├─22449 "nginx: worker process" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" ""
+             └─22450 "nginx: worker process" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" ""
+
+Apr 08 22:17:23 vmi3206466 nginx[5777]: nginx: [warn] conflicting server name "www.hemnsystem.com.br" on 0.0.0.0:80, ignored
+Apr 08 22:17:23 vmi3206466 nginx[5777]: nginx: [warn] conflicting server name "hemnsystem.com.br" on 0.0.0.0:443, ignored
+Apr 08 22:17:23 vmi3206466 nginx[5777]: nginx: [warn] conflicting server name "www.hemnsystem.com.br" on 0.0.0.0:443, ignored
+Apr 08 22:17:23 vmi3206466 systemd[1]: Reloaded A high performance web server and a reverse proxy server.
+Apr 09 21:12:39 vmi3206466 systemd[1]: Reloading A high performance web server and a reverse proxy server...
+Apr 09 21:12:39 vmi3206466 nginx[22442]: nginx: [warn] conflicting server name "hemnsystem.com.br" on 0.0.0.0:80, ignored
+Apr 09 21:12:39 vmi3206466 nginx[22442]: nginx: [warn] conflicting server name "www.hemnsystem.com.br" on 0.0.0.0:80, ignored
+Apr 09 21:12:39 vmi3206466 nginx[22442]: nginx: [warn] conflicting server name "hemnsystem.com.br" on 0.0.0.0:443, ignored
+Apr 09 21:12:39 vmi3206466 nginx[22442]: nginx: [warn] conflicting server name "www.hemnsystem.com.br" on 0.0.0.0:443, ignored
+Apr 09 21:12:39 vmi3206466 systemd[1]: Reloaded A high performance web server and a reverse proxy server.
+
+
+=== Logs do Nginx ===
+2026/04/09 21:00:44 [error] 5778#5778: *78807 connect() failed (111: Unknown error) while connecting to upstream, client: 189.112.34.110, server: www.hemnsystem.com.br, request: "GET /areadocliente/ HTTP/1.1", upstream: "http://127.0.0.1:8000/areadocliente/", host: "hemnsystem.com.br"
+2026/04/09 21:12:39 [error] 5778#5778: *78827 connect() failed (111: Unknown error) while connecting to upstream, client: 189.112.34.110, server: www.hemnsystem.com.br, request: "GET /areadocliente/ HTTP/1.1", upstream: "http://127.0.0.1:8000/areadocliente/", host: "hemnsystem.com.br"
+2026/04/09 21:12:39 [warn] 22441#22441: conflicting server name "hemnsystem.com.br" on 0.0.0.0:80, ignored
+2026/04/09 21:12:39 [warn] 22441#22441: conflicting server name "www.hemnsystem.com.br" on 0.0.0.0:80, ignored
+2026/04/09 21:12:39 [warn] 22441#22441: conflicting server name "hemnsystem.com.br" on 0.0.0.0:443, ignored
+2026/04/09 21:12:39 [warn] 22441#22441: conflicting server name "www.hemnsystem.com.br" on 0.0.0.0:443, ignored
+2026/04/09 21:12:39 [warn] 22442#22442: conflicting server name "hemnsystem.com.br" on 0.0.0.0:80, ignored
+2026/04/09 21:12:39 [warn] 22442#22442: conflicting server name "www.hemnsystem.com.br" on 0.0.0.0:80, ignored
+2026/04/09 21:12:39 [warn] 22442#22442: conflicting server name "hemnsystem.com.br" on 0.0.0.0:443, ignored
+2026/04/09 21:12:39 [warn] 22442#22442: conflicting server name "www.hemnsystem.com.br" on 0.0.0.0:443, ignored
+2026/04/09 21:12:39 [notice] 22442#22442: signal process started
+2026/04/09 21:12:55 [error] 22443#22443: *78829 connect() failed (111: Unknown error) while connecting to upstream, client: 189.112.34.110, server: www.hemnsystem.com.br, request: "GET /areadocliente/ HTTP/1.1", upstream: "http://127.0.0.1:8000/", host: "hemnsystem.com.br"
+2026/04/09 21:13:02 [error] 22443#22443: *78829 connect() failed (111: Unknown error) while connecting to upstream, client: 189.112.34.110, server: www.hemnsystem.com.br, request: "GET /areadocliente/ HTTP/1.1", upstream: "http://127.0.0.1:8000/", host: "hemnsystem.com.br"
+2026/04/09 21:13:14 [error] 22443#22443: *78829 connect() failed (111: Unknown error) while connecting to upstream, client: 189.112.34.110, server: www.hemnsystem.com.br, request: "GET /areadocliente/ HTTP/1.1", upstream: "http://127.0.0.1:8000/", host: "hemnsystem.com.br"
+2026/04/09 21:24:16 [error] 22443#22443: *78835 connect() failed (111: Unknown error) while connecting to upstream, client: 45.148.10.174, server: www.hemnsystem.com.br, request: "GET /areadocliente/ HTTP/1.1", upstream: "http://127.0.0.1:8000/", host: "hemnsystem.com.br", referrer: "https://hemnsystem.com.br"
+2026/04/09 21:38:10 [error] 22443#22443: *78843 connect() failed (111: Unknown error) while connecting to upstream, client: 189.112.34.110, server: www.hemnsystem.com.br, request: "GET /areadocliente/ HTTP/1.1", upstream: "http://127.0.0.1:8000/", host: "hemnsystem.com.br"
+2026/04/09 21:38:11 [error] 22443#22443: *78843 connect() failed (111: Unknown error) while connecting to upstream, client: 189.112.34.110, server: www.hemnsystem.com.br, request: "GET /areadocliente/ HTTP/1.1", upstream: "http://127.0.0.1:8000/", host: "hemnsystem.com.br", referrer: "https://hemnsystem.com.br/areadocliente/"
+2026/04/09 21:39:54 [error] 22443#22443: *78846 connect() failed (111: Unknown error) while connecting to upstream, client: 189.112.34.110, server: www.hemnsystem.com.br, request: "GET /areadocliente/ HTTP/1.1", upstream: "http://127.0.0.1:8000/", host: "hemnsystem.com.br"
+2026/04/09 21:39:55 [error] 22443#22443: *78846 connect() failed (111: Unknown error) while connecting to upstream, client: 189.112.34.110, server: www.hemnsystem.com.br, request: "GET /areadocliente/ HTTP/1.1", upstream: "http://127.0.0.1:8000/", host: "hemnsystem.com.br", referrer: "https://hemnsystem.com.br/areadocliente/"
+2026/04/09 21:39:59 [error] 22443#22443: *78846 connect() failed (111: Unknown error) while connecting to upstream, client: 189.112.34.110, server: www.hemnsystem.com.br, request: "GET /areadocliente/ HTTP/1.1", upstream: "http://127.0.0.1:8000/", host: "hemnsystem.com.br"
+2026/04/09 21:39:59 [error] 22443#22443: *78846 connect() failed (111: Unknown error) while connecting to upstream, client: 189.112.34.110, server: www.hemnsystem.com.br, request: "GET /areadocliente/ HTTP/1.1", upstream: "http://127.0.0.1:8000/", host: "hemnsystem.com.br", referrer: "https://hemnsystem.com.br/areadocliente/"
+2026/04/09 21:40:03 [error] 22443#22443: *78846 connect() failed (111: Unknown error) while connecting to upstream, client: 189.112.34.110, server: www.hemnsystem.com.br, request: "GET /areadocliente/ HTTP/1.1", upstream: "http://127.0.0.1:8000/", host: "hemnsystem.com.br"
+2026/04/09 21:40:03 [error] 22443#22443: *78846 connect() failed (111: Unknown error) while connecting to upstream, client: 189.112.34.110, server: www.hemnsystem.com.br, request: "GET /areadocliente/ HTTP/1.1", upstream: "http://127.0.0.1:8000/", host: "hemnsystem.com.br", referrer: "https://hemnsystem.com.br/areadocliente/"
+2026/04/09 21:40:07 [error] 22443#22443: *78846 connect() failed (111: Unknown error) while connecting to upstream, client: 189.112.34.110, server: www.hemnsystem.com.br, request: "GET /areadocliente/ HTTP/1.1", upstream: "http://127.0.0.1:8000/", host: "hemnsystem.com.br"
+2026/04/09 21:40:07 [error] 22443#22443: *78846 connect() failed (111: Unknown error) while connecting to upstream, client: 189.112.34.110, server: www.hemnsystem.com.br, request: "GET /areadocliente/ HTTP/1.1", upstream: "http://127.0.0.1:8000/", host: "hemnsystem.com.br", referrer: "https://hemnsystem.com.br/areadocliente/"
+2026/04/09 22:02:04 [error] 22443#22443: *78868 connect() failed (111: Unknown error) while connecting to upstream, client: 49.235.136.28, server: www.hemnsystem.com.br, request: "GET /areadocliente/ HTTP/1.1", upstream: "http://127.0.0.1:8000/", host: "hemnsystem.com.br", referrer: "http://www.hemnsystem.com.br"
+2026/04/09 22:03:49 [crit] 22443#22443: *78882 SSL_do_handshake() failed (SSL: error:0A00006C:SSL routines::bad key share) while SSL handshaking, client: 165.232.108.96, server: 0.0.0.0:443
+2026/04/09 22:03:50 [error] 22443#22443: *78883 connect() failed (111: Unknown error) while connecting to upstream, client: 165.232.108.96, server: www.hemnsystem.com.br, request: "GET /areadocliente/ HTTP/1.1", upstream: "http://127.0.0.1:8000/", host: "hemnsystem.com.br"
+2026/04/09 22:03:50 [error] 22443#22443: *78885 connect() failed (111: Unknown error) while connecting to upstream, client: 165.232.108.96, server: www.hemnsystem.com.br, request: "GET /areadocliente/favicon.ico HTTP/1.1", upstream: "http://127.0.0.1:8000/favicon.ico", host: "hemnsystem.com.br", referrer: "https://hemnsystem.com.br/areadocliente/"
+2026/04/09 22:18:26 [error] 22443#22443: *78893 connect() failed (111: Unknown error) while connecting to upstream, client: 17.22.253.56, server: www.hemnsystem.com.br, request: "GET /areadocliente/ HTTP/1.1", upstream: "http://127.0.0.1:8000/", host: "hemnsystem.com.br"
+2026/04/09 22:20:29 [error] 22443#22443: *78896 connect() failed (111: Unknown error) while connecting to upstream, client: 49.51.183.15, server: www.hemnsystem.com.br, request: "GET /areadocliente/ HTTP/1.1", upstream: "http://127.0.0.1:8000/", host: "hemnsystem.com.br", referrer: "http://www.hemnsystem.com.br"
+2026/04/09 22:44:11 [error] 22443#22443: *78904 connect() failed (111: Unknown error) while connecting to upstream, client: 93.123.109.214, server: www.hemnsystem.com.br, request: "GET /areadocliente/ HTTP/1.1", upstream: "http://127.0.0.1:8000/", host: "hemnsystem.com.br", referrer: "https://www.hemnsystem.com.br"
+2026/04/09 22:44:12 [error] 22443#22443: *78904 connect() failed (111: Unknown error) while connecting to upstream, client: 93.123.109.214, server: www.hemnsystem.com.br, request: "GET /areadocliente/ HTTP/1.1", upstream: "http://127.0.0.1:8000/", host: "hemnsystem.com.br", referrer: "https://www.hemnsystem.com.br/.env"
+2026/04/09 22:44:12 [error] 22443#22443: *78904 connect() failed (111: Unknown error) while connecting to upstream, client: 93.123.109.214, server: www.hemnsystem.com.br, request: "GET /areadocliente/ HTTP/1.1", upstream: "http://127.0.0.1:8000/", host: "hemnsystem.com.br", referrer: "https://www.hemnsystem.com.br/.env.bak"
+2026/04/09 22:44:12 [error] 22443#22443: *78904 connect() failed (111: Unknown error) while connecting to upstream, client: 93.123.109.214, server: www.hemnsystem.com.br, request: "GET /areadocliente/ HTTP/1.1", upstream: "http://127.0.0.1:8000/", host: "hemnsystem.com.br", referrer: "https://www.hemnsystem.com.br/.env.save"
+2026/04/09 22:44:12 [error] 22443#22443: *78904 connect() failed (111: Unknown error) while connecting to upstream, client: 93.123.109.214, server: www.hemnsystem.com.br, request: "GET /areadocliente/ HTTP/1.1", upstream: "http://127.0.0.1:8000/", host: "hemnsystem.com.br", referrer: "https://www.hemnsystem.com.br/.env.local"
+2026/04/09 22:44:12 [error] 22443#22443: *78904 connect() failed (111: Unknown error) while connecting to upstream, client: 93.123.109.214, server: www.hemnsystem.com.br, request: "GET /areadocliente/ HTTP/1.1", upstream: "http://127.0.0.1:8000/", host: "hemnsystem.com.br", referrer: "https://www.hemnsystem.com.br/backend/.env"
+2026/04/09 22:44:13 [error] 22443#22443: *78904 connect() failed (111: Unknown error) while connecting to upstream, client: 93.123.109.214, server: www.hemnsystem.com.br, request: "GET /areadocliente/ HTTP/1.1", upstream: "http://127.0.0.1:8000/", host: "hemnsystem.com.br", referrer: "https://www.hemnsystem.com.br/admin/.env"
+2026/04/09 22:44:13 [error] 22443#22443: *78904 connect() failed (111: Unknown error) while connecting to upstream, client: 93.123.109.214, server: www.hemnsystem.com.br, request: "GET /areadocliente/ HTTP/1.1", upstream: "http://127.0.0.1:8000/", host: "hemnsystem.com.br", referrer: "https://www.hemnsystem.com.br/phpinfo.php"
+2026/04/09 22:44:13 [error] 22443#22443: *78904 connect() failed (111: Unknown error) while connecting to upstream, client: 93.123.109.214, server: www.hemnsystem.com.br, request: "GET /areadocliente/ HTTP/1.1", upstream: "http://127.0.0.1:8000/", host: "hemnsystem.com.br", referrer: "https://www.hemnsystem.com.br/.git/config"
+2026/04/09 22:44:13 [error] 22443#22443: *78904 connect() failed (111: Unknown error) while connecting to upstream, client: 93.123.109.214, server: www.hemnsystem.com.br, request: "GET /areadocliente/ HTTP/1.1", upstream: "http://127.0.0.1:8000/", host: "hemnsystem.com.br", referrer: "https://www.hemnsystem.com.br/wp-config.php"
+2026/04/09 22:44:13 [error] 22443#22443: *78904 connect() failed (111: Unknown error) while connecting to upstream, client: 93.123.109.214, server: www.hemnsystem.com.br, request: "GET /areadocliente/ HTTP/1.1", upstream: "http://127.0.0.1:8000/", host: "hemnsystem.com.br", referrer: "https://www.hemnsystem.com.br/wp-config.php.old"
+2026/04/09 22:44:13 [error] 22443#22443: *78904 connect() failed (111: Unknown error) while connecting to upstream, client: 93.123.109.214, server: www.hemnsystem.com.br, request: "GET /areadocliente/ HTTP/1.1", upstream: "http://127.0.0.1:8000/", host: "hemnsystem.com.br", referrer: "https://www.hemnsystem.com.br/config.php"
+2026/04/09 22:44:14 [error] 22443#22443: *78904 connect() failed (111: Unknown error) while connecting to upstream, client: 93.123.109.214, server: www.hemnsystem.com.br, request: "GET /areadocliente/ HTTP/1.1", upstream: "http://127.0.0.1:8000/", host: "hemnsystem.com.br", referrer: "https://www.hemnsystem.com.br/config.php.bak"
+2026/04/09 22:44:14 [error] 22443#22443: *78904 connect() failed (111: Unknown error) while connecting to upstream, client: 93.123.109.214, server: www.hemnsystem.com.br, request: "GET /areadocliente/ HTTP/1.1", upstream: "http://127.0.0.1:8000/", host: "hemnsystem.com.br", referrer: "https://www.hemnsystem.com.br/config.js"
+2026/04/09 22:44:14 [error] 22443#22443: *78904 connect() failed (111: Unknown error) while connecting to upstream, client: 93.123.109.214, server: www.hemnsystem.com.br, request: "GET /areadocliente/ HTTP/1.1", upstream: "http://127.0.0.1:8000/", host: "hemnsystem.com.br", referrer: "https://www.hemnsystem.com.br/aws-config.js"
+2026/04/09 22:44:14 [error] 22443#22443: *78904 connect() failed (111: Unknown error) while connecting to upstream, client: 93.123.109.214, server: www.hemnsystem.com.br, request: "GET /areadocliente/ HTTP/1.1", upstream: "http://127.0.0.1:8000/", host: "hemnsystem.com.br", referrer: "https://www.hemnsystem.com.br/aws.config.js"
+2026/04/09 22:44:14 [error] 22443#22443: *78904 connect() failed (111: Unknown error) while connecting to upstream, client: 93.123.109.214, server: www.hemnsystem.com.br, request: "GET /areadocliente/ HTTP/1.1", upstream: "http://127.0.0.1:8000/", host: "hemnsystem.com.br", referrer: "https://www.hemnsystem.com.br/.git/HEAD"
+2026/04/09 22:44:15 [error] 22443#22443: *78904 connect() failed (111: Unknown error) while connecting to upstream, client: 93.123.109.214, server: www.hemnsystem.com.br, request: "GET /areadocliente/ HTTP/1.1", upstream: "http://127.0.0.1:8000/", host: "hemnsystem.com.br", referrer: "https://www.hemnsystem.com.br/.git/config"
+2026/04/09 22:48:29 [error] 22443#22443: *78924 connect() failed (111: Unknown error) while connecting to upstream, client: 43.163.110.140, server: www.hemnsystem.com.br, request: "GET /areadocliente/ HTTP/1.1", upstream: "http://127.0.0.1:8000/", host: "hemnsystem.com.br", referrer: "https://86.48.17.194:443"
+
+
+=== Arquivos de Produção ===
+HEMN_Admin_Panel.py
+HEMN_Cloud_Server.py
+HEMN_Cloud_Server_REMOTE.py
+HEMN_Cloud_Server_VPS.py
+README_CLINICAS.md
+REAL_index_vps.html
+__pycache__/
+admin_monitor_vps.html
+analyze_similarity.py
+analyze_uf.py
+analyze_vps_credits.py
+analyze_vps_disk.py
+analyze_vps_polling.py
+apply_broken_final.py
+apply_granular_trace.py
+apply_password_fix_vps.py
+apply_path_trace.py
+apply_phase2_trace.py
+apply_trace.py
+apply_trace_clean.py
+apply_vps_fix.py
+apply_vps_fix_v2.py
+audit_databases.py
+auth_manager.py
+bench_single_pass.py
+bench_titanium.py
+bread_search.py
+broad_diag_search.py
+broken_down_search.py
+ch_col_test.py
+ch_test.py
+check_admin.py
+check_admin_data_vps.py
+check_admin_local.py
+check_all_policies.py
+check_all_schemas.py
+check_auth_db.py
+check_ch_counts.py
+check_ch_db_sizes.py
+check_ch_schema.py
+check_ch_schemas.py
+check_ch_settings.py
+check_ch_version.py
+check_cnpj.py
+check_cols.py
+check_columns_real.py
+check_crash.py
+check_current_ref_date.py
+check_db_integrity.py
+check_db_schema.py
+check_encoding.py
+check_errors_log.py
+check_extraction_db.py
+check_farma_popular.py
+check_file_size.py
+check_ftp_timestamp.py
+check_html.py
+check_indexes.py
+check_indices.py
+check_indices_final.py
+check_ingest_progress.py
+check_ingest_script.py
+check_join_types.py
+check_latest_record_dates.py
+check_lead_missing.py
+check_leads_uf.py
+check_local_sqlite_ref.py
+check_local_version.py
+check_lookup_matrix.py
+check_mei_details.py
+check_metadata.py
+check_metadata_schema.py
+check_more_indices.py
+check_nginx.py
+check_oi_columns.py
+check_other_meis.py
+check_pe_data.py
+check_query_log.py
+check_remote_engine.py
+check_remote_files.py
+check_remote_html.py
+check_remote_journal.py
+check_remote_line.py
+check_remote_sqlite.py
+check_remote_ui.py
+check_roles.py
+check_row_policies.py
+check_schema.py
+check_screenshot_cnpjs.py
+check_server_logs.py
+check_server_vps.py
+check_socio_23.py
+check_socio_chave.py
+check_socios.py
+check_socios_schema.py
+check_specific_cnpjs.py
+check_table_perf.py
+check_task_db.py
+check_task_message.py
+check_tasks_db.py
+check_tasks_db_v2.py
+check_tasks_schema.py
+check_tasks_vps.py
+check_tmp_counts.py
+check_types_final.py
+check_user_balance.py
+check_user_excel.py
+check_users.py
+check_venv.py
+check_video_files.py
+check_vps.py
+check_vps_backup.py
+check_vps_bg_tasks.py
+check_vps_ch_schema.py
+check_vps_counts_final.py
+check_vps_env.py
+check_vps_excel.py
+check_vps_excel_final.py
+check_vps_file.py
+check_vps_git.py
+check_vps_logs.py
+check_vps_paths.py
+check_vps_performance.py
+check_vps_real_status.py
+check_vps_schema.py
+check_vps_schemas_detailed.py
+check_vps_service.py
+check_vps_space.py
+check_vps_specs.py
+check_vps_sqlite_schema.py
+check_vps_stats.py
+check_vps_status.py
+check_vps_tasks.py
+check_vps_timings.py
+check_vps_transactions.py
+check_vps_users.py
+check_vt_history.py
+check_vt_user.py
+check_webhook_status.py
+chk_rogerio2.py
+chk_situacao.py
+chk_socios.py
+cleanup_vps.py
+cloud_engine.py
+cloud_engine_backup_lite.py
+cloud_engine_full.py
+cloud_engine_path_trace.py
+cloud_engine_perfect.py
+cloud_engine_phase2_trace.py
+cloud_engine_trace.py
+cloud_engine_trace_granular.py
+cloud_engine_trace_v2.py
+cloud_engine_update.py
+cloud_engine_vps.py
+comp_search.py
+compare_results.py
+compare_socios.py
+compare_vps_counts.py
+compare_vps_html.py
+consolidar_oi_novo.py
+consolidate_files.py
+consolidation_engine.py
+convert_cv2.py
+convert_logo.py
+convert_logo_final.py
+convert_to_mp4.py
+copy_engine.py
+count_hemn_records.py
+create_metadata_table.py
+create_shortcut.ps1
+create_shortcut_stable.ps1
+create_test_user.py
+create_vps_view.py
+cruzar_dados_pr.py
+cruzar_lote_rj.py
+data_assets/
+data_assets\cod_operadora.csv
+data_assets\prefix_anatel.csv
+data_assets\settings.png
+debug_active_socios.py
+debug_all_rogerios.py
+debug_batch_traceback.py
+debug_batch_v4.py
+debug_batch_v5.py
+debug_broad_name.py
+debug_cpf_records.py
+debug_db.py
+debug_empresas_complete.py
+debug_empresas_detail.py
+debug_empresas_rogerio.py
+debug_enrich_vps.py
+debug_estab.py
+debug_exact_name.py
+debug_extract.py
+debug_extraction_vps.py
+debug_full.py
+debug_ingest_single.py
+debug_junior.py
+debug_list_all_companies.py
+debug_mei_clickhouse.py
+debug_missing.py
+debug_name.py
+debug_name_variations.py
+debug_natal.py
+debug_natal_refined.py
+debug_optimized.py
+debug_query_depth.py
+debug_remote_carrier.py
+debug_rogerio_cpf.py
+debug_rogerio_deep.py
+debug_search.py
+debug_uyank.py
+debug_uyank2.py
+debug_vps_data.py
+debug_vps_download.py
+debug_vps_import.py
+debug_vps_paths.py
+debug_vps_search.py
+deduplicate_vps.py
+deep_dive_rogerio.py
+deep_inspect.py
+deploy_backend_only.py
+deploy_engine.py
+deploy_fix.py
+deploy_monitoring.py
+deploy_performance_fix.py
+deploy_premium_logo.py
+deploy_to_desktop.py
+deploy_ui_fix.py
+deploy_ui_only.py
+deploy_vps.py
+deploy_vps_checkout.py
+describe_estab.py
+describe_policies.py
+design-system.css
+diag_accents.py
+diag_assertion.py
+diag_ch_mei.py
+diag_coverage.py
+diag_cpf.py
+diag_db.py
+diag_empresas.py
+diag_full_view.py
+diag_fuzzy.py
+diag_hex.py
+diag_http.py
+diag_latency.py
+diag_mask.py
+diag_payment.py
+diag_remote_schema.py
+diag_reporting_system.py
+diag_rogerio.py
+diag_schema.py
+diag_search.py
+diag_server_vps.py
+diag_service.py
+diag_spacing.py
+diag_ssh.py
+diag_target.py
+diag_vps_ch.py
+diag_vps_ch_v2.py
+diag_vps_db_logs.py
+diag_vps_full.py
+diag_vps_nginx.py
+diag_vps_remote.py
+diag_vps_rogerio.py
+diag_vps_server_code.py
+diag_vps_service.py
+diagnose_extraction.py
+diagnostic_vps.py
+download_admin_monitor.py
+download_css.py
+download_for_inspect.py
+download_ftp.py
+download_index.py
+download_latest_result.py
+download_vps_engine.py
+enable_wal.py
+execute_vps_cleanup.py
+explain_query.py
+export_societario.py
+extract_js.py
+extrair_capitais.py
+fetch_logs.py
+final_creds.py
+final_creds_v3.py
+final_deploy_fix.py
+final_diag_search.py
+final_insert_meta.py
+final_test_search.py
+final_trace_vps.py
+final_verify.py
+final_verify_vps.py
+finalize_migration.py
+find_client_vps.py
+find_desktop.py
+find_git_vps.py
+find_internal_stats.py
+find_monitor_endpoint.py
+find_patch_lines.py
+find_phase2.py
+find_remote_processes.py
+find_remote_reporters.py
+find_remote_services.py
+find_update_scripts.py
+find_update_scripts_filtered.py
+find_version_strings.py
+find_vps_conflicts.py
+fix_12.py
+fix_batch_keyerror.py
+fix_concat.py
+fix_copy.py
+fix_encoding.py
+fix_final_sql.py
+fix_global_cache.py
+fix_global_limit.py
+fix_indent_vps.py
+fix_ingest_missing_march_2026.py
+fix_join_order.py
+fix_limit.py
+fix_memory.py
+fix_metadata_final_v2.py
+fix_name_error.py
+fix_nginx.py
+fix_size.py
+fix_syntax.py
+fix_vps_cpf.py
+fix_vps_passwords.py
+fix_vps_requests.py
+fix_vt_balance.py
+fix_webhook_deploy.py
+fix_webhook_url.py
+force_migrate.py
+ftp_test.py
+full_pipeline_sim.py
+get_detailed_logs.py
+get_pass.py
+get_remote_creds.py
+get_remote_creds_v2.py
+get_vps_logs.py
+grep_nginx.py
+grep_vps.py
+hard_reset_vps.sh
+hemn_app_icon.ico
+hemn_carrier.db
+hemn_cloud.db
+hemn_popup.py
+hemn_updater.py
+index.html
+index_vps.html
+ingest_leads.py
+init_ch_leads.py
+init_metadata_table.py
+init_metadata_v2.py
+init_remote_db.py
+init_transactions.py
+inspect_db.py
+inspect_db_schema.py
+inspect_excel_vps.py
+inspect_excel_vps_v2.py
+inspect_raw_ch_vps.py
+inspect_remote_vps.py
+inspect_schema_ch.py
+inspect_tasks_db.py
+inspect_users_schema.py
+inspect_vps.py
+inspect_vps_code.py
+inspect_vps_extraction.py
+inspect_vps_server.py
+inspect_vps_update_tables.py
+internal_verify_vps.py
+investigate_vps.py
+kill_and_restart.py
+launch_fix.py
+licensing_manager.py
+list_all_ch_dbs.py
+list_all_tables.py
+list_candidates.py
+list_ch_tables.py
+list_hemn_tables_full.py
+list_remote_static.py
+list_sqlite_tables.py
+list_vps_contents.py
+list_vps_dbs.py
+list_vps_dirs.py
+list_vps_files.py
+list_vps_tables.py
+list_webdav_files.py
+list_www_files.py
+locate_remote_module.py
+logo.ico
+logo.png
+logo_dark.png
+logo_elite.ico
+main_gui.py
+make_small_csv.py
+manual_revert_upload.py
+massive_search.py
+master_keygen.py
+merge_users.py
+migrate_cpf_vps.py
+migrate_socios.py
+migrate_to_clickhouse.py
+migrate_users_payments.py
+monitor_vps_perf.py
+open_ch_port.py
+optimize_mei.py
+optimize_sql.py
+patch_vps_debug.py
+peek_estabelecimento.py
+peek_pr_p1.py
+perfect_logo_sync.py
+ping_rfb.py
+process_icon_black.py
+process_logo.py
+process_logo_dark.py
+process_logo_hd.py
+process_logo_smart.py
+process_logo_universal.py
+process_logo_v3.py
+quick_check.py
+quick_log.py
+quick_sync_vps.py
+reactivate_webhook.py
+read_admin_monitor.py
+read_bytes.py
+read_creds.py
+read_csv.py
+read_current_query.py
+read_diag_ch_mei.py
+read_diag_script.py
+read_full_backup.py
+read_full_nginx.py
+read_ingest_log.py
+read_internal_stats.py
+read_merge_code.py
+read_monitor_endpoint.py
+read_monitor_stats.py
+read_nginx_details.py
+read_remote_code.py
+read_remote_nginx.py
+read_remote_reporters.py
+read_remote_server.py
+read_remote_vps.py
+read_syntax_error.py
+read_vps_code.py
+read_vps_engine.py
+read_vps_nginx.py
+rehash_vps.py
+remote_HEMN_Cloud_Server.py
+remote_HEMN_Cloud_Server_V2.py
+remote_cloud_engine_V2.py
+remote_grep.py
+remote_index_ROOT.html
+remote_index_vps.html
+remote_populate.py
+remote_static_index.html
+remove_background.py
+repair_vps_service.py
+repro_bug.py
+repro_issue.py
+rescue_logins_vps.py
+reset_admin_vps.py
+reset_ingestion_vps.py
+reset_vps_ingestion.py
+restart_ch.py
+restart_vps_server.py
+restart_vps_service.py
+restore_admin_vps.py
+restore_vps_passwords.py
+resume_ingestion.py
+rictom_temp/
+robust_check.py
+robust_diag_search.py
+run_ch_test.py
+run_ch_test2.py
+run_deep_diag_blank.py
+run_deep_diag_blank_v2.py
+run_deep_diag_clean.py
+run_diag_blank.py
+run_diag_count.py
+run_diag_deep.py
+run_diag_deep_v2.py
+run_diag_deep_vps.py
+run_diag_final.py
+run_diag_light.py
+run_diag_precision.py
+run_diag_schema.py
+run_diag_stats.py
+run_diag_targeted.py
+run_diag_verify.py
+run_ingest_vps.py
+run_migration_remote.py
+run_remote_update.py
+run_test_remote.py
+sample_data.py
+search_cpf.py
+search_mask_remote.py
+search_mei.py
+search_name_remote.py
+search_query_vps.py
+search_rogerio.py
+search_rogerio_detalhado.py
+search_rogerio_final.py
+search_rogerio_leads.py
+search_societario.py
+search_uf_variations.py
+search_vps_duplicates.py
+search_vps_logs.py
+security_utils.py
+server.log
+server_error.log
+setup_clickhouse.py
+setup_cronjob.ps1
+setup_payments.py
+setup_test.py
+show_create_empresas.py
+ssh_ch_agg.py
+ssh_ch_check.py
+start_server.bat
+static/
+storage/
+super_optimize.py
+sync_deploy.py
+sync_logo_colors.py
+sync_to_vps.py
+sync_to_vps_double.py
+targeted_diag_search.py
+temp_idx_check.py
+temp_insert.py
+test_2465.py
+test_api.py
+test_bench.py
+test_bench_v2.py
+test_bench_v3.py
+test_binary_download.py
+test_carrier_logic.py
+test_ch_cols_vps.py
+test_ch_join.py
+test_ch_speed.py
+test_ch_speed2.py
+test_clickhouse_cols.py
+test_cnae.py
+test_data.py
+test_db_join.py
+test_db_search.py
+test_db_tables.py
+test_download.py
+test_engine.py
+test_engine_inner.py
+test_enrich_logic.py
+test_excel.py
+test_excel_split.py
+test_excel_split2.py
+test_extract_operator.py
+test_failing_query.py
+test_filters.py
+test_final.py
+test_fix_simulation.py
+test_ftp.py
+test_gui_init.py
+test_hastoken.py
+test_inspect_excel.py
+test_joined_query.py
+test_live_api.py
+test_login_api.py
+test_monitor_vps.py
+test_namedtuple.py
+test_no_cm.py
+test_pandas_perf.py
+test_pandas_sp.py
+test_query.py
+test_query2.py
+test_query3.py
+test_raw_xml.py
+test_read_csv_alone.py
+test_read_verify.py
+test_read_verify_small.py
+test_redirect_vps.py
+test_script_0.js
+test_search_assertive.py
+test_search_v131.py
+test_single_file_download.py
+test_split_direct.py
+test_split_direct_small.py
+test_status.py
+test_unify_vps.py
+test_vector.py
+test_verify.py
+test_vps_api.py
+test_vps_expansion.py
+test_webdav.py
+test_webdav_v2.py
+test_webhook.py
+test_xlsx_bug.py
+test_xlsx_bug_v2.py
+test_xlsxwriter.py
+test_xlsxwriter2.py
+test_xlsxwriter_exact.py
+tmp_script.js
+trace_batch_output.py
+trigger_extract.py
+update_assets.py
+update_backend_monitor.py
+update_css.py
+update_deep_search.py
+update_hemn_clickhouse.py
+update_logo.py
+update_mei_search.py
+update_shortcut_final.ps1
+update_vps_batch.py
+update_vps_engine.py
+update_vps_search.py
+update_vps_user.py
+update_vps_v2.py
+upload_and_restart_vps.py
+upload_dbs.py
+upload_dbs_chunked.py
+upload_dbs_resilient.py
+upload_fixed_engine.py
+upload_index_vps.py
+upload_key.py
+upload_mobile_frontend.py
+upload_server.py
+upload_vps_fix.py
+validate_fixes.py
+venv/
+verify_batch.py
+verify_batch_final.py
+verify_batch_fix.py
+verify_ch_counts.py
+verify_cleanup_safety.py
+verify_clickhouse_data.py
+verify_code_on_vps.py
+verify_deduplication.py
+verify_final_fix.py
+verify_final_status.py
+verify_final_vps.py
+verify_fix.py
+verify_fix_final.py
+verify_fix_remote.py
+verify_fix_status.py
+verify_fix_vps.py
+verify_hardened_logic.py
+verify_ingestion_progress.py
+verify_mei.py
+verify_mei_fallback.py
+verify_on_vps.py
+verify_operator_filter.py
+verify_password_feature.py
+verify_phase4.py
+verify_phase4_vps.py
+verify_prefix.py
+verify_prod.py
+verify_reginaldo.py
+verify_remote_vps.py
+verify_search_fix.py
+verify_search_leads.py
+verify_sync.py
+verify_ultimate.py
+verify_v15.py
+verify_vps.py
+verify_vps_block.py
+verify_vps_final.py
+verify_vps_fix_v3.py
+verify_vps_imports.py
+verify_yield.py
+video_script.js
+visualize_data.py
+vps_alter_db.py
+vps_atomic_swap.py
+vps_check_ch_rows.py
+vps_check_cnpj.py
+vps_check_create.py
+vps_check_receita_updates.py
+vps_css_dump.css
+vps_db_migration.py
+vps_design-system.css
+vps_diag.py
+vps_final_metadata_2026.py
+vps_final_metadata_fixed.py
+vps_find_db.py
+vps_finish_all_2026.py
+vps_fix_metadata.py
+vps_fix_puzzle.py
+vps_ingest_march_2026.py
+vps_ingest_vps.py
+vps_internal_swap.py
+vps_list_ch_tables.py
+vps_list_tables.py
+vps_math_check.py
+vps_nginx.conf
+vps_radar_ch.py
+vps_revert.py
+vps_setup_cron.py
+vps_show_dbs.py
+vps_show_tables.py
+vps_swap_final.py
+vps_swap_march_2026.py
+
+
+=== Configuração Nginx ===
+hemn@
+hemn_cloud@
+
+server {
+    listen 80;
+    server_name www.hemnsystem.com.br hemnsystem.com.br 86.48.17.194;
+
+    root /var/www/hemn_cloud;
+    index index.html;
+
+    location /.well-known/acme-challenge/ {
+        root /var/www/hemn_cloud;
+        allow all;
+    }
+
+    location /areadocliente/ {
+        proxy_pass http://127.0.0.1:8000/;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location /static/ {
+        alias /var/www/hemn_cloud/static/;
+    }
+
+    location / {
+        return 301 https://hemnsystem.com.br/areadocliente/;
+    }
+
+    listen 443 ssl; # managed by Certbot
+    ssl_certificate /etc/letsencrypt/live/www.hemnsystem.com.br/fullchain.pem; # managed by Certbot
+    ssl_certificate_key /etc/letsencrypt/live/www.hemnsystem.com.br/privkey.pem; # managed by Certbot
+    include /etc/letsencrypt/options-ssl-nginx.conf; # managed by Certbot
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem; # managed by Certbot
+}
+
+server {
+    server_name hemnsystem.com.br www.hemnsystem.com.br;
+
+    # Serve static files directly
+    location /static/ {
+        alias /var/www/hemn_cloud/static/;
+        expires 7d;
+        add_header Cache-Control "public, no-transform";
+    }
+
+    # Handle prefixed static files (used in SPA)
+    location /areadocliente/static/ {
+        alias /var/www/hemn_cloud/static/;
+        expires 7d;
+        add_header Cache-Control "public, no-transform";
+    }
+
+    # Proxy everything else to FastAPI
+    location / {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        
+        # Increase timeouts for long-running extractions
+        proxy_read_timeout 300s;
+        proxy_connect_timeout 300s;
+    }
+
+    listen 443 ssl; # managed by Certbot
+    ssl_certificate /etc/letsencrypt/live/www.hemnsystem.com.br/fullchain.pem; # managed by Certbot
+    ssl_certificate_key /etc/letsencrypt/live/www.hemnsystem.com.br/privkey.pem; # managed by Certbot
+    include /etc/letsencrypt/options-ssl-nginx.conf; # managed by Certbot
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem; # managed by Certbot
+
+
+}
+server {
+    if ($host = hemnsystem.com.br) {
+        return 301 https://$host$request_uri;
+    } # managed by Certbot
+
+
+    if ($host = www.hemnsystem.com.br) {
+        return 301 https://$host$request_uri;
+    } # managed by Certbot
+
+
+    listen 80;
+    server_name hemnsystem.com.br www.hemnsystem.com.br;
+    return 404; # managed by Certbot
+
+
+
+
+}
+
