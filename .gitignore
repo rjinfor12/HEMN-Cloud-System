@@ -32,6 +32,10 @@ remote_*.py
 force_*.py
 tmp_*.py
 vps_*.py
+# CRITICAL — scripts da Receita Federal devem ficar versionados
+!vps_receita_orchestrator.py
+!vps_generic_ingest.py
+
 match_*.py
 
 # Manter scripts legítimos em data_analysis/
